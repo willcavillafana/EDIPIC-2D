@@ -1012,6 +1012,7 @@ END MODULE Checkpoints
 MODULE MCCollisions
 
   LOGICAL en_collisions_turned_off
+  LOGICAL in_collisions_turned_off
   LOGICAL no_ionization_collisions
   LOGICAL no_rcx_collisions
 
@@ -1038,10 +1039,18 @@ MODULE MCCollisions
      REAL(8), ALLOCATABLE :: energy_segment_boundary_value(:)
      REAL(8), ALLOCATABLE :: energy_segment_step(:)
 
+     ! Charge exchange for ions
      logical rcx_on
      integer rcx_ion_species_index
      real(8) sigma_rcx_m2_1eV
      real(8) alpha_rcx
+
+     ! Other collisions for ions
+     TYPE(collision_type), ALLOCATABLE :: in_colproc(:)
+     INTEGER N_in_colproc
+     INTEGER N_of_energy_segments_ions
+     REAL(8), ALLOCATABLE :: energy_segment_boundary_value_ions(:)
+     REAL(8), ALLOCATABLE :: energy_segment_step_ions(:)     
   END TYPE neutral_type
 
   TYPE(neutral_type), ALLOCATABLE :: neutral(:)
@@ -1069,6 +1078,7 @@ MODULE MCCollisions
   END TYPE selected_collision_probability
 
   TYPE(selected_collision_probability), ALLOCATABLE :: collision_e_neutral(:)
+  TYPE(selected_collision_probability), ALLOCATABLE :: collision_i_neutral(:)
 
   TYPE rcx_collision_data
      logical rcx_on

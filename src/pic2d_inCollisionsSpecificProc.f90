@@ -124,3 +124,65 @@ subroutine PERFORM_RESONANT_CHARGE_EXCHANGE
   END DO   
 
 END SUBROUTINE PERFORM_RESONANT_CHARGE_EXCHANGE
+
+!--------------------------------------------------------------------------------------------------
+!     FUNCTION frequency_of_in_collision
+!>    @details Computes ions-neutral collision frequency. Similar to frequency_of_en_collision
+!!    @authors W. Villafana
+!!    @date    03-22-2022
+!--------------------------------------------------------------------------------------------------
+
+REAL(8) FUNCTION frequency_of_in_collision(energy_eV, indx_neutral, colproc_id)
+
+  USE MCCollisions, ONLY: neutral
+  USE CurrentProblemValues, ONLY : V_scale_ms, m_e_kg, e_Cl, N_subcycles, delta_t_s 
+
+  IMPLICIT NONE
+
+  REAL(8), INTENT(IN) :: energy_eV
+  INTEGER, INTENT(IN) :: indx_neutral
+  INTEGER, INTENT(IN) :: colproc_id
+
+  INTEGER N_crsect_points
+  REAL(8) f_temp
+  INTEGER j
+  REAL(8) energy_j_eV, energy_jp1_eV, f_j, f_jp1
+
+  N_crsect_points = neutral(indx_neutral)%in_colproc(colproc_id)%N_crsect_points
+
+  IF (energy_eV.GE.neutral(indx_neutral)%in_colproc(colproc_id)%energy_eV(N_crsect_points)) THEN
+
+     f_temp = neutral(indx_neutral)%in_colproc(colproc_id)%crsect_m2(N_crsect_points) * SQRT(2.0_8 * energy_eV * e_Cl / m_e_kg)
+
+  ELSE IF (energy_eV.LT.neutral(indx_neutral)%in_colproc(colproc_id)%energy_eV(1)) THEN
+
+     IF (neutral(indx_neutral)%in_colproc(colproc_id)%type.LT.20) THEN
+! for elastic collisions only
+        f_temp = neutral(indx_neutral)%in_colproc(colproc_id)%crsect_m2(1) * SQRT(2.0_8 * energy_eV * e_Cl / m_e_kg)
+     ELSE
+! no inelastic and ionization collisions if energy below threshold. Case that should be implemented for ions
+        f_temp = 0.0_8
+     END IF
+
+  ELSE
+     
+     DO j = 1, N_crsect_points-1
+        IF ( (energy_eV.GE.neutral(indx_neutral)%in_colproc(colproc_id)%energy_eV(j)).AND. &
+           & (energy_eV.LT.neutral(indx_neutral)%in_colproc(colproc_id)%energy_eV(j+1)) ) EXIT
+     END DO
+
+     j = MIN(j, N_crsect_points-1)
+
+     energy_j_eV   = neutral(indx_neutral)%in_colproc(colproc_id)%energy_eV(j)
+     energy_jp1_eV = neutral(indx_neutral)%in_colproc(colproc_id)%energy_eV(j+1)
+
+     f_j   = neutral(indx_neutral)%in_colproc(colproc_id)%crsect_m2(j)   * SQRT(2.0_8 * energy_j_eV   * e_Cl / m_e_kg) ! not sure about this formula
+     f_jp1 = neutral(indx_neutral)%in_colproc(colproc_id)%crsect_m2(j+1) * SQRT(2.0_8 * energy_jp1_eV * e_Cl / m_e_kg)
+
+     f_temp = f_j + (f_jp1 - f_j) * (energy_eV - energy_j_eV) / (energy_jp1_eV - energy_j_eV)
+
+  END IF
+
+  frequency_of_in_collision = f_temp * neutral(indx_neutral)%N_m3 * N_subcycles * delta_t_s 
+
+END FUNCTION frequency_of_in_collision
