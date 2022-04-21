@@ -180,6 +180,8 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(5x,i1)') cluster_N_blocks_y
   READ (9, '(A1)') buf !"---ddd---ddd---- number of objects along domain boundary // number of material inner objects (>=0), each inner objects is a rectangle")')
   READ (9, '(3x,i3,3x,i3)') N_of_boundary_objects, N_of_inner_objects
+  READ (9, '(A1)') buf !"-----d---------- Choose Cartesian (=0) or cylindrical (=1 for r_theta, =2 for r_z) case 
+  READ (9, '(5x,i1)') i_cylindrical
 
 ! configuration consistency check (rectangular domain)
 ! N_blocks_x * N_blocks_y = N_of_processes

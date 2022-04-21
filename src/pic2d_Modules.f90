@@ -167,6 +167,9 @@ MODULE CurrentProblemValues
 
   REAL(8), PARAMETER :: pi = 3.141592653589793_8
 
+  INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
+                            ! For the z_theta plane we can take a Cartesian geometry for now
+
   REAL(8) eps_0_Fm
 
   INTEGER i_given_F_double_period_sys    ! in a system which is periodic in both X and Y directions, if there is no metal objects with given potential

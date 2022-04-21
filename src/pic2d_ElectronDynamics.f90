@@ -24,6 +24,10 @@ SUBROUTINE ADVANCE_ELECTRONS
   REAL(8) VX_minus, VY_minus, VZ_minus
   REAL(8) VX_plus, VY_plus, VZ_plus
 
+  REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
+  REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
+  REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
+
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
 
@@ -86,6 +90,10 @@ end if
      E_Y = EY(i,j) * ax_i * ay_j + EY(i+1,j) * ax_ip1 * ay_j + EY(i,j+1) * ax_i * ay_jp1 + EY(i+1,j+1) * ax_ip1 * ay_jp1
      E_Z = Ez(electron(k)%X, electron(k)%Y)
 
+   !   E_X = 0.0_8 !-1e3/E_scale_Vm
+   !   E_Y = 0.0_8
+   !   E_Z = 0.0_8
+
 ! calculate magnetic field factors
 
      alfa_x = -0.5_8 * Bx(electron(k)%X, electron(k)%Y)
@@ -145,8 +153,50 @@ end if
 !        CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
 !###     END IF
 
-     electron(k)%X = electron(k)%X + electron(k)%VX
-     electron(k)%Y = electron(k)%Y + electron(k)%VY
+     ! Cartesian case
+     IF ( i_cylindrical==0 ) THEN
+
+        electron(k)%X = electron(k)%X + electron(k)%VX
+        electron(k)%Y = electron(k)%Y + electron(k)%VY
+
+     ! In cyclindrical coordinates we must convert Cartesian velocities in Cylindrical form (Delzanno 2013)
+     ELSEIF ( i_cylindrical==1 ) THEN ! r_theta case ie r=X and theta=Y
+
+        ! First compute intermediate position (X = radius)
+        x_cart = electron(k)%X + electron(k)%VX
+        y_cart = electron(k)%VY
+        radius = SQRT( x_cart**2 + y_cart**2 )
+
+        ! Then compute increment angle alpha
+        alpha_ang = DATAN2(y_cart,x_cart) 
+
+        ! Update radius (X) and azimuthal angle (Y coordinate)
+        electron(k)%X = radius
+        electron(k)%Y  = electron(k)%Y + alpha_ang 
+
+        ! Get Final velocities in cylindrical system (z speed has already been update above)
+        electron(k)%VX =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VY
+        electron(k)%VY = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VY
+
+     ELSEIF ( i_cylindrical==2 ) THEN ! r_z case ie r=X and z=Y, theta=Z
+
+        ! First compute intermediate position (X = radius)
+        x_cart = electron(k)%X + electron(k)%VX
+        z_cart = electron(k)%VZ ! in theta direction
+        radius =  SQRT( x_cart**2 + z_cart**2 )
+
+        ! Then compute increment angle alpha
+        alpha_ang = DATAN2(z_cart,x_cart) 
+
+        ! Update radius (X). 
+        electron(k)%X = radius
+        electron(k)%Y = electron(k)%Y + electron(k)%VY
+
+        ! Get Final velocities in cylindrical system. (z speed has already been update above)
+        electron(k)%VX =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VZ
+        electron(k)%VZ = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VZ     
+
+     ENDIF
 
 ! a particle crossed symmetry plane, reflect it
      IF (symmetry_plane_X_left) THEN
