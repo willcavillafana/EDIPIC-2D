@@ -25,7 +25,7 @@ PROGRAM MainProg
   CHARACTER(54) rmandmkdir_command    ! rm -rfv checkdir_TTTTTTTT ; mkdir -v checkdir_TTTTTTTT
                                       ! ----x----I----x----I----x----I----x----I----x----I----
 
-  REAL(8) t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20
+  !REAL(8) t0, t1, t2, t3, t4, t5, t6, t7, t8, t9, t10, t11, t12, t13, t14, t15, t16, t17, t18, t19, t20
 
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
@@ -338,7 +338,7 @@ PROGRAM MainProg
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
         CALL end_timer( clear_accumulated_fields_timer )
-        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission ) 
+        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer ) 
         !t16 = MPI_WTIME()
 
      ELSE
@@ -374,7 +374,7 @@ PROGRAM MainProg
         CALL end_timer( add_ions_after_collisions_timer )
         CALL start_timer( clear_accumulated_fields_timer ) 
         CALL end_timer( clear_accumulated_fields_timer )
-        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission )                          
+        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer )                          
       !   t13 = MPI_WTIME()
       !   t14 = t13
       !   t15 = t13
@@ -401,7 +401,7 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
      
-     CALL end_timer( create_averaged_snapshot_and_compute_ptcl_emission )
+     CALL end_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer )
      CALL start_timer( add_electrons_after_emission_timer )   
      !t17 = MPI_WTIME()
 
