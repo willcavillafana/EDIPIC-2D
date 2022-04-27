@@ -166,6 +166,10 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: kB_JK    = 1.38064852d-23    ! Boltzmann constant [J/K]
 
   REAL(8), PARAMETER :: pi = 3.141592653589793_8
+  REAL(8), PARAMETER :: zero = 0.0_8
+  REAL(8), PARAMETER :: one = 1.0_8
+
+  INTEGER, PARAMETER :: string_length = 300
 
   INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
                             ! For the z_theta plane we can take a Cartesian geometry for now

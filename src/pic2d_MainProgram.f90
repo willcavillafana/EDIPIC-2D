@@ -6,6 +6,8 @@ PROGRAM MainProg
   USE LoadBalancing
   USE ClusterAndItsBoundaries
   USE Checkpoints
+  USE mod_def_timers
+  USE mod_timers, ONLY: start_timer, end_timer, print_timer, pic_loop_timer
 
   IMPLICIT NONE
 
@@ -15,6 +17,10 @@ PROGRAM MainProg
   REAL(8) start, finish
   INTEGER n_sub
   LOGICAL ions_moved
+
+  ! Timer
+  REAL(8)                      :: loop_time,time_measured
+  CHARACTER(LEN=string_length) :: message
 
   CHARACTER(54) rmandmkdir_command    ! rm -rfv checkdir_TTTTTTTT ; mkdir -v checkdir_TTTTTTTT
                                       ! ----x----I----x----I----x----I----x----I----x----I----
@@ -89,11 +95,13 @@ PROGRAM MainProg
   n_sub = 0
   ions_moved = .TRUE.
 
+  CALL start_timer( total_timer )
   DO T_cntr = Start_T_cntr, Max_T_cntr
 
      if (Rank_of_process.eq.0) print *, T_cntr
 
-     t0 = MPI_WTIME()
+     CALL start_timer( save_checkpoint_timer )
+     !t0 = MPI_WTIME()
 
      IF (T_cntr.EQ.T_cntr_save_checkpoint) THEN
         IF (use_mpiio_checkpoint) THEN
@@ -115,7 +123,9 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t1 = MPI_WTIME()
+     CALL end_timer( save_checkpoint_timer )
+     CALL start_timer( global_load_balance_timer )
+     !t1 = MPI_WTIME()
 
      call report_total_number_of_particles
 
@@ -131,7 +141,9 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t2 = MPI_WTIME()
+     CALL end_timer( global_load_balance_timer )
+     CALL start_timer( internal_load_balance_timer )
+     !t2 = MPI_WTIME()
 
      IF (T_cntr.EQ.T_cntr_cluster_load_balance) THEN
         CALL BALANCE_LOAD_WITHIN_CLUSTER
@@ -140,13 +152,17 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t3 = MPI_WTIME()
+     CALL end_timer( internal_load_balance_timer )
+     CALL start_timer( gather_ion_charge_density_timer )    
+     !t3 = MPI_WTIME()
 
      IF (n_sub.EQ.0) CALL GATHER_ION_CHARGE_DENSITY 
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t4 = MPI_WTIME()
+     CALL end_timer( gather_ion_charge_density_timer )
+     CALL start_timer( gather_electron_charge_density_timer )    
+     !t4 = MPI_WTIME()
 
      CALL GATHER_ELECTRON_CHARGE_DENSITY      ! here surface charge density on inner dielectric objects is subtracted from the electron volume charge density
 
@@ -159,7 +175,9 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t5 = MPI_WTIME()
+     CALL end_timer( gather_electron_charge_density_timer )
+     CALL start_timer( poisson_solver_timer )    
+     !t5 = MPI_WTIME()
 
      IF ((periodicity_flag.EQ.PERIODICITY_NONE).OR.(periodicity_flag.EQ.PERIODICITY_X_PETSC).OR.(periodicity_flag.EQ.PERIODICITY_X_Y)) THEN
 
@@ -167,7 +185,9 @@ PROGRAM MainProg
         
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t6 = MPI_WTIME()
+        CALL end_timer( poisson_solver_timer )
+        CALL start_timer( calculate_electric_field_timer )    
+        !t6 = MPI_WTIME()
 
         CALL SOLVE_EXTERNAL_CONTOUR
 
@@ -179,27 +199,35 @@ PROGRAM MainProg
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t6 = MPI_WTIME()
+        CALL end_timer( poisson_solver_timer )
+        CALL start_timer( calculate_electric_field_timer )    
+        !t6 = MPI_WTIME()
 
         CALL CALCULATE_ELECTRIC_FIELD_FFTX_LINSYSY
      
      END IF
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-
-     t7 = MPI_WTIME()
+     
+     CALL end_timer( calculate_electric_field_timer )
+     CALL start_timer( compute_averaged_snapshot_timer )    
+     !t7 = MPI_WTIME()
 
      CALL COLLECT_F_EX_EY_FOR_AVERAGED_SNAPSHOT
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t8 = MPI_WTIME()
+     CALL end_timer( compute_averaged_snapshot_timer )
+     CALL start_timer( create_instantaneous_snapshot_timer )    
+     !t8 = MPI_WTIME()
 
      CALL CREATE_SNAPSHOT
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t9 = MPI_WTIME()
+     CALL end_timer( create_instantaneous_snapshot_timer )
+     CALL start_timer( electron_pusher_with_collisions_inner_object_timer )    
+     !t9 = MPI_WTIME()
 
      CALL ADVANCE_ELECTRONS_PLUS                      !   velocity: n-1/2 ---> n+1/2
                                                       ! coordinate: n     ---> n+1 
@@ -215,7 +243,9 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-     t10 = MPI_WTIME()
+     CALL end_timer( electron_pusher_with_collisions_inner_object_timer )
+     CALL start_timer( ions_pusher_with_collisions_inner_object_timer )    
+     !t10 = MPI_WTIME()
 
      n_sub = n_sub + 1
      IF (n_sub.EQ.N_subcycles) THEN            ! N_subcycles is odd
@@ -235,7 +265,9 @@ PROGRAM MainProg
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t11 = MPI_WTIME()
+        CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
+        CALL start_timer( transfer_particle_after_pusher_timer )   
+        !t11 = MPI_WTIME()
 
         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive BOTH electrons and ions crossing the borders
            CALL EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
@@ -254,13 +286,17 @@ PROGRAM MainProg
     
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-        t12 = MPI_WTIME()
+        CALL end_timer( transfer_particle_after_pusher_timer )
+        CALL start_timer( collect_particles_hitting_with_bo_timer )   
+        !t12 = MPI_WTIME()
 
         CALL COLLECT_PARTICLE_BOUNDARY_HITS
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t13 = MPI_WTIME()
+        CALL end_timer( collect_particles_hitting_with_bo_timer )
+        CALL start_timer( compute_mcc_timer ) 
+        !t13 = MPI_WTIME()
 
         CALL PERFORM_ELECTRON_NEUTRAL_COLLISIONS
 
@@ -284,25 +320,32 @@ PROGRAM MainProg
 
 !###        CALL PERFORM_IONIZATION_HT_SETUP
 !        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-
-        t14 = MPI_WTIME()
+        CALL end_timer( compute_mcc_timer )
+        CALL start_timer( add_ions_after_collisions_timer ) 
+        !t14 = MPI_WTIME()
 
         CALL PROCESS_ADDED_IONS                  ! add the new ions to the main array
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t15 = MPI_WTIME()
+        CALL end_timer( add_ions_after_collisions_timer )
+        CALL start_timer( clear_accumulated_fields_timer ) 
+        !t15 = MPI_WTIME()
 
         CALL CLEAR_ACCUMULATED_FIELDS
         n_sub = 0                                 !### n_sub reset to zero here
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t16 = MPI_WTIME()
+        CALL end_timer( clear_accumulated_fields_timer )
+        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission ) 
+        !t16 = MPI_WTIME()
 
      ELSE
 
-        t11 = t10
+        CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
+        CALL start_timer( transfer_particle_after_pusher_timer ) 
+        !t11 = t10
 
         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive ONLY electrons crossing the borders
            CALL EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
@@ -313,8 +356,10 @@ PROGRAM MainProg
         END IF
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-
-        t12 = MPI_WTIME()
+        
+        CALL end_timer( transfer_particle_after_pusher_timer )
+        CALL start_timer( collect_particles_hitting_with_bo_timer )   
+        !t12 = MPI_WTIME()
 
         CALL FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
 
@@ -322,10 +367,18 @@ PROGRAM MainProg
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        t13 = MPI_WTIME()
-        t14 = t13
-        t15 = t13
-        t16 = t13
+        CALL end_timer( collect_particles_hitting_with_bo_timer )
+        CALL start_timer( compute_mcc_timer )    
+        CALL end_timer( compute_mcc_timer )
+        CALL start_timer( add_ions_after_collisions_timer )     
+        CALL end_timer( add_ions_after_collisions_timer )
+        CALL start_timer( clear_accumulated_fields_timer ) 
+        CALL end_timer( clear_accumulated_fields_timer )
+        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission )                          
+      !   t13 = MPI_WTIME()
+      !   t14 = t13
+      !   t15 = t13
+      !   t16 = t13
 
      END IF
 
@@ -347,21 +400,27 @@ PROGRAM MainProg
      CALL PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
-
-     t17 = MPI_WTIME()
+     
+     CALL end_timer( create_averaged_snapshot_and_compute_ptcl_emission )
+     CALL start_timer( add_electrons_after_emission_timer )   
+     !t17 = MPI_WTIME()
 
      CALL PROCESS_ADDED_ELECTRONS                ! add the new electrons to the main array
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-     t18 = MPI_WTIME()
+     CALL end_timer( add_electrons_after_emission_timer )
+     CALL start_timer( save_bo_particle_hits_emissions_timer )   
+     !t18 = MPI_WTIME()
 
 !###     CALL SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS_HT_SETUP  ! only one of the two will work
      CALL SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS           ! 
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-     t19 = MPI_WTIME()
+     CALL end_timer( save_bo_particle_hits_emissions_timer )
+     CALL start_timer( gather_surface_charge_density_timer )   
+     !t19 = MPI_WTIME()
 
      CALL GATHER_SURFACE_CHARGE_DENSITY      ! 
 
@@ -369,39 +428,179 @@ PROGRAM MainProg
 
      CALL GATHER_SURFACE_CHARGE_DENSITY_INNER_OBJECTS   ! whole_object%surface_charge_variation=0 is done here
 
-     t20 = MPI_WTIME()
+     CALL end_timer( gather_surface_charge_density_timer )
+ 
 
-     IF (Rank_of_process.EQ.0) PRINT '(2x,i9,2x,f8.3,2x,20(1x,f5.1))', &
-          & T_cntr, &
-          & REAL(t20 - t0), &
-          & 100.0 * REAL((t1  - t0 ) / (t20 - t0)), &
-          & 100.0 * REAL((t2  - t1 ) / (t20 - t0)), &
-          & 100.0 * REAL((t3  - t2 ) / (t20 - t0)), &
-          & 100.0 * REAL((t4  - t3 ) / (t20 - t0)), &
-          & 100.0 * REAL((t5  - t4 ) / (t20 - t0)), &
-          & 100.0 * REAL((t6  - t5 ) / (t20 - t0)), &
-          & 100.0 * REAL((t7  - t6 ) / (t20 - t0)), &
-          & 100.0 * REAL((t8  - t7 ) / (t20 - t0)), &
-          & 100.0 * REAL((t9  - t8 ) / (t20 - t0)), &
-          & 100.0 * REAL((t10 - t9 ) / (t20 - t0)), &
-          & 100.0 * REAL((t11 - t10) / (t20 - t0)), &
-          & 100.0 * REAL((t12 - t11) / (t20 - t0)), &
-          & 100.0 * REAL((t13 - t12) / (t20 - t0)), &
-          & 100.0 * REAL((t14 - t13) / (t20 - t0)), &
-          & 100.0 * REAL((t15 - t14) / (t20 - t0)), &
-          & 100.0 * REAL((t16 - t15) / (t20 - t0)), &
-          & 100.0 * REAL((t17 - t16) / (t20 - t0)), &
-          & 100.0 * REAL((t18 - t17) / (t20 - t0)), &
-          & 100.0 * REAL((t19 - t18) / (t20 - t0)), &
-          & 100.0 * REAL((t20 - t19) / (t20 - t0))
+     !t20 = MPI_WTIME()
+     ! Output time info
+   !   loop_time = t20 - t0
+
+   !   IF ( Rank_of_process==0 ) THEN
+   !    message = "Save checkpoint"
+   !    time_measured = t1  - t0
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"
+   !    message = "Global load balance"
+   !    time_measured = t2  - t1
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"
+   !    message = "Internal load balance"
+   !    time_measured = t3  - t2
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"                                                                                              
+   !    message = "Gather ion charge density"
+   !    time_measured = t4  - t3
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Gather electron charge density"
+   !    time_measured = t5  - t4
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Solve Poisson equation"
+   !    time_measured = t6  - t5
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Calculate electric field"
+   !    time_measured = t7  - t6
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Compute averaged snapshot"
+   !    time_measured = t8  - t7
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Create instantaneous snapshot"
+   !    time_measured = t9  - t8
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Electron pusher + collisions with internal object"
+   !    time_measured = t10  - t9
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Ion pusher + collisions with internal object"
+   !    time_measured = t11  - t10
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"                                                    
+   !    message = "Transfer particles after pusher"
+   !    time_measured = t12  - t11
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Collect particles hitting with boundary"
+   !    time_measured = t13  - t12
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Compute MCC"
+   !    time_measured = t14  - t13
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Add ions after collisions"
+   !    time_measured = t15  - t14
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Clear accumulated fields"
+   !    time_measured = t16  - t15
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Create average snapshot + particle emission"
+   !    time_measured = t17  - t16
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"     
+   !    message = "Add electrons after emission"
+   !    time_measured = t18  - t17
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"  
+   !    message = "SAVE BOUNDARY PARTICLE HITS EMISSIONS"
+   !    time_measured = t19  - t18
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"  
+   !    message = "Gather surface charge density"
+   !    time_measured = t20  - t19
+   !    WRITE(*,'(A,T50,A,T120,E12.4,A,F6.2,A)') "CPU INFO ",">>> "//TRIM(message)//" (s) : ",&
+   !                                              time_measured, " ==> ", time_measured/loop_time*100.0_8, "%"  
+   !  ENDIF
+   !   IF (Rank_of_process.EQ.0) PRINT '(2x,i9,2x,f8.3,2x,20(1x,f5.1))', &
+   !        & T_cntr, &
+   !        & REAL(t20 - t0), &
+   !        & 100.0 * REAL((t1  - t0 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t2  - t1 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t3  - t2 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t4  - t3 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t5  - t4 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t6  - t5 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t7  - t6 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t8  - t7 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t9  - t8 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t10 - t9 ) / (t20 - t0)), &
+   !        & 100.0 * REAL((t11 - t10) / (t20 - t0)), &
+   !        & 100.0 * REAL((t12 - t11) / (t20 - t0)), &
+   !        & 100.0 * REAL((t13 - t12) / (t20 - t0)), &
+   !        & 100.0 * REAL((t14 - t13) / (t20 - t0)), &
+   !        & 100.0 * REAL((t15 - t14) / (t20 - t0)), &
+   !        & 100.0 * REAL((t16 - t15) / (t20 - t0)), &
+   !        & 100.0 * REAL((t17 - t16) / (t20 - t0)), &
+   !        & 100.0 * REAL((t18 - t17) / (t20 - t0)), &
+   !        & 100.0 * REAL((t19 - t18) / (t20 - t0)), &
+   !        & 100.0 * REAL((t20 - t19) / (t20 - t0))
 
   END DO
+  CALL end_timer( total_timer )     
+  pic_loop_timer = total_timer  
 
   finish = MPI_WTIME()
 
-  PRINT '(2x,"**** Process ",i3" : Simulation time is  : ", f12.3," sec")', Rank_of_process, finish - start
+  !PRINT '(2x,"**** Process ",i3" : Simulation time is  : ", f12.3," sec")', Rank_of_process, finish - start
 
   CALL FINISH_SNAPSHOTS
+
+!---------------------------------------------------------------------
+!  Print CPU info
+!---------------------------------------------------------------------
+CALL print_cpu_time
+!   message = "Total PIC loop"
+!   CALL print_timer( pic_loop_timer,message )
+!   message = "Save checkpoint"
+!   CALL print_timer( save_checkpoint_timer,message )
+!   message = "Global load balance"        
+!   CALL print_timer( global_load_balance_timer,message )
+!   message = "Internal load balance"        
+!   CALL print_timer( internal_load_balance_timer,message )
+!   message = "Gather ion charge density"
+!   CALL print_timer( gather_ion_charge_density_timer,message )
+!   message = "Gather electron charge density"
+!   CALL print_timer( gather_electron_charge_density_timer,message )
+!   message = "Solve Poisson equation"
+!   CALL print_timer( poisson_solver_timer,message )
+!   message = "Calculate electric field"
+!   CALL print_timer( calculate_electric_field_timer,message )
+!   message = "Compute averaged snapshot"
+!   CALL print_timer( compute_averaged_snapshot_timer,message )
+!   message = "Create instantaneous snapshot"
+!   CALL print_timer( create_instantaneous_snapshot_timer,message )
+!   message = "Electron pusher + collisions with internal object"
+!   CALL print_timer( electron_pusher_with_collisions_inner_object_timer,message )
+!   message = "Ion pusher + collisions with internal object"
+!   CALL print_timer( ions_pusher_with_collisions_inner_object_timer,message )
+!   message = "Transfer particles after pusher"
+!   CALL print_timer( transfer_particle_after_pusher_timer,message )
+!   message = "Collect particles hitting with boundary"
+!   CALL print_timer( collect_particles_hitting_with_bo_timer,message )
+!   message = "Compute MCC"
+!   CALL print_timer( compute_mcc_timer,message )
+!   message = "Add ions after collisions"
+!   CALL print_timer( add_ions_after_collisions_timer,message )
+!   message = "Clear accumulated fields"
+!   CALL print_timer( clear_accumulated_fields_timer,message )
+!   message = "Create average snapshot + particle emission"
+!   CALL print_timer( create_averaged_snapshot_and_compute_ptcl_emission,message )
+!   message = "Add electrons after emission"
+!   CALL print_timer( add_electrons_after_emission_timer,message )
+!   message = "Save bo particle hits emissions"
+!   CALL print_timer( save_bo_particle_hits_emissions_timer,message )
+!   message = "Gather surface charge density"
+!   CALL print_timer( gather_surface_charge_density_timer,message )
+
+!---------------------------------------------------------------------
+!  End program
+!---------------------------------------------------------------------
 
   CALL MPI_FINALIZE(ierr)
 

@@ -35,6 +35,8 @@ LIBS := -L${PETSC_DIR}/lib -lpetsc -lHYPRE
 
 OBJ := WELL19937a_new.o \
        pic2d_Modules.o \
+       mod_timers.o \
+       mod_def_timers.o \
        pic2d_Snapshots.o \
        pic2d_SnapshotsAvg.o \
        pic2d_Prepare_FFTX_SYSY.o \
@@ -71,7 +73,7 @@ OBJ := WELL19937a_new.o \
        pic2d_CurProblemValues.o \
        pic2d_SEEmission.o \
        pic2d_IonEmissions.o \
-       pic2d_ExternalCircuits.o
+       pic2d_ExternalCircuits.o 
 
 edipic2d : $(OBJ)
 	$(FC) $(FFLAGS) -o $@ $(OBJ) $(LIBS)
