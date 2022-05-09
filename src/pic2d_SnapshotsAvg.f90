@@ -197,13 +197,20 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
 ! overwrite default value of the first snapshot number if the system is initialized using a checkpoint
   IF (use_checkpoint.EQ.1) THEN 
-     DO n = 1, N_of_all_avgsnaps
-        IF (avgsnapshot(n)%T_cntr_begin.GE.Start_T_cntr) THEN
-           current_avgsnap = n
-           IF (Rank_of_process.EQ.0) PRINT '("INITIATE_AVERAGED_SNAPSHOTS :: adjusted number of the first snapshot ",i4)', current_avgsnap
-           EXIT
-        END IF
-     END DO
+      ! Check if we should due an avg snapshot given the current starting time
+   IF ( avgsnapshot(N_of_all_avgsnaps)%T_cntr_begin < Start_T_cntr ) THEN ! If we enter here it means we already have all our snapshots
+      current_avgsnap = N_of_all_avgsnaps +1 ! We artifically set this index to prevent from generating an average snapshot  
+      IF (Rank_of_process.EQ.0) PRINT '("INITIATE_AVERAGED_SNAPSHOTS :: the simulation time is greater than the starting time for averaged snapshots. &
+                                       All snapshots have been generated already")'
+   ELSE ! It means we still we have some snapshots to do. 
+      DO n = 1, N_of_all_avgsnaps
+         IF (avgsnapshot(n)%T_cntr_begin.GE.Start_T_cntr) THEN
+            current_avgsnap = n
+            IF (Rank_of_process.EQ.0) PRINT '("INITIATE_AVERAGED_SNAPSHOTS :: adjusted number of the first snapshot ",i4)', current_avgsnap
+            EXIT
+         END IF
+      END DO
+   ENDIF
   END IF
 
 END SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
