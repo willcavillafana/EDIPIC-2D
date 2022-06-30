@@ -23,6 +23,7 @@ SUBROUTINE ADVANCE_ELECTRONS
   REAL(8) K11, K12, K13, K21, K22, K23, K31, K32, K33
   REAL(8) VX_minus, VY_minus, VZ_minus
   REAL(8) VX_plus, VY_plus, VZ_plus
+  REAL(8) :: vx_temp,vy_temp,vz_temp
 
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
@@ -175,8 +176,11 @@ end if
         electron(k)%Y  = electron(k)%Y + alpha_ang 
 
         ! Get Final velocities in cylindrical system (z speed has already been update above)
-        electron(k)%VX =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VY
-        electron(k)%VY = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VY
+        vx_temp =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VY
+        vy_temp = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VY
+
+        electron(k)%VX = vx_temp
+        electron(k)%VY = vy_temp
 
      ELSEIF ( i_cylindrical==2 ) THEN ! r_z case ie r=X and z=Y, theta=Z
 
@@ -193,8 +197,11 @@ end if
         electron(k)%Y = electron(k)%Y + electron(k)%VY
 
         ! Get Final velocities in cylindrical system. (z speed has already been update above)
-        electron(k)%VX =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VZ
-        electron(k)%VZ = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VZ     
+        vx_temp =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VZ
+        vz_temp = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VZ
+        
+        electron(k)%VX = vx_temp
+        electron(k)%VZ = vz_temp        
 
      ENDIF
 

@@ -23,6 +23,7 @@ SUBROUTINE ADVANCE_IONS
   REAL(8) K11, K12, K13, K21, K22, K23, K31, K32, K33
   REAL(8) VX_minus, VY_minus, VZ_minus
   REAL(8) VX_plus, VY_plus, VZ_plus
+  REAL(8) :: vx_temp,vy_temp,vz_temp
 
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
@@ -176,8 +177,11 @@ SUBROUTINE ADVANCE_IONS
             ion(s)%part(k)%Y  = ion(s)%part(k)%Y + alpha_ang 
    
             ! Get Final velocities in cylindrical system (z speed has already been update above)
-            ion(s)%part(k)%VX =   COS(alpha_ang)*ion(s)%part(k)%VX + SIN(alpha_ang)*ion(s)%part(k)%VY
-            ion(s)%part(k)%VY = - SIN(alpha_ang)*ion(s)%part(k)%VX + COS(alpha_ang)*ion(s)%part(k)%VY
+            vx_temp =   COS(alpha_ang)*ion(s)%part(k)%VX + SIN(alpha_ang)*ion(s)%part(k)%VY
+            vy_temp = - SIN(alpha_ang)*ion(s)%part(k)%VX + COS(alpha_ang)*ion(s)%part(k)%VY
+            
+            ion(s)%part(k)%VX = vx_temp
+            ion(s)%part(k)%VY = vy_temp            
  
          ELSEIF ( i_cylindrical==2 ) THEN ! r_z case ie r=X and z=Y, theta=Z
    
@@ -194,8 +198,11 @@ SUBROUTINE ADVANCE_IONS
             ion(s)%part(k)%Y = ion(s)%part(k)%Y + ion(s)%part(k)%VY * N_subcycles
 
             ! Get Final velocities in cylindrical system. (z speed has already been update above)
-            ion(s)%part(k)%VX =   COS(alpha_ang)*ion(s)%part(k)%VX + SIN(alpha_ang)*ion(s)%part(k)%VZ
-            ion(s)%part(k)%VZ = - SIN(alpha_ang)*ion(s)%part(k)%VX + COS(alpha_ang)*ion(s)%part(k)%VZ     
+            vx_temp =   COS(alpha_ang)*ion(s)%part(k)%VX + SIN(alpha_ang)*ion(s)%part(k)%VZ
+            vz_temp = - SIN(alpha_ang)*ion(s)%part(k)%VX + COS(alpha_ang)*ion(s)%part(k)%VZ 
+            
+            ion(s)%part(k)%VX = vx_temp
+            ion(s)%part(k)%VZ = vz_temp                 
    
          ENDIF
 
