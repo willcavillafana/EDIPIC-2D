@@ -90,13 +90,13 @@ SUBROUTINE INITIATE_ION_NEUTRAL_COLLISIONS
 END SUBROUTINE INITIATE_ION_NEUTRAL_COLLISIONS
 
 !--------------------------------------------------------------------------------------------------
-!     SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
-!>    @details Reads parameters for elastic ions-neutral collisions. Should be merged with INITIATE_ION_NEUTRAL_COLLISIONS at some point 
+!     SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_GENERAL
+!>    @details Reads parameters for elastic and charge exchange ions-neutral collisions. Collisions are based on cross sections tables. Should be merged with INITIATE_ION_NEUTRAL_COLLISIONS at some point
 !!    @authors W. Villafana
 !!    @date    03-21-2022
 !--------------------------------------------------------------------------------------------------
 
-SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
+SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_GENERAL
 
    USE ParallelOperationValues
    USE MCCollisions, ONLY: in_collisions_turned_off, no_ionization_collisions, neutral, collision_i_neutral, N_neutral_spec
@@ -115,13 +115,13 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
    CHARACTER(1) buf
    INTEGER n
  
-   CHARACTER(23) initneutral_filename   ! init_neutral_AAAAAA.dat
+   CHARACTER(28) initneutral_filename   ! init_neutral_AAAAAA_ions.dat
                                         ! ----x----I----x----I---
    INTEGER ALLOC_ERR
    INTEGER p, i, s
    INTEGER colflag
  
-   CHARACTER(49) initneutral_crsect_filename  ! init_neutral_AAAAAA_crsect_coll_id_NN_type_NN.dat
+   CHARACTER(54) initneutral_crsect_filename  ! init_neutral_AAAAAA_crsect_coll_id_NN_type_NN_ions.dat
                                               ! ----x----I----x----I----x----I----x----I----x----
  
    INTEGER count
@@ -194,7 +194,6 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
          neutral(n)%N_in_colproc = 0
          CYCLE
       END IF
- 
       OPEN (9, FILE = initneutral_filename)
       READ (9, '(A1)') buf !---ddd.ddd--- mass [a.m.u.]
       READ (9, '(3x,f7.3)') neutral(n)%M_amu
@@ -206,15 +205,19 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
          CLOSE (9, STATUS = 'KEEP')
          CYCLE
       END IF
- 
       ALLOCATE(neutral(n)%in_colproc(1:neutral(n)%N_in_colproc), STAT=ALLOC_ERR)
       DO p = 1, neutral(n)%N_in_colproc
-         READ (9, '(A1)') buf !---dd--d--dd--- collision #NN :: type / activated (1/0 = Yes/No) 
-         READ (9, '(3x,i2,2x,i1,2x)') neutral(n)%in_colproc(p)%type, colflag
+         READ (9, '(A1)') buf !---dd--d--- collision #NN :: type / activated (1/0 = Yes/No) 
+         READ (9, '(3x,i2,2x,i1)') neutral(n)%in_colproc(p)%type, colflag
          neutral(n)%in_colproc(p)%activated = .FALSE.
          IF (colflag.NE.0) neutral(n)%in_colproc(p)%activated = .TRUE.
+
+         ! Check if charge exchange has been requested for analytical model 
+         IF ( neutral(n)%rcx_on .AND. Rank_of_process==0 .AND. neutral(n)%in_colproc(p)%type==20 .AND. colflag==1 ) THEN
+            PRINT*,'You are requesting ion-neutral charge exchange from cross section table. However you have already requested charge exchange as an analytical model. Choose one.'
+            STOP
+         END IF
       END DO
- 
       READ (9, '(A1)') buf !--------dd--- number of energy segments for collision probabilities (>0)
       READ (9, '(8x,i2)') neutral(n)%N_of_energy_segments_ions
       ALLOCATE(neutral(n)%energy_segment_boundary_value_ions(0:neutral(n)%N_of_energy_segments_ions), STAT=ALLOC_ERR)
@@ -228,33 +231,20 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
  
       CLOSE (9, STATUS = 'KEEP')
    END DO
- 
  !CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
  !print *, "read ", initneutral_filename
  
  ! collision types
  ! 10 = elastic
- ! 20 = inelastic
- !   21, 22, 23, etc.
- ! 30 = ionization, ion+ and e-
- ! 40 = ionization, ion++ and e- e-
- ! etc, we do the 3 first types only, though allow multiple inelastic collisions
+ ! 20 = charge exchange
  
- ! init_neutral_Xenon-.dat
- ! cross sections
- ! init_neutral_Xenon-_crsect_colltype_10.dat
- ! init_neutral_Xenon-_crsect_colltype_20.dat
- ! init_neutral_Xenon-_crsect_colltype_30.dat
- ! init_neutral_Xenon-_crsect_colltype_40.dat etc
- ! 
  
  ! for each neutral species included, for each activated collisional process, read cross sections
  
    DO n = 1, N_neutral_spec
       DO p = 1, neutral(n)%N_in_colproc
- 
+
          IF (.NOT.neutral(n)%in_colproc(p)%activated) CYCLE
- 
          in_collisions_turned_off = .FALSE.                                           !### flip the general collision switch
   
          initneutral_crsect_filename = 'init_neutral_AAAAAA_crsect_coll_id_NN_type_NN_ions.dat'
@@ -263,20 +253,18 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
          initneutral_crsect_filename(44:45) = convert_int_to_txt_string(neutral(n)%in_colproc(p)%type, 2)
          INQUIRE( FILE = initneutral_crsect_filename, EXIST = exists)
          IF (.NOT.exists) THEN
-            IF (Rank_of_process.EQ.0) PRINT '("###ERROR :: file ",A49," not found, for neutrals ",A6," while collisions ",i2," of type ",i2," are activated, program terminated")', &
+            PRINT '("###ERROR :: file ",A54," not found, for neutrals ",A6," while collisions ",i2," of type ",i2," are activated, program terminated")', &
                  & initneutral_crsect_filename, neutral(n)%name, p, neutral(n)%in_colproc(p)%type
             CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
          END IF
- 
          OPEN(9, FILE = initneutral_crsect_filename)
-         READ (9, '(2x,i4)') neutral(n)%in_colproc(p)%N_crsect_points
+         READ (9, '(2x,i5)') neutral(n)%in_colproc(p)%N_crsect_points
          ALLOCATE(neutral(n)%in_colproc(p)%energy_eV(1:neutral(n)%in_colproc(p)%N_crsect_points), STAT = ALLOC_ERR)
          ALLOCATE(neutral(n)%in_colproc(p)%crsect_m2(1:neutral(n)%in_colproc(p)%N_crsect_points), STAT = ALLOC_ERR)
          DO i = 1, neutral(n)%in_colproc(p)%N_crsect_points
             READ (9, '(4x,f9.3,2x,e10.3)') neutral(n)%in_colproc(p)%energy_eV(i), neutral(n)%in_colproc(p)%crsect_m2(i)
          END DO
          CLOSE (9, STATUS = 'KEEP')
- 
  ! set thresholds for inelastic/ionization collisions
          neutral(n)%in_colproc(p)%threshold_energy_eV = 0.0_8   ! for elastic collisions
          ! For now discard other collisions than elastic
@@ -284,7 +272,6 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
  
       END DO
    END DO
- 
    ALLOCATE(collision_i_neutral(1:N_neutral_spec), STAT = ALLOC_ERR)
    DO n = 1, N_neutral_spec
  
@@ -385,7 +372,7 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
  
  ! find maximal fraction of colliding particles for the neutral density neutral(n)%N_m3
       collision_i_neutral(n)%max_colliding_fraction = 1.0_8 - EXP(-collision_i_neutral(n)%prob_colproc_energy(collision_i_neutral(n)%N_of_activated_colproc, indx_energy_max_prob))
- 
+
  ! convert accumulated collision frequencies into boundaries of probability ranges for collision processes
       temp = collision_i_neutral(n)%prob_colproc_energy(collision_i_neutral(n)%N_of_activated_colproc, indx_energy_max_prob)
       DO indx_energy = 0, collision_i_neutral(n)%N_of_energy_values
@@ -405,11 +392,368 @@ SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
  
    END DO   !###  DO n = 1, N_neutral_spec
  
- END SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
+END SUBROUTINE INITIATE_IONS_NEUTRAL_COLLISIONS_GENERAL
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE PERFORM_ION_NEUTRAL_COLLISIONS_ELASTIC
+!>    @details Performs elastic and charge exchange ions-neutral collisions from cross section tables
+!!    @authors W. Villafana
+!!    @date    08-24-2022
+!--------------------------------------------------------------------------------------------------
+
+SUBROUTINE PERFORM_ION_NEUTRAL_COLLISIONS
+
+   USE ParallelOperationValues
+   USE MCCollisions
+   USE IonParticles
+   USE CurrentProblemValues, ONLY : V_scale_ms, m_e_kg, e_Cl
+   USE ClusterAndItsBoundaries
+   USE rng_wrapper
+   USE Snapshots
+ 
+ !  USE ParallelOperationValues
+ 
+   IMPLICIT NONE
+ 
+   INCLUDE 'mpif.h'
+ 
+   INTEGER ierr
+   INTEGER stattus(MPI_STATUS_SIZE)
+   INTEGER request
+ 
+   INTEGER ALLOC_ERR
+ 
+   INTEGER n, p
+ 
+   REAL(8) R_collided, F_collided
+   INTEGER I_collided
+ 
+   INTEGER j
+ 
+   REAL(8) random_r, random_n
+   INTEGER random_j
+ 
+   REAL(8) energy_eV
+   INTEGER indx_energy
+   REAL(8) a1, a0
+   INTEGER i, indx_segment
+ 
+   INTEGER k, indx_coll
+ 
+   INTEGER n1, n2, n3, bufsize, pos
+   REAL, ALLOCATABLE :: rbufer(:), rbufer2(:)
+
+   INTEGER :: ion_index ! index of ion species that will undergo elactis collision. For now only one ion specie can have elastic collisions
+   REAL(8) :: Vx_n,Vy_n,Vz_n ! speed of neutral particle
+
+   ! functions
+   LOGICAL Find_in_stored_list_ions
+   REAL(8) neutral_density_normalized
+
+   INTERFACE
+      RECURSIVE SUBROUTINE Node_Killer_ion(node)
+        USE MCCollisions
+        TYPE (binary_tree), POINTER :: node
+      END SUBROUTINE Node_Killer_ion
+ 
+      RECURSIVE SUBROUTINE Transfer_collisions_from_stored_list_ions(node, n_neutral, indx_coll, bufsize, n1, n2, n3, rbufer)
+        USE MCCollisions
+        USE IonParticles
+        USE ClusterAndItsBoundaries
+        TYPE (binary_tree), POINTER :: node
+        INTEGER, INTENT(IN) :: n_neutral, indx_coll, bufsize, n1, n2, n3
+        REAL, DIMENSION(bufsize), INTENT(INOUT) :: rbufer
+      END SUBROUTINE Transfer_collisions_from_stored_list_ions
+   END INTERFACE
+
+   IF (in_collisions_turned_off) RETURN
+
+   ion_index = 1 ! By default first ions species will have collision.
+
+ ! Allocate binary tree to store the numbers of particles which have collided already
+   NULLIFY(Collided_particle_ions)
+   IF (.NOT.ASSOCIATED(Collided_particle_ions)) THEN
+      ALLOCATE(Collided_particle_ions, STAT=ALLOC_ERR)
+   END IF
+   NULLIFY(Collided_particle_ions%Larger)
+   NULLIFY(Collided_particle_ions%Smaller)
+ 
+ ! clear all collision counters
+   DO n = 1, N_neutral_spec
+      DO p = 1, collision_i_neutral(n)%N_of_activated_colproc
+         collision_i_neutral(n)%counter(p) = 0
+      END DO
+   END DO
+   
+   DO n = 1, N_neutral_spec
+ 
+      IF (collision_i_neutral(n)%N_of_activated_colproc.EQ.0) CYCLE
+      R_collided = collision_i_neutral(n)%max_colliding_fraction * N_ions(ion_index)
+      I_collided = INT(R_collided)
+      F_collided = R_collided - I_collided
+
+      DO j = 0, I_collided
+ 
+         IF (j.EQ.0) THEN
+ ! here we process the "fractional" collisional event
+            IF (well_random_number().GT.F_collided) CYCLE
+         END IF
+
+ !------------- Determine the kind of collision for the selected particle
+         random_r = well_random_number()
+         random_n = well_random_number()
+ 
+         DO                        ! search will be repeated until a number will be successfully obtained
+            random_j = INT(well_random_number() * N_ions(ion_index))
+            random_j = MIN(MAX(random_j, 1), N_ions(ion_index))
+            ! print*,'rand,hello',random_j
+            IF (.NOT.Find_in_stored_list_ions(random_j)) EXIT    !#### needs some safety mechanism to avoid endless cycling
+         END DO
+ ! account for reduced neutral density
+         IF (random_n.GT.neutral_density_normalized(n, ion(ion_index)%part(random_j)%X, ion(ion_index)%part(random_j)%Y)) CYCLE      
+ 
+         !!!! Compute incident energy of ions with respect to neutral speed
+         ! Compute neutral speed in dimensionless form
+         CALL GetMaxwellVelocity(Vx_n)
+         CALL GetMaxwellVelocity(Vy_n)
+         CALL GetMaxwellVelocity(Vz_n)
+         ! Compute energy of incident ion
+         energy_eV = (  (ion(ion_index)%part(random_j)%VX-Vx_n)**2 + &
+                      & (ion(ion_index)%part(random_j)%VY-Vy_n)**2 + &
+                      & (ion(ion_index)%part(random_j)%VZ-Vz_n)**2) * V_scale_ms**2 * Ms(ion_index) * m_e_kg * 0.5_8 / e_Cl
+ 
+         IF (energy_eV.GE.collision_i_neutral(n)%energy_segment_boundary_value(collision_i_neutral(n)%N_of_energy_segments)) THEN
+            indx_energy = collision_i_neutral(n)%N_of_energy_values-1
+            a1 = 1.0_8
+            a0 = 0.0_8
+         ELSE IF (energy_eV.LT.collision_e_neutral(n)%energy_segment_boundary_value(0)) THEN
+            indx_energy = 0
+            a1 = 0.0_8
+            a0 = 1.0_8
+         ELSE
+            DO i = collision_i_neutral(n)%N_of_energy_segments-1, 0, -1
+               IF (energy_eV.GE.collision_i_neutral(n)%energy_segment_boundary_value(i)) THEN
+                  indx_segment = i+1
+                  EXIT
+               END IF
+            END DO
+            indx_energy =              collision_i_neutral(n)%energy_segment_boundary_index(indx_segment-1) + &
+                        & (energy_eV - collision_i_neutral(n)%energy_segment_boundary_value(indx_segment-1)) / collision_i_neutral(n)%energy_segment_step(indx_segment)
+            indx_energy = MAX(0, MIN(indx_energy, collision_i_neutral(n)%N_of_energy_values-1))
+ ! double check
+            IF ((energy_eV.LT.collision_i_neutral(n)%energy_eV(indx_energy)).OR.(energy_eV.GT.collision_i_neutral(n)%energy_eV(indx_energy+1))) THEN
+ ! error
+               PRINT '("Proc ",i4," error in PERFORM_ION_NEUTRAL_COLLISIONS")', Rank_of_process
+               CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+            END IF
+            a1 = (energy_eV - collision_i_neutral(n)%energy_eV(indx_energy)) / collision_i_neutral(n)%energy_segment_step(indx_segment)
+            a0 = 1.0_8 - a1
+         END IF
+ 
+         DO k = collision_i_neutral(n)%N_of_activated_colproc, 1, -1 
+            IF (random_r.GT.(a0 * collision_i_neutral(n)%prob_colproc_energy(k, indx_energy) + &
+                          &  a1 * collision_i_neutral(n)%prob_colproc_energy(k, indx_energy+1)) ) EXIT
+         END DO
+         indx_coll = k + 1        
+ 
+         IF (indx_coll.GT.collision_i_neutral(n)%N_of_activated_colproc) CYCLE   ! the null collision
+         CALL Add_to_stored_list_ions(random_j, n, indx_coll)
+
+         SELECT CASE (collision_i_neutral(n)%colproc_info(indx_coll)%type)
+
+         ! scattering with the angle Ksi as in EDIPIC 1D
+         CASE (10)
+            CALL in_Collision_Elastic( ion_index, random_j, collision_i_neutral(n)%counter(indx_coll),Vx_n,Vy_n,Vz_n)
+            
+         ! Charge Exchange from given table
+         CASE (20)
+            CALL in_Collision_Charge_Exchange( ion_index, random_j, collision_i_neutral(n)%counter(indx_coll),Vx_n,Vy_n,Vz_n)            
+
+         END SELECT
+      END DO
+   END DO
+ 
+   ! print*,'ici'
+   CALL Node_Killer_ion(Collided_particle_ions)
+   ! print*,'ici1'
+
+END SUBROUTINE PERFORM_ION_NEUTRAL_COLLISIONS
+
+LOGICAL FUNCTION Find_in_stored_list_ions(number)
+
+  USE MCCollisions
+  IMPLICIT NONE
+
+  INTEGER number
+  TYPE (binary_tree), POINTER :: current
+
+  Find_in_stored_list_ions = .FALSE.
+
+  current => Collided_particle_ions
+
+  DO 
+      ! print*,'find number, current%number',number, current%number
+     IF (number.GT.current%number) THEN
+        IF (ASSOCIATED(current%Larger)) THEN
+           current => current%Larger               ! 
+           CYCLE                                   ! go to the next node, with larger "number"
+        ELSE
+           EXIT
+        END IF
+     END IF
+
+     IF (number.LT.current%number) THEN
+        IF (ASSOCIATED(current%Smaller)) THEN
+           current => current%Smaller              ! 
+           CYCLE                                   ! go to the next node, with smaller "number"
+        ELSE
+           EXIT
+        END IF
+     END IF
+
+     Find_in_stored_list_ions = .TRUE.                  ! number.EQ.current%number
+   !   print*,'find number, current%number',number, current%number
+     EXIT                                          ! if we are here, then we found the match
+     
+  END DO
+
+END FUNCTION Find_in_stored_list_ions
+
+!-----------------------------------------------------------------
+! subroutine adds number to the binary tree
+! ! we assume that there are no nodes in the tree with the same value yet
+SUBROUTINE Add_to_stored_list_ions(number, n_neutral, indx_coll)
+
+   USE MCCollisions
+ 
+   IMPLICIT NONE
+ 
+   INTEGER number
+   INTEGER n_neutral
+   INTEGER indx_coll
+ 
+   TYPE (binary_tree), POINTER :: current
+   INTEGER ALLOC_ERR
+ 
+   current => Collided_particle_ions                  ! start from the head node of the binary tree
+ 
+   DO                                            ! go through the allocated nodes to the end of the branch
+      IF (number.GT.current%number) THEN         
+         IF (ASSOCIATED(current%Larger)) THEN        
+            current => current%Larger               ! 
+            CYCLE                                   ! go to the next node, with larger "number"
+         ELSE
+            ALLOCATE(current%Larger, STAT=ALLOC_ERR)
+            current => current%Larger
+            EXIT
+         END IF
+      END IF
+ 
+      IF (number.LT.current%number) THEN
+         IF (ASSOCIATED(current%Smaller)) THEN        
+            current => current%Smaller              ! 
+            CYCLE                                   ! go to the next node, with smaller "number"
+         ELSE
+            ALLOCATE(current%Smaller, STAT=ALLOC_ERR)
+            current => current%Smaller
+            EXIT
+         END IF
+      END IF
+      
+   END DO
+ 
+   current%number    = number                       ! collided electron particle number
+   current%neutral   = n_neutral                    ! neutral species number
+   current%indx_coll = indx_coll                    ! index of activated collision [not collision id]
+ 
+   NULLIFY(current%Larger)
+   NULLIFY(current%Smaller)
+ 
+END SUBROUTINE Add_to_stored_list_ions
+
+RECURSIVE SUBROUTINE Transfer_collisions_from_stored_list_ions(node, n_neutral, indx_coll, bufsize, n1, n2, n3, rbufer)
+
+ USE MCCollisions
+ USE IonParticles
+ USE ClusterAndItsBoundaries
+
+ IMPLICIT NONE
+
+ TYPE (binary_tree), POINTER :: node
+
+ INTEGER, INTENT(IN) :: n_neutral, indx_coll, bufsize, n1, n2, n3
+ REAL, DIMENSION(bufsize), INTENT(INOUT) :: rbufer
+
+ INTEGER i, j, k
+ INTEGER pos_i_j, pos_ip1_j, pos_i_jp1, pos_ip1_jp1
+ REAL ax_ip1, ax_i, ay_jp1, ay_j
+ REAL vij, vip1j, vijp1
+
+ INTEGER :: ion_index
+
+ ion_index = 1 ! By default, only first ion species is considered
+
+ IF ((node%neutral.EQ.n_neutral).AND.(node%indx_coll.EQ.indx_coll)) THEN
+
+    k = node%number
+
+    i = INT(ion(ion_index)%part(k)%X)
+    j = INT(ion(ion_index)%part(k)%Y)
+    IF (ion(ion_index)%part(k)%X.EQ.c_X_area_max) i = c_indx_x_max-1
+    IF (ion(ion_index)%part(k)%Y.EQ.c_Y_area_max) j = c_indx_y_max-1
+    
+    pos_i_j     = i + j * n3 + n2
+    pos_ip1_j   = pos_i_j + 1
+    pos_i_jp1   = pos_i_j + n3
+    pos_ip1_jp1 = pos_i_jp1 + 1
+
+    ax_ip1 = REAL(ion(ion_index)%part(k)%X) - REAL(i)
+    ax_i   = 1.0 - ax_ip1
+
+    ay_jp1 = REAL(ion(ion_index)%part(k)%Y) - REAL(j)
+    ay_j   = 1.0 - ay_jp1
+
+    vij   = ax_i   * ay_j
+    vip1j = ax_ip1 * ay_j
+    vijp1 = ax_i   * ay_jp1
+
+    rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij                         !ax_i   * ay_j
+    rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j                       !ax_ip1 * ay_j
+    rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1                       !ax_i   * ay_jp1
+    rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + 1.0 - vij - vip1j - vijp1   !ax_ip1 * ay_jp1
+
+ END IF
+
+ IF (ASSOCIATED(node%Larger)) CALL Transfer_collisions_from_stored_list_ions(node%Larger, n_neutral, indx_coll, bufsize, n1, n2, n3, rbufer)
+
+ IF (ASSOCIATED(node%Smaller)) CALL Transfer_collisions_from_stored_list_ions(node%Smaller, n_neutral, indx_coll, bufsize, n1, n2, n3, rbufer)
+
+ RETURN
+
+END SUBROUTINE Transfer_collisions_from_stored_list_ions
+
+!---------------------------------------------------
+! this subroutine kills the nodes of the binary tree
+RECURSIVE SUBROUTINE Node_Killer_ion(node)
+
+ USE MCCollisions
+ IMPLICIT NONE
+ 
+ TYPE (binary_tree), POINTER :: node
+ INTEGER DEALLOC_ERR
+
+ IF (ASSOCIATED(node%Larger))  CALL Node_Killer_ion(node%Larger)
+ IF (ASSOCIATED(node%Smaller)) CALL Node_Killer_ion(node%Smaller)
+
+ DEALLOCATE(node, STAT=DEALLOC_ERR)
+
+ RETURN
+
+END SUBROUTINE Node_Killer_ion 
 
 !-------------------------------------------------------------------------------------------
-!
-SUBROUTINE INITIATE_in_COLL_DIAGNOSTICS
+
+ SUBROUTINE INITIATE_in_COLL_DIAGNOSTICS
 
   USE ParallelOperationValues
   USE MCCollisions

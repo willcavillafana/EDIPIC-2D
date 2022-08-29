@@ -42,7 +42,6 @@ PROGRAM MainProg
   T_cntr_cluster_load_balance = Start_T_cntr
 
   CALL INITIATE_PARAMETERS
-!print *, "did INITIATE_PARAMETERS"
 
   CALL ANALYZE_BOUNDARY_OBJECTS
 
@@ -54,7 +53,7 @@ PROGRAM MainProg
 
   CALL INITIATE_ION_NEUTRAL_COLLISIONS
 
-  CALL INITIATE_IONS_NEUTRAL_COLLISIONS_ELASTIC
+  CALL INITIATE_IONS_NEUTRAL_COLLISIONS_GENERAL !  elastic + charge exchange ion-neutral collisions. based on cross section
 
 !print *, "did INITIATE_ELECTRON_NEUTRAL_COLLISIONS"
 !CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
@@ -277,6 +276,9 @@ PROGRAM MainProg
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
         CALL PERFORM_RESONANT_CHARGE_EXCHANGE    ! the only ion-neutral collision kind for now, does not produce new ions
+
+        CALL PERFORM_ION_NEUTRAL_COLLISIONS  ! Performs Ions-neutral collisions: elastic and charge exchange based on cross section tables. 
+                                             ! If charge exchange is required here then PERFORM_RESONANT_CHARGE_EXCHANGE should not  be used
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 

@@ -54,6 +54,7 @@ REAL(8) FUNCTION frequency_of_en_collision(energy_eV, indx_neutral, colproc_id)
 
   frequency_of_en_collision = f_temp * neutral(indx_neutral)%N_m3 * N_subcycles * delta_t_s 
 
+  
 END FUNCTION frequency_of_en_collision
 
 !-------------------------------------------------------------------------

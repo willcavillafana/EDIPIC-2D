@@ -1104,6 +1104,7 @@ MODULE MCCollisions
   END TYPE binary_tree
 
   TYPE(binary_tree), POINTER :: Collided_particle
+  TYPE(binary_tree), POINTER :: Collided_particle_ions
 
 END MODULE MCCollisions
 

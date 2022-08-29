@@ -297,7 +297,7 @@ SUBROUTINE INITIATE_ELECTRON_NEUTRAL_COLLISIONS
 
 ! find maximal fraction of colliding particles for the neutral density neutral(n)%N_m3
      collision_e_neutral(n)%max_colliding_fraction = 1.0_8 - EXP(-collision_e_neutral(n)%prob_colproc_energy(collision_e_neutral(n)%N_of_activated_colproc, indx_energy_max_prob))
-
+     print*,"test_wil_electon,max,prob",collision_e_neutral(n)%max_colliding_fraction,collision_e_neutral(n)%prob_colproc_energy(collision_e_neutral(n)%N_of_activated_colproc, indx_energy_max_prob)
 ! convert accumulated collision frequencies into boundaries of probability ranges for collision processes
      temp = collision_e_neutral(n)%prob_colproc_energy(collision_e_neutral(n)%N_of_activated_colproc, indx_energy_max_prob)
      DO indx_energy = 0, collision_e_neutral(n)%N_of_energy_values
