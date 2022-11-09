@@ -174,12 +174,12 @@ contains
     IF (ibegin.EQ.indx_x_min) THEN
 ! boundary object along left border
        irow_global = irow_global + 1
-       IF (.NOT.block_has_symmetry_plane_X_left) THEN
+       IF ( .NOT.block_has_symmetry_plane_X_left ) THEN ! this is a Cartesian or Cylindrical case with no symmetry (ie r_min>0 )
 ! Dirichlet (given potential) boundary
           jcolumn_global(1) = irow_global
           value_at_jcol(1) = 1.0_8
           call MatSetValues(Amat, one, irow_global, one, jcolumn_global(1:1), value_at_jcol(1:1), INSERT_VALUES, ierr) 
-       ELSE
+       ELSE !This is either a Cartesian pr Cylindrical r-z case with symmetry axis
 ! the left border is a symmetry plane
           IF (jbegin.EQ.indx_y_min) THEN                       ! BELOW
 ! boundary object along the bottom border
@@ -229,7 +229,7 @@ contains
 !                value_at_jcol(2) = -1.0_8
 !                value_at_jcol(3) = 0.5_8
 !                value_at_jcol(4) = 0.25_8
-                call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
+                call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) ! Same for both cylindrical r-z and Cartesian. left point= right point
           END SELECT
 
        END IF   !### IF (.NOT.block_has_symmetry_plane_X_left) THEN
@@ -1721,6 +1721,7 @@ END FUNCTION Get_Surface_Charge_Inner_Object
 
 !-----------------------------------------------
 !
+! Precomputes all element of Poisson matrix. Returns weight for point on the left in the stencil
 SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1,j} and {i,j}
 
   USE CurrentProblemValues
@@ -1738,6 +1739,12 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
   LOGICAL segment_is_inside_dielectric_object
   LOGICAL segment_is_on_surface_of_metal_object
   INTEGER n1
+  REAL(8) :: factor_cyl ! Additional geometrical factor in matrix for cylindrical
+
+  !!! Add a factor if we have cylindrical coordinates r-z. We compute the factor f_left=1-delta_r/(2rij) and f_right = 2-f_left for rij>0
+  factor_cyl = one ! By default I do not have  a factor 
+  IF ( i_cylindrical==2 .AND. i>0 ) factor_cyl = one - one/(two*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
+
 
 ! find all inner objects owning segment {i-1,j}-{i,j}
 ! assume that only two dielectric objects may own a common segment
@@ -1780,7 +1787,7 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
      ELSE   !### IF ((j.EQ.whole_object(n1)%jtop).OR.(j.EQ.whole_object(n1)%jbottom)) THEN
 ! segment is inside
         segment_is_inside_dielectric_object = .TRUE.
-        eps = whole_object(n1)%eps_diel
+        eps = whole_object(n1)%eps_diel*factor_cyl
         count = 1
         EXIT
 
@@ -1853,26 +1860,26 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
   IF (segment_is_on_surface_of_metal_object) THEN
      IF (count.EQ.0) THEN
 ! segment on metal surface facing vacuum
-        eps = 1.0_8
+        eps = 1.0_8*factor_cyl
      ELSE
 ! segment on metal surface facing dielectric
-        eps = eps / count
+        eps = eps / count*factor_cyl
      END IF
      RETURN
   END IF
 
   IF (count.EQ.0) THEN
 ! segment is in vacuum
-     eps = 1.0_8
+     eps = 1.0_8*factor_cyl
      RETURN
   ELSE IF (count.EQ.1) THEN
 ! segment is inside a dielectric object
      IF (segment_is_inside_dielectric_object) RETURN
 ! segment is on the surface of a dielectric object, facing vacuum
-     eps = (1.0_8 + eps) / 2.0_8
+     eps = (1.0_8 + eps) / 2.0_8*factor_cyl
      RETURN
   ELSE IF (count.EQ.2) THEN
-     eps = eps / DBLE(count)
+     eps = eps / DBLE(count)*factor_cyl
      RETURN
   ELSE
      PRINT '("Error-3 in SET_EPS_ISHIFTED for i/j ",2x,i4,2x,i4)', i, j

@@ -168,6 +168,7 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: pi = 3.141592653589793_8
   REAL(8), PARAMETER :: zero = 0.0_8
   REAL(8), PARAMETER :: one = 1.0_8
+  REAL(8), PARAMETER :: two = 2.0_8
 
   INTEGER, PARAMETER :: string_length = 300
 
