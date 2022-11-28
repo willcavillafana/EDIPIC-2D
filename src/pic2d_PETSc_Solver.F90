@@ -61,6 +61,12 @@ contains
     REAL(8), ALLOCATABLE :: eps_ishifted_j(:,:)
     REAL(8), ALLOCATABLE :: eps_i_jshifted(:,:)
     INTEGER ALLOC_ERR
+    REAL(8) :: factor_geom_cyl  ! additional factor for node on the right in the stencil
+    REAL(8) :: factor_axis_geom_cyl  ! additional factor for node at the top and bottom in the stencil for axis.
+
+    ! By default we have no additional factors
+    factor_geom_cyl = one
+    factor_axis_geom_cyl = one
 
 !    integer            :: m, n, nx, ny, i, j, k, ix, jy
 !    PetscInt :: nrows, ncols, one=1, five=5, temp
@@ -158,6 +164,7 @@ contains
     IF (jbegin.EQ.indx_y_min) THEN
 ! boundary object along bottom border
        DO i = ibegin, iend
+         ! print*,'value_bottom_is_1,i,j',i,j
           irow_global = irow_global + 1
 !          number_of_columns = 1
           jcolumn_global(1) = irow_global
@@ -170,7 +177,6 @@ contains
     j = indx_y_min+1
 
     i = indx_x_min
-
     IF (ibegin.EQ.indx_x_min) THEN
 ! boundary object along left border
        irow_global = irow_global + 1
@@ -205,7 +211,8 @@ contains
                 jcolumn_global(1) = irow_global
                 value_at_jcol(1) = 1.0_8
                 call MatSetValues(Amat, one, irow_global, one, jcolumn_global(1:1), value_at_jcol(1:1), INSERT_VALUES, ierr)
-!             CASE (1,2)
+               !  print*,'je passe par BC axis, metal'
+                !             CASE (1,2)
 !! dielectric surface above
 !                value_at_jcol(1) = 0.5_8 / (1.0_8 + whole_object(nio)%eps_diel)
 !                value_at_jcol(2) = -1.0_8
@@ -221,10 +228,16 @@ contains
 !                call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)              
              CASE DEFAULT 
 ! inside dielectric or plasma
-                value_at_jcol(1) =   eps_i_jshifted(i,j)
-                value_at_jcol(2) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))
-                value_at_jcol(3) =   eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j)
-                value_at_jcol(4) =   eps_i_jshifted(i,j+1)
+               IF (i_cylindrical==2) THEN
+                  factor_geom_cyl = two 
+                  factor_axis_geom_cyl = half
+               END IF 
+                value_at_jcol(1) =   eps_i_jshifted(i,j)*factor_axis_geom_cyl
+                value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl ! this is 2 
+                value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl
+               !  print*,'axis,i,j',i,j
+               !  print*,'value_at_jcol(1:4)',value_at_jcol(1:4)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = -1.0_8
 !                value_at_jcol(3) = 0.5_8
@@ -306,11 +319,14 @@ contains
 !             call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
           CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+             IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
              value_at_jcol(1) =   eps_i_jshifted(i,j)
              value_at_jcol(2) =   eps_ishifted_j(i,j)
-             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-             value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+             value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+            !  print*,'inside,i,j',i,j
+            !  print*,'value_inside',value_at_jcol(1:5)             
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
 !             value_at_jcol(3) = -1.0_8
@@ -380,10 +396,11 @@ contains
 !                   call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
                 CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+                   IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                    value_at_jcol(1) =   eps_i_jshifted(i,j)
                    value_at_jcol(2) =   eps_ishifted_j(i,j)
-                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
@@ -456,10 +473,11 @@ contains
 !                   call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
                 CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+                  IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                    value_at_jcol(1) =   eps_i_jshifted(i,j)
                    value_at_jcol(2) =   eps_ishifted_j(i,j)
-                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
@@ -541,10 +559,11 @@ contains
 !             call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
           CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+             IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
              value_at_jcol(1) =   eps_i_jshifted(i,j)
              value_at_jcol(2) =   eps_ishifted_j(i,j)
-             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-             value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+             value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
@@ -614,10 +633,14 @@ contains
 !                   call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)              
                 CASE DEFAULT 
 ! inside dielectric or plasma
-                   value_at_jcol(1) =   eps_i_jshifted(i,j)
-                   value_at_jcol(2) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))
-                   value_at_jcol(3) =   eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j)
-                   value_at_jcol(4) =   eps_i_jshifted(i,j+1)              
+                  IF (i_cylindrical==2) THEN
+                     factor_geom_cyl = two 
+                     factor_axis_geom_cyl = half
+                  END IF 
+                   value_at_jcol(1) =   eps_i_jshifted(i,j)*factor_axis_geom_cyl
+                   value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                   value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl ! this is 2
+                   value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl              
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = -1.0_8
 !                   value_at_jcol(3) = 0.5_8
@@ -693,10 +716,11 @@ contains
 !                call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
              CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+               IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                 value_at_jcol(1) =   eps_i_jshifted(i,j)
                 value_at_jcol(2) =   eps_ishifted_j(i,j)
-                value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                 value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = 0.25_8
@@ -765,10 +789,11 @@ contains
 !                   call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
                 CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+                  IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                    value_at_jcol(1) =   eps_i_jshifted(i,j)
                    value_at_jcol(2) =   eps_ishifted_j(i,j)
-                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
@@ -843,10 +868,11 @@ contains
 !                call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
              CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+               IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                 value_at_jcol(1) =   eps_i_jshifted(i,j)
                 value_at_jcol(2) =   eps_ishifted_j(i,j)
-                value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                 value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = 0.25_8
@@ -922,10 +948,14 @@ contains
 !                call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)              
              CASE DEFAULT 
 ! inside dielectric or plasma
-                value_at_jcol(1) =   eps_i_jshifted(i,j)
-                value_at_jcol(2) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))
-                value_at_jcol(3) =   eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j)
-                value_at_jcol(4) =   eps_i_jshifted(i,j+1)
+               IF (i_cylindrical==2) THEN
+                  factor_geom_cyl = two 
+                  factor_axis_geom_cyl = half
+               END IF                
+                value_at_jcol(1) =   eps_i_jshifted(i,j)*factor_axis_geom_cyl
+                value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl ! this is 2 
+                value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = -1.0_8
 !                value_at_jcol(3) = 0.5_8
@@ -1006,10 +1036,11 @@ contains
 !             call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
           CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+            IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
              value_at_jcol(1) =   eps_i_jshifted(i,j)
              value_at_jcol(2) =   eps_ishifted_j(i,j)
-             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-             value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+             value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
@@ -1080,10 +1111,11 @@ contains
 !                   call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
                 CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+                  IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                    value_at_jcol(1) =   eps_i_jshifted(i,j)
                    value_at_jcol(2) =   eps_ishifted_j(i,j)
-                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
@@ -1154,10 +1186,11 @@ contains
 !                   call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
                 CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+                  IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                    value_at_jcol(1) =   eps_i_jshifted(i,j)
                    value_at_jcol(2) =   eps_ishifted_j(i,j)
-                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+                   value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                   value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
@@ -1238,10 +1271,11 @@ contains
 !             call MatSetValues(Amat, one, irow_global, five, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
           CASE DEFAULT 
 ! inside dielectric, inside plasma, or in a corner of a dielectric object
+            IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
              value_at_jcol(1) =   eps_i_jshifted(i,j)
              value_at_jcol(2) =   eps_ishifted_j(i,j)
-             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j))
-             value_at_jcol(4) =   eps_ishifted_j(i+1,j)
+             value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+             value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
@@ -1388,7 +1422,8 @@ contains
              jvec(n)=global_offset + n  !(N_grid_block_x*N_grid_block_y)*Rank_of_process+N_grid_block_x*(j-indx_y_min-1)+i-indx_x_min-1 
           end do
        end do
-
+      !  print*,'jvec,global_offset_wil',jvec,global_offset
+      !  print*,'dvec_wil',dvec
     end if
 
     val = n 
@@ -1908,6 +1943,12 @@ SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j
   LOGICAL segment_is_inside_dielectric_object
   LOGICAL segment_is_on_surface_of_metal_object
   INTEGER n1
+  REAL(8) :: factor_cyl,factor_cyl_used ! Additional geometrical factor in matrix for cylindrical
+
+  !!! Add a factor if we have cylindrical coordinates r-z. We compute the factor f_left=1-delta_r/(4rij) and f_right = 2-f_left for rij>0
+  factor_cyl = one ! By default I do not have  a factor 
+  factor_cyl_used = one ! By default I do not have  a factor 
+  IF ( i_cylindrical==2 .AND. i>0 ) factor_cyl = one - one/(four*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
 
 ! find all inner objects owning segment {i,j-1}-{i,j}
 ! assume that only two dielectric objects may own a common segment
@@ -1945,7 +1986,27 @@ SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j
 ! segment is on the surface
 
         count = count + 1
-        eps = eps + whole_object(n1)%eps_diel
+        
+        ! For generic case (inside dielectric or Cartesian case)
+        IF ( i_cylindrical==0 ) THEN
+            eps = eps + whole_object(n1)%eps_diel
+        ! Cylindrical case r-z
+        ELSE IF ( i_cylindrical==2) THEN
+            ! If dielectric is on the left side of my segment
+            IF ( i==whole_object(n1)%iright ) THEN
+               eps = eps + whole_object(n1)%eps_diel*factor_cyl
+               factor_cyl_used = factor_cyl
+            ! Segment is on the right side of my segment
+            ELSE
+               eps = eps + whole_object(n1)%eps_diel*(two-factor_cyl)
+               factor_cyl_used = two - factor_cyl
+            END IF
+         ! Cylindrical z-theta or others (error for now)
+         ELSE
+            PRINT*,"Error, in SET_EPS_JSHIFTED. r-theta (i_cylindrical=1) or other geometries are not implemented"
+            STOP
+         END IF
+         ! note that for cylindrical r-z with dielectric-vacuum vertical interface with epsilon=1, there is no change with respect to the Cartesian case
 
      ELSE   !### IF ((i.EQ.whole_object(n1)%ileft).OR.(i.EQ.whole_object(n1)%iright)) THEN
 ! segment is inside
@@ -2039,7 +2100,12 @@ SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j
 ! segment is inside a dielectric object
      IF (segment_is_inside_dielectric_object) RETURN
 ! segment is on the surface of a dielectric object, facing vacuum
-     eps = (1.0_8 + eps) / 2.0_8
+     ! Cartesian case 
+     IF ( i_cylindrical==0 ) THEN
+         eps = (1.0_8 + eps) / 2.0_8
+     ELSE IF ( i_cylindrical==2 ) THEN
+         eps = (one*factor_cyl_used + eps) / two ! BNote that if eps=1 then this is the same as Cartesian
+     END IF
      RETURN
   ELSE IF (count.EQ.2) THEN
      eps = eps / DBLE(count)

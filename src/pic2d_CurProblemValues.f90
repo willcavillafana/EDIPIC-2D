@@ -124,6 +124,9 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER bufsize
   REAL(8), ALLOCATABLE :: rbufer(:)
   INTEGER pos1, pos2
+  CHARACTER (LEN=1000) :: long_buf,line,separator ! long buffer for string
+  INTEGER :: i_found ! flag to decide if I found keyword or not.
+  REAL(8) :: rval ! buffer for real values
 
 ! functions
   REAL(8) Bx, By
@@ -692,10 +695,71 @@ SUBROUTINE INITIATE_PARAMETERS
   v_Te_ms     = SQRT(2.0_8 * T_e_eV * e_Cl / m_e_kg)
   W_plasma_s1 = SQRT(N_plasma_m3 * e_Cl**2 / (eps_0_Fm * m_e_kg))
   L_debye_m   = v_Te_ms / W_plasma_s1
-  delta_x_m   = L_debye_m / N_of_cells_debye    
+  delta_x_m   = L_debye_m / DBLE(N_of_cells_debye)
   delta_t_s   = delta_x_m / (N_max_vel * v_Te_ms)
 
-! save geometry of inner objects (note that we know delta_x_m now :)
+  ! Implement new parser for geometry 
+  INQUIRE (FILE = 'init_params.dat', EXIST = exists)
+  IF (exists) THEN
+      IF ( Rank_of_process==0 ) PRINT *,'init_params.dat found.'
+      
+      OPEN (9, file='init_params.dat')
+      
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            delta_x_m = rval
+            IF ( Rank_of_process==0 ) PRINT *,'Space step dx is externally imposed in [m]; dx=',delta_x_m               
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         IF ( Rank_of_process==0 ) PRINT*,'delta_x keyword no present. I assume we do not want it'
+      END IF    
+
+      ! ! Max valeur
+      ! i_found = 0
+      ! REWIND(9)
+      ! DO
+      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      !    IF ( ierr/=0 ) EXIT
+      !    READ (line,*) long_buf ! read first word of line
+      !    IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
+      !       i_found = 1
+      !       READ (line,*) long_buf,separator,rval            
+      !       delta_x_m = rval
+      !       IF ( Rank_of_process==0 ) PRINT *,'Space step dx is externally imposed in [m]; dx=',delta_x_m               
+      !    END IF
+      ! END DO
+      ! IF ( i_found==0 ) THEN
+      !    IF ( Rank_of_process==0 ) PRINT*,'delta_x keyword no present. I assume we do not want it'
+      ! END IF   
+      ! i_found = 0
+      ! REWIND(9)
+      ! DO
+      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      !    IF ( ierr/=0 ) EXIT
+      !    READ (line,*) long_buf ! read first word of line
+      !    IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
+      !       i_found = 1
+      !       READ (line,*) long_buf,separator,rval            
+      !       delta_x_m = rval
+      !       IF ( Rank_of_process==0 ) PRINT *,'Space step dx is externally imposed in [m]; dx=',delta_x_m               
+      !    END IF
+      ! END DO
+      ! IF ( i_found==0 ) THEN
+      !    IF ( Rank_of_process==0 ) PRINT*,'delta_x keyword no present. I assume we do not want it'
+      ! END IF   
+      
+   END IF
+
+
+! save geometry of inner objects (note that we kttow delta_x_m now :)
 
   IF (Rank_of_process.EQ.0) THEN
      DO nn = 1, N_of_boundary_objects
