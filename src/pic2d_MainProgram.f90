@@ -164,7 +164,7 @@ PROGRAM MainProg
      CALL start_timer( gather_electron_charge_density_timer )    
      !t4 = MPI_WTIME()
 
-   !   CALL GATHER_ELECTRON_CHARGE_DENSITY      ! here surface charge density on inner dielectric objects is subtracted from the electron volume charge density
+     CALL GATHER_ELECTRON_CHARGE_DENSITY      ! here surface charge density on inner dielectric objects is subtracted from the electron volume charge density
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 

@@ -205,8 +205,8 @@ end if
 
      ENDIF
 
-! a particle crossed symmetry plane, reflect it
-     IF (symmetry_plane_X_left) THEN
+! a particle crossed symmetry plane, reflect it. Only for Cartesian
+     IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
         IF (electron(k)%X.LT.c_X_area_min) THEN
            electron(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - electron(k)%X)
            electron(k)%VX = -electron(k)%VX

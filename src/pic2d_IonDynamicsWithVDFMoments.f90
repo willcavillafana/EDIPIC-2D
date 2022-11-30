@@ -485,8 +485,8 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
 
    ENDIF
 
-! a particle crossed symmetry plane, reflect it
-     IF (symmetry_plane_X_left) THEN
+! a particle crossed symmetry plane, reflect it. Only for Cartesian
+     IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
         IF (ion(s)%part(k)%X.LT.c_X_area_min) THEN
            ion(s)%part(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - ion(s)%part(k)%X)
            ion(s)%part(k)%VX = -ion(s)%part(k)%VX
@@ -1401,8 +1401,8 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
 
 
 
-! a particle crossed symmetry plane, reflect it
-        IF (symmetry_plane_X_left) THEN
+! a particle crossed symmetry plane, reflect it. Only for Cartesian
+        IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
            IF (ion(s)%part(k)%X.LT.c_X_area_min) THEN
               ion(s)%part(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - ion(s)%part(k)%X)
               ion(s)%part(k)%VX = -ion(s)%part(k)%VX
