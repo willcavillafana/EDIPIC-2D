@@ -125,41 +125,44 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
            rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))
            ! Check if I am in inner dielecctric
            CALL FIND_INNER_OBJECT_CONTAINING_POINT(0,j,ni0,position_flag)
-           IF ( position_flag<0 ) THEN ! in plasma at symmetry axis
-               ! print*,'at symmetry axis in plasma',nn
-              rhsvalue(nn) = -(k_test_r**2+(k_test_r**2+k_test_z**2))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2/two
-           ELSE IF ( position_flag==1 .OR. position_flag==7 ) THEN ! one of the corners at symmetry axis as well for dielectric object. Note iis NOT zero here. Different numbering system
-              print*,'at symmetry axis at surface inner object nn,i,j',nn,i,j
-              !! If bottom dielectric
-            !   IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
-              IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -((k_test_z+one)*delta_x_m/two)/ F_scale_V ! Field will have Bessel*sinh variations inside dielectric
-              !! If top dielectric
-              IF ( j>index_maxi_z/2 ) rhsvalue(nn) = ((k_test_z+one)*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
-           ELSE ! I am inside inner object: no charge
-            ! print*,'at symmetry axis in inner object nn,i,j',nn,i,j  
-            rhsvalue(nn) = zero
-           ENDIF
+         !   IF ( position_flag<0 ) THEN ! in plasma at symmetry axis
+         !       ! print*,'at symmetry axis in plasma',nn
+         !      rhsvalue(nn) = -(k_test_r**2+(k_test_r**2+k_test_z**2))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2/two
+         !   ELSE IF ( position_flag==1 .OR. position_flag==7 ) THEN ! one of the corners at symmetry axis as well for dielectric object. Note i=indx_x_min
+         !      print*,'at symmetry axis at surface inner object nn,i,j,indx_x_min',nn,i,j,indx_x_min
+         !      !! If bottom dielectric
+         !      IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
+         !    !   IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -((k_test_z+one*10000)*delta_x_m/two)/ F_scale_V ! Field will have Bessel*sinh variations inside dielectric
+         !      !! If top dielectric
+         !      IF ( j>index_maxi_z/2 ) rhsvalue(nn) = (k_test_z*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
+         !    !   IF ( j>index_maxi_z/2 ) rhsvalue(nn) = ((k_test_z+one*10000)*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
+         !   ELSE ! I am inside inner object: no charge
+         !    ! print*,'at symmetry axis in inner object nn,i,j',nn,i,j  
+         !    rhsvalue(nn) = zero
+         !   ENDIF
          END IF
      END IF
    !   print*,'valeur min index indx_x_min',indx_x_min
      DO i = indx_x_min+1, indx_x_max-1
         nn = nn + 1
         rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))
-        CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,ni0,position_flag)
-        IF ( position_flag<0 ) THEN
-            rhsvalue(nn) = -(k_test_r*SIN(delta_x_m*k_test_r*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r*i))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet at BCs z=0, z=2cm,r=3cm. Divide by scaling factor
-        ELSE IF ( position_flag>0 .AND. position_flag<9 ) THEN
-            ! print*,'on surface,nn,position_flag,i,j',nn,position_flag,i,j
-            !! If bottom dielectric
-            ! IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i))/ F_scale_V
-            IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i) + BESSEL_J0(alpha_r*delta_x_m*i)*delta_x_m)/ F_scale_V
-            !! If top dielectric
-            ! IF ( j>index_maxi_z/2 ) rhsvalue(nn) = (k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i))/ F_scale_V
-            IF ( j>index_maxi_z/2 ) rhsvalue(nn) = (k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i)+ BESSEL_J0(alpha_r*delta_x_m*i)*delta_x_m)/ F_scale_V
-         ELSE
-            ! print*,'inside',nn
-            rhsvalue(nn) = zero
-        ENDIF
+      !   CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,ni0,position_flag)
+      !   IF ( position_flag<0 ) THEN ! imposed right hand side to test solver in cyl coordinates
+      !       rhsvalue(nn) = -(k_test_r*SIN(delta_x_m*k_test_r*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r*i))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet at BCs z=0, z=2cm,r=3cm. Divide by scaling factor
+      !   ELSE IF ( position_flag>0 .AND. position_flag<9 ) THEN ! Set appropriate surfce charge distribution when there is a dielectric object 
+      !       ! print*,'on surface,nn,position_flag,i,j',nn,position_flag,i,j
+      !       !! if object is on the right
+      !       IF ( i>index_maxi_r/2 ) rhsvalue(nn) = (k_test_r*delta_x_m*SIN(k_test_z*delta_x_m*j))/ F_scale_V
+      !       !! If bottom dielectric
+      !       ! IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i))/ F_scale_V ! case eps=1 (should not mater) and field =0 inside dielectric 
+      !       ! IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i) + 10000*BESSEL_J0(alpha_r*delta_x_m*i)*delta_x_m)/ F_scale_V ! eps = 4 (matters) and field is sinh(alpha*z)*J_0(alpha*r) in dielectric
+      !       !! If top dielectric
+      !       ! IF ( j>index_maxi_z/2 ) rhsvalue(nn) = (k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i))/ F_scale_V ! case eps=1 (should not mater) and field =0 inside dielectric 
+      !       ! IF ( j>index_maxi_z/2 ) rhsvalue(nn) = (k_test_z*delta_x_m*COS(k_test_r*delta_x_m*i)+ 10000*BESSEL_J0(alpha_r*delta_x_m*i)*delta_x_m)/ F_scale_V ! eps = 4 (matters) and field is sinh(alpha*z)*J_0(alpha*r) in dielectric
+      !    ELSE
+      !       ! print*,'inside',nn
+      !       rhsvalue(nn) = zero
+      !   ENDIF
         IF ((i.EQ.i_given_F_double_period_sys).AND.(j.EQ.j_given_F_double_period_sys)) rhsvalue(nn) = given_F_double_period_sys
          
      END DO

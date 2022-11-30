@@ -1780,10 +1780,10 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
   factor_cyl = one ! By default I do not have  a factor 
   IF ( i_cylindrical==2 .AND. i>0 ) factor_cyl = one - one/(two*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
 
-
+!   print*,'current i,j',i,j
 ! find all inner objects owning segment {i-1,j}-{i,j}
 ! assume that only two dielectric objects may own a common segment
-! allow a metal object to be added on top of that
+! allow a metal object to be added on/axis top of that
 
   eps = 0.0_8
   count = 0
@@ -1818,11 +1818,13 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
 
         count = count + 1
         eps = eps + whole_object(n1)%eps_diel
+      !   print*,'increment_eps,eps_object,i,j',eps,whole_object(n1)%eps_diel,i,j
 
      ELSE   !### IF ((j.EQ.whole_object(n1)%jtop).OR.(j.EQ.whole_object(n1)%jbottom)) THEN
 ! segment is inside
         segment_is_inside_dielectric_object = .TRUE.
         eps = whole_object(n1)%eps_diel*factor_cyl
+      !   print*,'segm_inside,esp,i,j,factr',eps,i,j,factor_cyl
         count = 1
         EXIT
 
@@ -1929,6 +1931,7 @@ END SUBROUTINE SET_EPS_ISHIFTED
 SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j-1} and {i,j}
 
   USE CurrentProblemValues
+  USE BlockAndItsBoundaries, ONLY: block_has_symmetry_plane_X_left,indx_x_min
 
   IMPLICIT NONE
 
@@ -2099,7 +2102,11 @@ SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j
   ELSE IF (count.EQ.1) THEN
 ! segment is inside a dielectric object
      IF (segment_is_inside_dielectric_object) RETURN
-! segment is on the surface of a dielectric object, facing vacuum
+
+     ! Segment is at surface but it is on symmetry axis: I can stop the computation
+     IF ( block_has_symmetry_plane_X_left .AND. i==indx_x_min ) RETURN
+     
+     ! segment is on the surface of a dielectric object, facing vacuum
      ! Cartesian case 
      IF ( i_cylindrical==0 ) THEN
          eps = (1.0_8 + eps) / 2.0_8
