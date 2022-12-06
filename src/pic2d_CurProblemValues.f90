@@ -70,6 +70,7 @@ SUBROUTINE INITIATE_PARAMETERS
   USE ExternalFields
   USE Checkpoints
   USE SetupValues, ONLY : ht_grid_requested, F_grid, grid_j
+  USE mod_print, ONLY: print_message
 
   USE rng_wrapper
 
@@ -127,9 +128,12 @@ SUBROUTINE INITIATE_PARAMETERS
   CHARACTER (LEN=1000) :: long_buf,line,separator ! long buffer for string
   INTEGER :: i_found ! flag to decide if I found keyword or not.
   REAL(8) :: rval ! buffer for real values
+  INTEGER :: ival ! buffer for integer values
+  CHARACTER(LEN=string_length) :: message, routine
 
 ! functions
   REAL(8) Bx, By
+
   interface
      function convert_int_to_txt_string(int_number, length_of_string)
        character*(length_of_string) convert_int_to_txt_string
@@ -138,6 +142,8 @@ SUBROUTINE INITIATE_PARAMETERS
      end function convert_int_to_txt_string
   end interface
   INTEGER convert_logical_to_int
+
+  routine = "INITIATE_PARAMETERS"
 
 ! default values
   given_F_double_period_sys = 1000000.0_8        !
@@ -210,6 +216,19 @@ SUBROUTINE INITIATE_PARAMETERS
      IF (Rank_of_process.EQ.0) PRINT '("@@@ INCONSISTENT CONFIGURATION ERROR-3, N_blocks_y .NE. (N_blocks_y / cluster_N_blocks_y) * cluster_N_blocks_y :: (",i4," / ",i4,") * ",i4," = ",i4," instead of ",i4," @@@")', &
           & N_blocks_y, cluster_N_blocks_y, cluster_N_blocks_y, (N_blocks_y / cluster_N_blocks_y) * cluster_N_blocks_y, N_blocks_y
   END IF
+
+  IF ( i_cylindrical/=0 .AND. i_cylindrical/=2 ) THEN
+   config_inconsistent = .TRUE.
+   IF (Rank_of_process.EQ.0) PRINT '("@@@ INCONSISTENT CONFIGURATION ERROR-4, i_cylindrical should be 0 (Cartesian) or 2 (r-z with symmetry axis included). Received  "i4" @@@")', &
+   & i_cylindrical
+  END IF
+
+  IF ( i_cylindrical==0 ) THEN
+      WRITE( message, '(A)'), "Selected geometry: CARTESIAN",achar(10)
+  ELSE IF ( i_cylindrical==2 ) THEN
+      WRITE( message, '(A)'), "Selected geometry: CYLINDRICAL r-z",achar(10)
+  END IF
+  CALL print_message( message )
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
@@ -699,6 +718,7 @@ SUBROUTINE INITIATE_PARAMETERS
   delta_t_s   = delta_x_m / (N_max_vel * v_Te_ms)
 
   ! Implement new parser for geometry 
+  debug_level = 1000 ! By default I print everything
   INQUIRE (FILE = 'init_params.dat', EXIST = exists)
   IF (exists) THEN
       IF ( Rank_of_process==0 ) PRINT *,'init_params.dat found.'
@@ -715,46 +735,34 @@ SUBROUTINE INITIATE_PARAMETERS
             i_found = 1
             READ (line,*) long_buf,separator,rval            
             delta_x_m = rval
-            IF ( Rank_of_process==0 ) PRINT *,'Space step dx is externally imposed in [m]; dx=',delta_x_m               
+            WRITE( message,'(A,ES10.3,A)') "space step dx is externally imposed dx= ",delta_x_m," [m]"
+            CALL print_message( message,routine )            
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         IF ( Rank_of_process==0 ) PRINT*,'delta_x keyword no present. I assume we do not want it'
+         WRITE( message,'(A,ES10.3,A)') "delta_x keyword no present. I assume we do not want it"
+         CALL print_message( message,routine )       
       END IF    
 
-      ! ! Max valeur
-      ! i_found = 0
-      ! REWIND(9)
-      ! DO
-      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
-      !    IF ( ierr/=0 ) EXIT
-      !    READ (line,*) long_buf ! read first word of line
-      !    IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
-      !       i_found = 1
-      !       READ (line,*) long_buf,separator,rval            
-      !       delta_x_m = rval
-      !       IF ( Rank_of_process==0 ) PRINT *,'Space step dx is externally imposed in [m]; dx=',delta_x_m               
-      !    END IF
-      ! END DO
-      ! IF ( i_found==0 ) THEN
-      !    IF ( Rank_of_process==0 ) PRINT*,'delta_x keyword no present. I assume we do not want it'
-      ! END IF   
-      ! i_found = 0
-      ! REWIND(9)
-      ! DO
-      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
-      !    IF ( ierr/=0 ) EXIT
-      !    READ (line,*) long_buf ! read first word of line
-      !    IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
-      !       i_found = 1
-      !       READ (line,*) long_buf,separator,rval            
-      !       delta_x_m = rval
-      !       IF ( Rank_of_process==0 ) PRINT *,'Space step dx is externally imposed in [m]; dx=',delta_x_m               
-      !    END IF
-      ! END DO
-      ! IF ( i_found==0 ) THEN
-      !    IF ( Rank_of_process==0 ) PRINT*,'delta_x keyword no present. I assume we do not want it'
-      ! END IF   
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="debug_level" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,ival            
+            debug_level = ival
+
+            WRITE( message,'(A,I3,A)') "debug level set to ",debug_level,achar(10)
+            CALL print_message( message,routine )
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "Debug level is set to defaut value 0",achar(10)
+         CALL print_message( message,routine )         
+      END IF       
       
    END IF
 
@@ -3165,6 +3173,8 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   USE ElectronParticles
   USE IonParticles
   USE ClusterAndItsBoundaries
+  USE BlockAndItsBoundaries, ONLY: block_has_symmetry_plane_X_left
+  USE mod_print, ONLY: print_message_cluster,print_output,print_output_all
 
   USE rng_wrapper
 
@@ -3186,9 +3196,22 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   INTEGER k, n, s, pos
   INTEGER sum_Ni
 
+  INTEGER :: index_r
+  INTEGER :: n_limit_x_total,n_limit_y_total ! total number of cells in whole domain in r direction (cylindrical)
+  INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
+  INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
+  INTEGER :: N_electron_tot ! number of electrons in whole domain
+  REAL(8) :: N_electrons_total_cyl
+  INTEGER :: ierr
+  INTEGER :: stattus(MPI_STATUS_SIZE)
+  CHARACTER(LEN=string_length) :: message
+  REAL(8) :: N_ppc_min, N_ppc_max ! PIC diagnostics
+
 ! functions
   REAL(8) Bx, By, Bz, Ez
 
+  n_limit_x_total = zero
+  N_electrons_total_cyl = zero
   IF (Rank_cluster.EQ.0) THEN
 
 ! initialize particles
@@ -3222,7 +3245,57 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y )
 
-     PRINT '(2x,"Master process ",i3," : ",i8," electron macroparticles")', Rank_of_process, N_electrons
+     ! Get min and max of index in x/r and y/z directions
+     CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
+     CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)
+     CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
+     CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)     
+     
+     ! r-z
+     IF ( i_cylindrical==2 ) THEN
+         ! Get total number of particles in domain
+         CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_REAL8, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
+
+         ! Determine number of particles with radial linear increase. 
+         ! Note that clusters from 0 to before last colum have a grid point difference. 
+         
+         ! We need to account for the change in volume and so we must update the number of electrons accordingly
+         ! Note V_tot_cyl = pi*Nx*dx*V_tot_cart
+         ! Since we cannot play direclty with the statistical weight (which does not exist), we must adjust the number of macroparticles
+         N_electrons =  INT( N_electrons_total_cyl*&
+                             n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
+                             (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
+                             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+
+         ! Check we have Nppc*n_init/n0*pi*Nx*delta_x particles per cells in average 
+         ! CALL MPI_ALLREDUCE(N_electrons, N_electron_mean,1, MPI_INT, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
+         ! print*,'c_indx_x_min,c_indx_x_max,x_limit_left,x_limit_right,n_limit_x',c_indx_x_min,c_indx_x_max,x_limit_left,x_limit_right,n_limit_x
+         ! print*,'N_el_cyl,N_elec,middle,nlim,prod,before',N_electrons_total_cyl*pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m,&
+         !                                                  N_electrons,&
+         !                                                  middle_r,&
+         !                                                  n_limit_x,&
+         !                                                  two*middle_r*n_limit_x,&
+         !                                                  c_indx_x_max**2-c_indx_x_min**2
+         ! print*,'nb cluster,mean cluster,cell',N_processes_horizontal,N_electron_mean/N_processes_horizontal,N_electron_mean/(N_processes_horizontal*n_limit_x*n_limit_y)
+     END IF
+     
+     ! Print info on particles distribution
+     CALL MPI_ALLREDUCE(N_electrons, N_electron_tot,1, MPI_INT, MPI_SUM, COMM_HORIZONTAL, stattus, ierr )
+     CALL MPI_ALLREDUCE(DBLE(N_electrons/(n_limit_x*n_limit_y)), N_ppc_min,1, MPI_REAL8, MPI_MIN, COMM_HORIZONTAL, stattus, ierr )
+     CALL MPI_ALLREDUCE(DBLE(N_electrons/(n_limit_x*n_limit_y)), N_ppc_max,1, MPI_REAL8, MPI_MAX, COMM_HORIZONTAL, stattus, ierr )
+     
+     WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster:",N_ppc_min
+     CALL print_output( message )
+     WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain:",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
+     CALL print_output( message )
+     WRITE( message,'(A,ES10.3,A)') "Maximal average number of particles per cell in a cluster:",N_ppc_max,achar(10)
+     CALL print_output( message )          
+
+     WRITE( message,'(T8,A,T27,A,T55,A)') "Cluster master","Electron macroparticles","Particles per cell in average"
+     CALL print_output ( message )
+   !   CALL MPI_BARRIER( COMM_HORIZONTAL, ierr )
+     WRITE( message,'(I8,T27,I8,T55,ES10.3)') Rank_of_process,N_electrons,DBLE(N_electrons/(n_limit_x*n_limit_y))
+     CALL print_output_all( message, debug_level )
 
      max_N_electrons = N_electrons+50
 
@@ -3230,9 +3303,46 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      factor_convert = SQRT(init_Te_eV / T_e_eV) / N_max_vel
 
+     ! Compute volume in cylindrial coordinates following Verboncoeur (r-z) only. First node is at symmetry axis. Compute coorective factor s to calculate density
+     ALLOCATE(vol_r_m3(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
+     ALLOCATE(vol_cart(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
+     ALLOCATE(factor_cyl_vol(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
+     
+   !   print*,"allocation volume", c_indx_x_min,c_indx_x_max
+     factor_cyl_vol(c_indx_x_min:c_indx_x_max) = one ! By default there is no need for a correction (Cartesian)
+     vol_r_m3(c_indx_x_min:c_indx_x_max) = one
+     vol_cart(c_indx_x_min:c_indx_x_max) = one
+     IF ( i_cylindrical==2 ) THEN
+      DO index_r = c_indx_x_min, c_indx_x_max  
+            
+          IF ( index_r==c_indx_x_min .AND. block_has_symmetry_plane_X_left ) THEN
+            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(1**2) 
+              vol_r_m3(index_r) = pi*delta_x_m**3/three*(3*c_indx_x_min+1) ! delta_z*pi/3*(r1-r0)*(2*r0+r1)
+              vol_cart(index_r) = delta_x_m**2/two
+          ELSE IF ( index_r==c_indx_x_max .AND. Rank_of_process_right < 0 ) THEN ! right point at boundary
+            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(c_indx_x_max**2-(c_indx_x_max-1)**2) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
+            vol_r_m3(index_r) = pi*delta_x_m**3/three*(c_indx_x_max-1+2*c_indx_x_max) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
+            vol_cart(index_r) = delta_x_m**2/two
+          ELSE
+            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(DBLE(index_r+1)**2-DBLE(index_r-1)**2) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
+              vol_r_m3(index_r) = pi*delta_x_m**3*two*DBLE(index_r) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
+              vol_cart(index_r) = delta_x_m**2
+          END IF
+          factor_cyl_vol(index_r) = vol_cart(index_r)/vol_r_m3(index_r)!delta_x_m**2/vol_r_m3(index_r) ! this is dimensionless. In 2D Cartesian the volume is dx**2*1 m3
+               
+      END DO
+     END IF
+
+     ! Somme des volumes est OK
+   !   print*,'vol_r,sum,sum/dz,expected_r,rank',vol_r_m3,SUM(vol_r_m3(c_indx_x_min:c_indx_x_max)),SUM(vol_r_m3(c_indx_x_min:c_indx_x_max))/delta_x_m,pi*((c_indx_x_max-c_indx_x_min)*delta_x_m)**2,Rank_of_process
+   !   print*,'total_vol_r expected',pi*((c_indx_x_max_total-c_indx_x_min_total)*delta_x_m)**2
      DO k = 1, N_electrons
 
-        electron(k)%X = MAX(c_X_area_min, MIN(c_X_area_max, x_limit_left + (x_limit_right - x_limit_left) * well_random_number()))
+         IF ( i_cylindrical==0 ) THEN 
+            electron(k)%X = MAX(c_X_area_min, MIN(c_X_area_max, x_limit_left + (x_limit_right - x_limit_left) * well_random_number()))
+         ELSE IF ( i_cylindrical==1 .OR. i_cylindrical==2 ) THEN ! radial distribution
+            electron(k)%X = MAX(c_X_area_min,MIN( c_X_area_max,SQRT((x_limit_right**2 - x_limit_left**2)*well_random_number() + x_limit_left**2)))
+         END IF
 
         electron(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))
 

@@ -42,15 +42,15 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
   REAL(8) :: alpha_r ! root of bessel function
 
   ! I need collective operation because we do not know the exact size of the box... This is because of ghost points ...
-  CALL MPI_ALLREDUCE(indx_x_max, index_maxi_r,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
-  CALL MPI_ALLREDUCE(indx_y_max, index_maxi_z,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+!   CALL MPI_ALLREDUCE(indx_x_max, index_maxi_r,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+!   CALL MPI_ALLREDUCE(indx_y_max, index_maxi_z,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
   
-  Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
-  Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
-  print*,'Lr,Lz,index_maxi_r,index_maxi_z',Lr,Lz,index_maxi_r,index_maxi_z
-  k_test_r = 11./4*two*pi/Lr
-  k_test_z = 5.0*two*pi/Lz
-  alpha_r = 18.071063967910924/Lr ! sixth root
+!   Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
+!   Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
+!   print*,'Lr,Lz,index_maxi_r,index_maxi_z',Lr,Lz,index_maxi_r,index_maxi_z
+!   k_test_r = 11./4*two*pi/Lr
+!   k_test_z = 5.0*two*pi/Lz
+!   alpha_r = 18.071063967910924/Lr ! sixth root
 
   ALLOCATE(   queue(1:block_N_of_nodes_to_solve), STAT = ALLOC_ERR)
   ALLOCATE(rhsvalue(1:block_N_of_nodes_to_solve), STAT = ALLOC_ERR)

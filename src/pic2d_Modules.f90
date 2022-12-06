@@ -170,12 +170,14 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: half = 1.0_8/2.0_8
   REAL(8), PARAMETER :: one = 1.0_8
   REAL(8), PARAMETER :: two = 2.0_8
+  REAL(8), PARAMETER :: three = 3.0_8
   REAL(8), PARAMETER :: four = 4.0_8
 
   INTEGER, PARAMETER :: string_length = 300
 
   INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
                             ! For the z_theta plane we can take a Cartesian geometry for now
+  INTEGER :: debug_level
 
   REAL(8) eps_0_Fm
 
@@ -636,6 +638,10 @@ MODULE ClusterAndItsBoundaries
   END TYPE field_calc_proc
 
   TYPE(field_calc_proc), ALLOCATABLE :: field_calculator(:)
+
+  REAL(8), ALLOCATABLE :: vol_r_m3(:) ! node volume in cylindrical 
+  REAL(8), ALLOCATABLE :: vol_cart(:) ! node volume in cartesian
+  REAL(8), ALLOCATABLE :: factor_cyl_vol(:) ! corrective factory in claculation of density in cylindrical coordites: V_cart/V_cyl
 
 END MODULE ClusterAndItsBoundaries
 
@@ -1246,3 +1252,98 @@ MODULE AvgSnapshots
   LOGICAL save_avg_data(1:38)  ! 1+2+3+16+16
 
 END MODULE AvgSnapshots
+
+!--------------------------------------------------------------------------------------------------
+!     MODULE print
+!>    @details Prints readable messages for user and debug
+!!    @authors W. Villafana
+!!    @date    Dec-5-2022
+!--------------------------------------------------------------------------------------------------
+
+MODULE mod_print
+    
+    USE CurrentProblemValues, ONLY: string_length
+    IMPLICIT NONE
+
+    CONTAINS
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_message_cluster
+!>    @details Print message by cluster master. 
+!!    @authors W. Villafana
+!!    @date    Nov-25-2022
+!-------------------------------------------------------------------------------------------------- 
+    SUBROUTINE print_message_cluster ( message, debug_level )
+      
+      USE ParallelOperationValues, ONLY: Rank_of_process
+      IMPLICIT NONE
+
+      !IN/OUT
+      CHARACTER(LEN=string_length), INTENT(IN) :: message
+      INTEGER, INTENT(IN) :: debug_level
+
+      IF ( debug_level>0) WRITE(*,'(T8,A,I3,A)') "Cluster master",Rank_of_process,": "//TRIM(message) 
+
+  END SUBROUTINE    
+  
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_message
+!>    @details Print message by master proc and indicates current subroutine 
+!!    @authors W. Villafana
+!!    @date    Nov-25-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_message ( message,routine )
+      
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    IMPLICIT NONE
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: message
+    CHARACTER(LEN=string_length), INTENT(IN), OPTIONAL :: routine
+    
+    IF ( Rank_of_process==0) THEN
+        IF (PRESENT( routine )) THEN 
+            WRITE(*,'(T8,A,T18,A)') "In subroutine "//TRIM(routine)//": "//TRIM(message) 
+        ELSE
+            WRITE(*,'(T8,A)') TRIM(message) 
+        END IF
+    END IF
+
+  END SUBROUTINE  
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_output
+!>    @details Print generic output by master proc 
+!!    @authors W. Villafana
+!!    @date    Nov-25-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_output ( message )
+        
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    IMPLICIT NONE
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: message
+    
+    IF ( Rank_of_process==0) WRITE(*,'(A)') TRIM(message)
+
+  END SUBROUTINE      
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_output
+!>    @details Print generic output by all called proc 
+!!    @authors W. Villafana
+!!    @date    Nov-25-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_output_all ( message,debug_level )
+        
+    IMPLICIT NONE
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: message
+    INTEGER, INTENT(IN) :: debug_level
+    
+    IF ( debug_level>0 ) WRITE(*,'(A)') TRIM(message)
+
+  END SUBROUTINE        
+
+END MODULE mod_print

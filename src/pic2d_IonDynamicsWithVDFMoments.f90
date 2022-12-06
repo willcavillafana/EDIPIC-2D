@@ -366,10 +366,10 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
      vijp1 = REAL(ax_i   * ay_jp1)
      vip1jp1 = 1.0 - vij - vip1j - vijp1
 
-     rbufer_n(pos_i_j)     = rbufer_n(pos_i_j)     + vij     !ax_i   * ay_j
-     rbufer_n(pos_ip1_j)   = rbufer_n(pos_ip1_j)   + vip1j   !ax_ip1 * ay_j
-     rbufer_n(pos_i_jp1)   = rbufer_n(pos_i_jp1)   + vijp1   !ax_i   * ay_jp1
-     rbufer_n(pos_ip1_jp1) = rbufer_n(pos_ip1_jp1) + vip1jp1 !ax_ip1 * ay_jp1
+     rbufer_n(pos_i_j)     = rbufer_n(pos_i_j)     + vij*factor_cyl_vol(i)        !ax_i   * ay_j
+     rbufer_n(pos_ip1_j)   = rbufer_n(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)       !ax_ip1 * ay_j
+     rbufer_n(pos_i_jp1)   = rbufer_n(pos_i_jp1)   + vijp1*factor_cyl_vol(i)       !ax_i   * ay_jp1
+     rbufer_n(pos_ip1_jp1) = rbufer_n(pos_ip1_jp1) + vip1jp1*factor_cyl_vol(i+1)     !ax_ip1 * ay_jp1
 
      updVX = ion(s)%part(k)%VX
      updVY = ion(s)%part(k)%VY
@@ -1340,21 +1340,21 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
               IF (j.EQ.Probe_position(2,npa)) THEN
 ! the probe is in the left bottom corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_i * ay_j)   ! wij
+                 weight = REAL(ax_i * ay_j)*factor_cyl_vol(i)       ! wij
               ELSE IF ((j+1).EQ.Probe_position(2,npa)) THEN
 ! the probe is in the left top corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_i * ay_jp1)   ! vijp1
+                 weight = REAL(ax_i * ay_jp1)*factor_cyl_vol(i)       ! vijp1
               END IF
            ELSE IF ((i+1).EQ.Probe_position(1,npa)) THEN
               IF (j.EQ.Probe_position(2,npa)) THEN
 ! the probe is in the right bottom corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_ip1 * ay_j)   ! vip1j
+                 weight = REAL(ax_ip1 * ay_j)*factor_cyl_vol(i+1)       ! vip1j
               ELSE IF ((j+1).EQ.Probe_position(2,npa)) THEN
 ! the probe is in the right top corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_ip1 * ay_jp1)   ! vip1jp1
+                 weight = REAL(ax_ip1 * ay_jp1)*factor_cyl_vol(i+1)       ! vip1jp1
               END IF
            END IF
 

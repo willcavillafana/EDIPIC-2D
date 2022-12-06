@@ -1707,35 +1707,35 @@ SUBROUTINE GATHER_ION_CHARGE_DENSITY
 ! assume that there may be positive and negative ions with charges up to +/-3e
 ! thus we use addition instead of multiplication which is faster, right?
            CASE(1)
-              rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij                           !ax_i   * ay_j
-              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j                         !ax_ip1 * ay_j
-              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1                         !ax_i   * ay_jp1
-              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + 1.0_8 - vij - vip1j - vijp1   !ax_ip1 * ay_jp1
+              rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij*factor_cyl_vol(i)                           !ax_i   * ay_j
+              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)                         !ax_ip1 * ay_j
+              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1*factor_cyl_vol(i)                         !ax_i   * ay_jp1
+              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1)*factor_cyl_vol(i+1)   !ax_ip1 * ay_jp1
            CASE(2)
-              rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij + vij                                           !ax_i   * ay_j
-              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j + vip1j                                       !ax_ip1 * ay_j
-              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1 + vijp1                                       !ax_i   * ay_jp1
-              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + 2.0_8 - vij - vip1j - vijp1 - vij - vip1j - vijp1   !ax_ip1 * ay_jp1
+              rbufer(pos_i_j)     = rbufer(pos_i_j)     + (vij + vij)*factor_cyl_vol(i)                                            !ax_i   * ay_j
+              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + (vip1j + vip1j)*factor_cyl_vol(i+1)                                        !ax_ip1 * ay_j
+              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + (vijp1 + vijp1)*factor_cyl_vol(i)                                        !ax_i   * ay_jp1
+              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (2.0_8 - vij - vip1j - vijp1 - vij - vip1j - vijp1)*factor_cyl_vol(i+1)    !ax_ip1 * ay_jp1
            CASE(3)
-              rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij + vij + vij                                                           !ax_i   * ay_j
-              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j + vip1j + vip1j                                                     !ax_ip1 * ay_j
-              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1 + vijp1 + vijp1                                                     !ax_i   * ay_jp1
-              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + 3.0_8 - vij - vip1j - vijp1 - vij - vip1j - vijp1 - vij - vip1j - vijp1   !ax_ip1 * ay_jp1
+              rbufer(pos_i_j)     = rbufer(pos_i_j)     + (vij + vij + vij)*factor_cyl_vol(i)                                                            !ax_i   * ay_j
+              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + (vip1j + vip1j + vip1j)*factor_cyl_vol(i+1)                                                      !ax_ip1 * ay_j
+              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + (vijp1 + vijp1 + vijp1)*factor_cyl_vol(i)                                                      !ax_i   * ay_jp1
+              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (3.0_8 - vij - vip1j - vijp1 - vij - vip1j - vijp1 - vij - vip1j - vijp1)*factor_cyl_vol(i+1)    !ax_ip1 * ay_jp1
            CASE(-1)
-              rbufer(pos_i_j)     = rbufer(pos_i_j)     - vij                           !ax_i   * ay_j
-              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   - vip1j                         !ax_ip1 * ay_j
-              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   - vijp1                         !ax_i   * ay_jp1
-              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) - 1.0_8 + vij + vip1j + vijp1   !ax_ip1 * ay_jp1
+              rbufer(pos_i_j)     = rbufer(pos_i_j)     - vij*factor_cyl_vol(i)                            !ax_i   * ay_j
+              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   - vip1j*factor_cyl_vol(i+1)                          !ax_ip1 * ay_j
+              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   - vijp1*factor_cyl_vol(i)                          !ax_i   * ay_jp1
+              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) - (1.0_8 + vij + vip1j + vijp1)*factor_cyl_vol(i+1)    !ax_ip1 * ay_jp1
            CASE(-2)
-              rbufer(pos_i_j)     = rbufer(pos_i_j)     - vij - vij                                           !ax_i   * ay_j
-              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   - vip1j - vip1j                                       !ax_ip1 * ay_j
-              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   - vijp1 - vijp1                                       !ax_i   * ay_jp1
-              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) - 2.0_8 + vij + vip1j + vijp1 + vij + vip1j + vijp1   !ax_ip1 * ay_jp1
+              rbufer(pos_i_j)     = rbufer(pos_i_j)     - (vij + vij)*factor_cyl_vol(i)                                            !ax_i   * ay_j
+              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   - (vip1j + vip1j)*factor_cyl_vol(i+1)                                        !ax_ip1 * ay_j
+              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   - (vijp1 + vijp1)*factor_cyl_vol(i)                                        !ax_i   * ay_jp1
+              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) - (2.0_8 - vij - vip1j - vijp1 - vij - vip1j - vijp1)*factor_cyl_vol(i+1)    !ax_ip1 * ay_jp1
            CASE(-3)
-              rbufer(pos_i_j)     = rbufer(pos_i_j)     - vij - vij - vij                                                           !ax_i   * ay_j
-              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   - vip1j - vip1j - vip1j                                                     !ax_ip1 * ay_j
-              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   - vijp1 - vijp1 - vijp1                                                     !ax_i   * ay_jp1
-              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) - 3.0_8 + vij + vip1j + vijp1 + vij + vip1j + vijp1 + vij + vip1j + vijp1   !ax_ip1 * ay_jp1
+              rbufer(pos_i_j)     = rbufer(pos_i_j)     - (vij + vij + vij)*factor_cyl_vol(i)                                                            !ax_i   * ay_j
+              rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   - (vip1j + vip1j + vip1j)*factor_cyl_vol(i+1)                                                      !ax_ip1 * ay_j
+              rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   - (vijp1 + vijp1 + vijp1)*factor_cyl_vol(i)                                                      !ax_i   * ay_jp1
+              rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) - (3.0_8 - vij - vip1j - vijp1 - vij - vip1j - vijp1 - vij - vip1j - vijp1)*factor_cyl_vol(i+1)    !ax_ip1 * ay_jp1
         END SELECT
 
      END DO

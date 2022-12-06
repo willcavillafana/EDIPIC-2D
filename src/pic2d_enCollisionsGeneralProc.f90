@@ -908,10 +908,10 @@ RECURSIVE SUBROUTINE Transfer_collisions_from_stored_list(node, n_neutral, indx_
      vip1j = ax_ip1 * ay_j
      vijp1 = ax_i   * ay_jp1
 
-     rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij                         !ax_i   * ay_j
-     rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j                       !ax_ip1 * ay_j
-     rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1                       !ax_i   * ay_jp1
-     rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + 1.0 - vij - vip1j - vijp1   !ax_ip1 * ay_jp1
+     rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij*factor_cyl_vol(i)                         !ax_i   * ay_j
+     rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)                       !ax_ip1 * ay_j
+     rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1*factor_cyl_vol(i)                       !ax_i   * ay_jp1
+     rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (1.0 - vij - vip1j - vijp1)*factor_cyl_vol(i+1)   !ax_ip1 * ay_jp1
 
   END IF
 

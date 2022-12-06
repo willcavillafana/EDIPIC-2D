@@ -1687,10 +1687,10 @@ if ((pos_i_j.gt.bufsize)) then
    print '(2x,8(2x,i10))', Rank_of_process, bufsize, pos_i_j, i, j, k, n1, n2
 end if
 
-     rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij                         !ax_i   * ay_j
-     rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j                       !ax_ip1 * ay_j
-     rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1                       !ax_i   * ay_jp1
-     rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + 1.0_8 - vij - vip1j - vijp1 !ax_ip1 * ay_jp1
+     rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij*factor_cyl_vol(i)                         !ax_i   * ay_j
+     rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)                       !ax_ip1 * ay_j
+     rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1*factor_cyl_vol(i)                       !ax_i   * ay_jp1
+     rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1)*factor_cyl_vol(i+1) !ax_ip1 * ay_jp1
 
   END DO
 
