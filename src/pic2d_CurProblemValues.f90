@@ -224,9 +224,9 @@ SUBROUTINE INITIATE_PARAMETERS
   END IF
 
   IF ( i_cylindrical==0 ) THEN
-      WRITE( message, '(A)'), "Selected geometry: CARTESIAN",achar(10)
+      WRITE( message, '(A)'), "Selected geometry: CARTESIAN"//achar(10)
   ELSE IF ( i_cylindrical==2 ) THEN
-      WRITE( message, '(A)'), "Selected geometry: CYLINDRICAL r-z",achar(10)
+      WRITE( message, '(A)'), "Selected geometry: CYLINDRICAL r-z"//achar(10)
   END IF
   CALL print_message( message )
 
@@ -760,7 +760,7 @@ SUBROUTINE INITIATE_PARAMETERS
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "Debug level is set to defaut value 0",achar(10)
+         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
          CALL print_message( message,routine )         
       END IF       
       
