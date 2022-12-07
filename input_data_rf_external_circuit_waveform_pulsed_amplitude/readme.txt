@@ -26,28 +26,17 @@ Time dependences of circuit parameters, such as the electrode potential, charge,
 history_ext_circuit.dat, see lines 1863-1875 in file pic2d_ExternalCircuits.f90. If one uses a more complex circuit, this 
 diagnostics may have to be updated as well.
 
-If the code does not find file init_ext_circuit.dat, simulation continues without the external circuit. 
+Note that if the code does not find file init_ext_circuit.dat, simulation continues without the external circuit. 
 If the simulation has to be carried out without thet circuit, make sure that file init_ext_circuit.dat 
 is not in the simulation directory.
 
-Note that format of input data file init_ext_circuit.dat has changed compared to the older (March 2022) version.  
-Parameters of the external circuit power supply must be specified in a single line. It is possible to introduce a power supply
-with a constant voltage, a harmonically oscillating voltage, a voltage with the time profile defined by a waveform data file, 
-or a combination of the above. The amplitude of the oscillating part may be a separate function of time defined via 
-an amplitude profile data file. If the code does not find the waveform and/or the amplitude profile data file for the 
-corresponding external circuit power supply, the voltage of the power supply will be only as specified in the 
-init_ext_circuit.dat (constant + sinusoidal oscillations).
-
-Note that while the new input data file init_ext_circuit.dat allows to introduce numerous power supplies,
-resistors, capacitors, and inductors in the external circuit, the code still can solve only the circuit with one HF power source 
-and one capacitor as described above. For a different circuit, the system of equations solved in subroutine 
-SOLVE_EXTERNAL_CONTOUR in pic2d_ExternalCircuits.f90 must be modified.
-
-An example of the external circuit with the waveforms and the amplitude profiling is in
-https://github.com/PrincetonUniversity/EDIPIC-2D/tree/main/input_data_rf_external_circuit_waveform_pulsed_amplitude .
-
-Format of the waveform and amplitude profile data files is similar to that of the corresponding files 
-for the potential of inner/boundary objects.
+The difference between this example and the one provided in directory 
+https://github.com/PrincetonUniversity/EDIPIC-2D/tree/main/input_data_rf_external_circuit
+is that the dependence of the voltage of the hf power source in the external circuit vs time is defined by 
+a waveform input data file init_ecps_01_waveform.dat and an amplitude profile data file init_ecps_01_amplitude_profile.dat. 
+The former file specifies non-sinusoidal HF oscillations.
+The latter file defines time windows when the HF oscillations are turned on or off. 
+These files have same format as the waveform and amplitude profile data files for the potentials of the boundary/inner metal objects.
 
 The example is configured to run with 16 MPI processes.
 

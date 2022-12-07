@@ -69,6 +69,8 @@ PROGRAM MainProg
 !###  CALL INITIATE_WALL_DIAGNOSTICS_HT_SETUP   ! only one of the two actually works
   CALL INITIATE_WALL_DIAGNOSTICS            !
 
+  CALL INITIATE_GENERAL_DIAGNOSTICS
+
   CALL INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 
   CALL INITIATE_en_COLL_DIAGNOSTICS
@@ -96,6 +98,10 @@ PROGRAM MainProg
   ions_moved = .TRUE.
 
   CALL start_timer( total_timer )
+  CALL ADJUST_HARMONIC_OSCILLATIONS_PHASE
+
+  CALL ADJUST_ECPS_HARMONIC_OSCILLATIONS_PHASE
+
   DO T_cntr = Start_T_cntr, Max_T_cntr
 
      if (Rank_of_process.eq.0) print *, "Iteration # ",T_cntr
@@ -297,6 +303,10 @@ PROGRAM MainProg
         CALL end_timer( collect_particles_hitting_with_bo_timer )
         CALL start_timer( compute_mcc_timer ) 
         !t13 = MPI_WTIME()
+
+        CALL COLLECT_ELECTRON_DENSITY_FOR_COLL_FREQS
+
+        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
         CALL PERFORM_ELECTRON_NEUTRAL_COLLISIONS
 
