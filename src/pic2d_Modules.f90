@@ -1375,7 +1375,7 @@ MODULE mod_print
   END SUBROUTINE      
 
 !--------------------------------------------------------------------------------------------------
-!     SUBROUTINE print_output
+!     SUBROUTINE print_output_all
 !>    @details Print generic output by all called proc 
 !!    @authors W. Villafana
 !!    @date    Nov-25-2022
@@ -1389,6 +1389,25 @@ MODULE mod_print
     INTEGER, INTENT(IN) :: debug_level
     
     IF ( debug_level>0 ) WRITE(*,'(A)') TRIM(message)
+
+  END SUBROUTINE      
+  
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_error
+!>    @details Print error message encountered by proc 
+!!    @authors W. Villafana
+!!    @date    Dec-8-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_error ( message,routine )
+        
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    IMPLICIT NONE
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: message
+    CHARACTER(LEN=string_length), INTENT(IN), OPTIONAL :: routine
+    
+    WRITE(*,'(T8,A,I4,A)') ">>> In subroutine "//TRIM(routine)//", error PROC ",Rank_of_process," "//TRIM(message)
 
   END SUBROUTINE        
 

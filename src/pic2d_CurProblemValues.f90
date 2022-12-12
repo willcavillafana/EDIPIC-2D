@@ -3206,7 +3206,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   USE IonParticles
   USE ClusterAndItsBoundaries
   USE BlockAndItsBoundaries, ONLY: block_has_symmetry_plane_X_left
-  USE mod_print, ONLY: print_message_cluster,print_output,print_output_all
+  USE mod_print, ONLY: print_message_cluster,print_output,print_output_all,print_error
 
   USE rng_wrapper
 
@@ -3232,16 +3232,19 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   INTEGER :: n_limit_x_total,n_limit_y_total ! total number of cells in whole domain in r direction (cylindrical)
   INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
   INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
-  INTEGER :: N_electron_tot ! number of electrons in whole domain
+  REAL(8) :: N_electron_tot ! number of electrons in whole domain
   REAL(8) :: N_electrons_total_cyl
   INTEGER :: ierr
   INTEGER :: stattus(MPI_STATUS_SIZE)
   CHARACTER(LEN=string_length) :: message
   REAL(8) :: N_ppc_min, N_ppc_max ! PIC diagnostics
+  INTEGER :: int_test ! test if integer precision is enough! temporary fix 
+  CHARACTER(LEN=string_length) :: routine
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
 
+  routine = "DISTRIBUTE_PARTICLES"
   n_limit_x_total = zero
   N_electrons_total_cyl = zero
   IF (Rank_cluster.EQ.0) THEN
@@ -3277,6 +3280,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y )
 
+     ! Quick check if I have not exceed greatest available integer
+     IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y>DBLE(HUGE(int_test)) ) THEN
+        WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y," is too big for integer precision. Max available integer =",HUGE(int_test)
+        CALL print_error ( message,routine )
+        CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+     END IF
+
      ! Get min and max of index in x/r and y/z directions
      CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
      CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)
@@ -3286,7 +3296,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      ! r-z
      IF ( i_cylindrical==2 ) THEN
          ! Get total number of particles in domain
-         CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_REAL8, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
+         CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
 
          ! Determine number of particles with radial linear increase. 
          ! Note that clusters from 0 to before last colum have a grid point difference. 
@@ -3298,6 +3308,19 @@ SUBROUTINE DISTRIBUTE_PARTICLES
                              n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
                              (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
                              pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+
+         ! Quick check if I have not exceed greatest available integer
+         IF ( N_electrons_total_cyl*&
+              n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
+              (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
+              pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m>DBLE(HUGE(int_test)) ) THEN
+             WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",N_electrons_total_cyl*&
+             n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
+             (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
+             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m," is too big for integer precision. Max available integer =",HUGE(int_test)
+             CALL print_error ( message,routine )
+             CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+         END IF
 
          ! Check we have Nppc*n_init/n0*pi*Nx*delta_x particles per cells in average 
          ! CALL MPI_ALLREDUCE(N_electrons, N_electron_mean,1, MPI_INT, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
@@ -3312,10 +3335,18 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      END IF
      
      ! Print info on particles distribution
-     CALL MPI_ALLREDUCE(N_electrons, N_electron_tot,1, MPI_INT, MPI_SUM, COMM_HORIZONTAL, stattus, ierr )
-     CALL MPI_ALLREDUCE(DBLE(N_electrons/(n_limit_x*n_limit_y)), N_ppc_min,1, MPI_REAL8, MPI_MIN, COMM_HORIZONTAL, stattus, ierr )
-     CALL MPI_ALLREDUCE(DBLE(N_electrons/(n_limit_x*n_limit_y)), N_ppc_max,1, MPI_REAL8, MPI_MAX, COMM_HORIZONTAL, stattus, ierr )
-     
+     CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electron_tot,1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, stattus, ierr )
+     CALL MPI_ALLREDUCE(DBLE(N_electrons/(n_limit_x*n_limit_y)), N_ppc_min,1, MPI_DOUBLE_PRECISION, MPI_MIN, COMM_HORIZONTAL, stattus, ierr )
+     CALL MPI_ALLREDUCE(DBLE(N_electrons/(n_limit_x*n_limit_y)), N_ppc_max,1, MPI_DOUBLE_PRECISION, MPI_MAX, COMM_HORIZONTAL, stattus, ierr )
+
+     ! Quick check if I have not exceed greatest available integer
+     IF ( N_electron_tot>DBLE(HUGE(int_test)) ) THEN
+          WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons in whole domain =",N_electron_tot," is too big for integer precision. Max available integer =",HUGE(int_test)
+          CALL print_error ( message,routine )
+          CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+      END IF     
+
+
      WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster:",N_ppc_min
      CALL print_output( message )
      WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain:",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
