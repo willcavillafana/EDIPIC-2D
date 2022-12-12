@@ -339,7 +339,8 @@ subroutine report_total_number_of_particles
   INTEGER k, s, k1, k2, k3, k4
   INTEGER pos1, pos2
 
-  INTEGER N_particles_cluster(0:N_spec), N_particles_total(0:N_spec)
+  INTEGER N_particles_cluster(0:N_spec)!, N_particles_total(0:N_spec)
+  REAL(8) :: N_particles_total(0:N_spec)
 
   INTEGER n
   real(8) surf_char
@@ -400,41 +401,41 @@ subroutine report_total_number_of_particles
      
   IF (cluster_rank_key.EQ.0) THEN
 
-     CALL MPI_REDUCE(N_particles_cluster, N_particles_total, N_spec+1, MPI_INTEGER, MPI_SUM, 0, COMM_HORIZONTAL, ierr)
+     CALL MPI_REDUCE(DBLE(N_particles_cluster), N_particles_total, N_spec+1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_HORIZONTAL, ierr)
 
      CALL MPI_REDUCE(pwbufer, totpwbufer, 4*(N_spec+1), MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_HORIZONTAL, ierr)
 
      IF (Rank_horizontal.EQ.0) THEN 
-        PRINT '("Total : number of electron particles = ",i10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', N_particles_total(0), totpwbufer(1:4)
+        PRINT '("Total : number of electron particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', N_particles_total(0), totpwbufer(1:4)
 
         open (21, file = 'history_e.dat', position = 'append')
-        write (21, '(2x,i8,2x,f12.5,2x,i8,2x,4(2x,e14.7))') &
+        write (21, '(2x,i8,2x,f12.5,2x,ES18.10,2x,4(2x,e14.7))') &
              & T_cntr, &                       ! 1
              & T_cntr * delta_t_s * 1.0d9, &   ! 2
              & N_particles_total(0), &                                                  ! 3
-             & REAL(V_scale_ms * totpwbufer(1) / MAX(1, N_particles_total(0))), &             ! 4
-             & REAL(V_scale_ms * totpwbufer(2) / MAX(1, N_particles_total(0))), &             ! 5
-             & REAL(V_scale_ms * totpwbufer(3) / MAX(1, N_particles_total(0))), &             ! 6
-             & REAL(energy_factor_eV * totpwbufer(4) / MAX(1, N_particles_total(0)))    ! 7
+             & REAL(V_scale_ms * totpwbufer(1) / MAX(one, N_particles_total(0))), &             ! 4
+             & REAL(V_scale_ms * totpwbufer(2) / MAX(one, N_particles_total(0))), &             ! 5
+             & REAL(V_scale_ms * totpwbufer(3) / MAX(one, N_particles_total(0))), &             ! 6
+             & REAL(energy_factor_eV * totpwbufer(4) / MAX(one, N_particles_total(0)))    ! 7
         close (21, status = 'keep')
 
         pos1=5
         pos2=8
         DO s = 1, N_Spec
-           PRINT '("Total : number of ion  ",i2,"  particles = ",i10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', s, N_particles_total(s), totpwbufer(pos1:pos2)
+           PRINT '("Total : number of ion  ",i2,"  particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', s, N_particles_total(s), totpwbufer(pos1:pos2)
 
            history_i_filename = 'history_i_S.dat'
            history_i_filename(11:11) = convert_int_to_txt_string(s, 1)
 
            open (21, file = history_i_filename, position = 'append')
-           write (21, '(2x,i8,2x,f12.5,2x,i8,2x,4(2x,e14.7))') &
+           write (21, '(2x,i8,2x,f12.5,2x,ES18.10,2x,4(2x,e14.7))') &
              & T_cntr, &                                                                   ! 1
              & T_cntr * delta_t_s * 1.0d9, &                                               ! 2
              & N_particles_total(s), &                                                             ! 3
-             & REAL(V_scale_ms * totpwbufer(pos1)   / MAX(1, N_particles_total(s))), &                 ! 4
-             & REAL(V_scale_ms * totpwbufer(pos1+1) / MAX(1, N_particles_total(s))), &                 ! 5
-             & REAL(V_scale_ms * totpwbufer(pos1+2) / MAX(1, N_particles_total(s))), &                 ! 6
-             & REAL(Ms(s) * energy_factor_eV * totpwbufer(pos1+3) / MAX(1, N_particles_total(s)))  ! 7
+             & REAL(V_scale_ms * totpwbufer(pos1)   / MAX(one, N_particles_total(s))), &                 ! 4
+             & REAL(V_scale_ms * totpwbufer(pos1+1) / MAX(one, N_particles_total(s))), &                 ! 5
+             & REAL(V_scale_ms * totpwbufer(pos1+2) / MAX(one, N_particles_total(s))), &                 ! 6
+             & REAL(Ms(s) * energy_factor_eV * totpwbufer(pos1+3) / MAX(one, N_particles_total(s)))  ! 7
            close (21, status = 'keep')
 
            pos1=pos2+1
