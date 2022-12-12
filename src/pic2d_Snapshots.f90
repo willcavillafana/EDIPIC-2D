@@ -632,7 +632,7 @@ SUBROUTINE CREATE_SNAPSHOT
      IF (save_data(11)) THEN
         filename_Ve = '_NNNN_VXe_ms_2D.bin'
         filename_Ve(2:5) = convert_int_to_txt_string(current_snap, 4)
-        cs_temp = cs_VX * REAL(V_scale_ms)                                                 ! V_scale_ms = N_max_vel * v_Te_ms
+        cs_temp = cs_VX * REAL(V_scale_ms) 
         CALL SAVE_GLOBAL_2D_ARRAY(cs_temp, filename_Ve)
         CALL MPI_BARRIER(COMM_HORIZONTAL, ierr)
      END IF
@@ -689,7 +689,7 @@ SUBROUTINE CREATE_SNAPSHOT
               cs_temp(i,j) = 0.0
               IF (cs_N(i,j).LE.0.0) CYCLE
               cs_temp(i,j) = MAX(0.0, cs_WX(i,j) - cs_VX(i,j)**2) * REAL(temperature_factor_eV)   ! temperature_factor_eV = m_e_kg * V_scale_ms**2 / e_Cl
-           END DO
+            END DO
         END DO
         CALL SAVE_GLOBAL_2D_ARRAY(cs_temp, filename_Te)
         CALL MPI_BARRIER(COMM_HORIZONTAL, ierr)

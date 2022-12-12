@@ -140,6 +140,7 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 ! read the parameters of current set of snapshot from the data file
      READ (9, *, iostat = ios) Rqst_snap_start_ns, Rqst_snap_finish_ns, Rqst_n_of_snaps
 
+     print*,'Rqst_snap_start_ns, Rqst_snap_finish_ns, Rqst_n_of_snaps',Rqst_snap_start_ns, Rqst_snap_finish_ns, Rqst_n_of_snaps
      IF (ios.NE.0) THEN
         IF (Rank_of_process.EQ.0) PRINT '("### WARNING iostat ",i8," : in file init_avgsnapshots.dat while reading snapshot group ",i3,", skip ###")', ios, i
         CYCLE

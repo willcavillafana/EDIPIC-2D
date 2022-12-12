@@ -1014,7 +1014,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
      DO i = c_indx_x_min, c_indx_x_max
         IF (cs_N(i,j).GT.1.0e-9) THEN    ! note this is small but not zero
 
-           inv_N = 1.0 / cs_N(i,j)
+           inv_N = 1.0 / ( cs_N(i,j)/factor_cyl_vol(i) )
 
            cs_VX(i, j) = cs_VX(i, j) * inv_N
            cs_VY(i, j) = cs_VY(i, j) * inv_N
