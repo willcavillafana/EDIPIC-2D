@@ -306,7 +306,7 @@ subroutine read_init_configuration(delta_x_m, delta_t_s, N_plasma_m3, N_of_parti
 
   v_Te_ms     = SQRT(2.0_8 * DBLE(T_e_eV) * e_Cl / m_e_kg)
   W_plasma_s1 = SQRT(DBLE(N_plasma_m3) * e_Cl**2 / (eps_0_Fm * m_e_kg))
-  L_debye_m   = v_Te_ms / W_plasma_s1
+  L_debye_m   = v_Te_ms / (W_plasma_s1*2.0_8)
   delta_x_m   = L_debye_m / N_of_cells_debye    
   delta_t_s   = delta_x_m / (N_max_vel * v_Te_ms) 
 

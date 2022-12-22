@@ -740,9 +740,9 @@ SUBROUTINE INITIATE_PARAMETERS
      END DO
   END DO
 
-  v_Te_ms     = SQRT(2.0_8 * T_e_eV * e_Cl / m_e_kg)!SQRT( T_e_eV * e_Cl / m_e_kg)!
+  v_Te_ms     = SQRT(2.0_8 * T_e_eV * e_Cl / m_e_kg)
   W_plasma_s1 = SQRT(N_plasma_m3 * e_Cl**2 / (eps_0_Fm * m_e_kg))
-  L_debye_m   = v_Te_ms / W_plasma_s1
+  L_debye_m   = v_Te_ms / (W_plasma_s1*SQRT(two)) ! We need to remove the sqrt(2) to have the CORRECT debye formula
   delta_x_m   = L_debye_m / DBLE(N_of_cells_debye)
   delta_t_s   = delta_x_m / (N_max_vel * v_Te_ms)
 
