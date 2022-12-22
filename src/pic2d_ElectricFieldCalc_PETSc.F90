@@ -438,6 +438,9 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
 
   IF (cluster_rank_key.EQ.0) THEN
 
+   ! Deactivate electric field and poisson
+   ! phi = zero
+
 ! volume
      DO j = indx_y_min+1, indx_y_max-1
         DO i = indx_x_min+1, indx_x_max-1

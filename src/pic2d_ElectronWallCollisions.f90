@@ -72,11 +72,12 @@ END SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_LEFT
 
 !-----------------------------------------
 !
-SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
+SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
-  USE CurrentProblemValues, ONLY : whole_object, VACUUM_GAP, METAL_WALL, DIELECTRIC
+  USE CurrentProblemValues, ONLY : whole_object, VACUUM_GAP, METAL_WALL, DIELECTRIC, i_reflection_cyl_electron,string_length
+  USE mod_print, ONLY: print_error
 
   IMPLICIT NONE
 
@@ -85,6 +86,7 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
   INTEGER ierr
 
   REAL(8) x, y, vx, vy, vz
+  REAL(8), INTENT(IN), OPTIONAL :: x_old,vx_old,vy_old ! original positoin and velocity in r-theta plane (cylindrical only. We need this to properly perform a specular reflection)
   INTEGER tag
 
   INTEGER n, m, nwo  ! nwo stands for number of the whole object
@@ -92,6 +94,18 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
 
   INTEGER jbelow, jabove
   REAL(8) dqbelow, dqabove
+
+  ! Local
+  REAL(8) :: x_reflected,y_reflected,vx_reflected,vy_reflected ! position and veloicty in local Cartesian frame after specular reflection in Cylindrical
+  REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
+  REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
+  REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
+  REAL(8) :: vx_temp,vy_temp,vz_temp
+
+  CHARACTER(LEN=string_length) :: routine
+  CHARACTER(LEN=string_length) :: message
+
+  routine = 'PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT'
 
   particle_not_processed = .TRUE.
 
@@ -110,22 +124,69 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
 
         CALL ADD_ELECTRON_TO_BO_COLLS_LIST(REAL(y), REAL(vx), REAL(vy), REAL(vz), tag, nwo, c_local_object_part(m)%segment_number)
 
-        SELECT CASE (whole_object(nwo)%object_type)
-           CASE (VACUUM_GAP)
-           CASE (METAL_WALL)
-           CASE (DIELECTRIC)
-! update the surface charge
-              jbelow = MAX(INT(y), c_local_object_part(m)%jstart)
-              jabove = MIN(jbelow + 1, c_local_object_part(m)%jend)
-              dqabove = y - jbelow
-              dqbelow = 1.0_8 - dqabove
-              c_local_object_part(m)%surface_charge(jbelow) = c_local_object_part(m)%surface_charge(jbelow) - dqbelow
-              c_local_object_part(m)%surface_charge(jabove) = c_local_object_part(m)%surface_charge(jabove) - dqabove
-        END SELECT
+         ! By default I do not have a specular reflection in cylindrica coordinates
+         IF ( i_reflection_cyl_electron==0 ) THEN
 
-        IF (whole_object(nwo)%SEE_enabled) THEN
-           CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
-        END IF
+             SELECT CASE (whole_object(nwo)%object_type)
+                CASE (VACUUM_GAP)
+                CASE (METAL_WALL)
+                CASE (DIELECTRIC)
+                   ! update the surface charge
+                   jbelow = MAX(INT(y), c_local_object_part(m)%jstart)
+                   jabove = MIN(jbelow + 1, c_local_object_part(m)%jend)
+                   dqabove = y - jbelow
+                   dqbelow = 1.0_8 - dqabove
+                   c_local_object_part(m)%surface_charge(jbelow) = c_local_object_part(m)%surface_charge(jbelow) - dqbelow
+                   c_local_object_part(m)%surface_charge(jabove) = c_local_object_part(m)%surface_charge(jabove) - dqabove
+             END SELECT
+
+             IF (whole_object(nwo)%SEE_enabled) THEN
+                CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
+             END IF
+
+       !   ! By default I do not have a specular reflection in cylindrica coordinates. Only for domain boundary
+         ELSE IF ( i_reflection_cyl_electron==1 ) THEN
+            IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
+               message='missing optional paramaters'
+               CALL print_error(message,routine)
+            ELSE IF ( m<=0 ) THEN
+               message='specular reflection is not implemented for inner objects'
+               CALL print_error(message,routine)
+            END IF
+
+            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected )
+
+            ! Adjust position in local Cartesian frame after collision
+            x_cart = x_reflected
+            z_cart = y_reflected
+            radius = SQRT( x_cart**2+z_cart**2 )
+
+            ! Velocity in local cartesian frame
+            vx = vx_reflected
+            vz = vy_reflected  ! theta direction in z  
+
+            ! Then compute increment angle alpha
+            alpha_ang = DATAN2(z_cart,x_cart)         
+
+            ! Update radius (X). 
+            IF ( radius>c_X_area_max) print*,'x_wil',x
+            radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
+            x = radius
+            
+            ! Get Final velocities in cylindrical system. (z speed has already been update above)
+            vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+            vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+
+            vx = vx_temp
+            vz = vz_temp        
+            
+            ! print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
+            ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
+            ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+
+            CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, whole_object(nwo)%object_id_number)
+        
+         END IF
 
         particle_not_processed = .FALSE.
         EXIT
@@ -1066,3 +1127,88 @@ SUBROUTINE ADD_ELECTRON_TO_BO_COLLS_LIST(coll_coord, vx, vy, vz, tag, nwo, nseg)
   e_colls_with_bo(nwo)%part(k)%VZ = vz
 
 END SUBROUTINE ADD_ELECTRON_TO_BO_COLLS_LIST
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE REFLECT_CYLINDRICAL
+!>    @details Compute new position and speed of specularly reflected particles
+!!    @authors W. Villafana
+!!    @date    Dec-19-2022
+!-------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_j)
+   
+   USE mod_print, ONLY: print_debug
+   USE CurrentProblemValues, ONLY: string_length,two,four,one
+   IMPLICIT NONE
+
+   !IN/OUT
+   REAL(8), INTENT(IN) :: x_start ! x start in current iteration
+   REAL(8), INTENT(IN) :: vx ! radial normalized velocity before collision. It is the increment in radial direction
+   REAL(8), INTENT(IN) :: vy ! azimuthal normalized before collision> It is the increment in azimuthal direction
+   REAL(8), INTENT(IN) :: R_max ! normalized radius at which we have a reflection
+   REAL(8), INTENT(OUT) :: dot_prod_i,dot_prod_j,xf,yf ! final position in local Cartesian frame  
+
+   !LOCAL
+   REAL(8) :: a,b,delta ! trajectory parameters and intermediate computation variables
+   REAL(8) :: x_star,y_star ! Intersection point with outer radius
+   REAL(8) :: d_star,d_remaining ! travelled and remaining distance after collision
+   REAL(8) :: beta,v_perp,v_par ! polar angle at intersection point and velocity at intersection point
+   REAL(8) :: v_perp_new ! new velocity after collision
+   REAL(8) :: module_velocity,dt_remaining ! velocity module and remaining time 
+   
+
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level
+
+   routine = "REFLECT_CYLINDRICAL"
+   local_debug_level = 2
+
+   CALL print_debug( routine,local_debug_level)
+   
+   ! Step 1: compute coefficients of straight line if I had no refelction, y= ax+b
+   ! Compute initial trajectory
+   a = vy/vx
+   b = -a*x_start
+
+   ! Step 2: get coordinates of interection point with outer radius
+   delta = four*(a**2*(R_max**2-x_start**2)+R_max**2)
+   x_star = (-two*a*b+SQRT(delta))/(two*(a**2+one)) ! Take positive solution (should be OK)
+   y_star = a*x_star+b   
+
+   ! Step 3: compute remaining distance after collision
+   d_star = SQRT((x_star-x_start)**2+y_star**2)
+   d_remaining = SQRT((vx)**2+vy**2) - d_star  
+   
+   ! Step 4: compute orthogonal and parallel velocity at intersection point, with respect to tangent  
+   beta = DATAN2(y_star,x_star) ! polar angle at intersection point
+   v_perp = vx*COS(beta)+vy*SIN(beta) !radial
+   v_par = -vx*SIN(beta)+vy*COS(beta) ! azimuthal   
+
+   ! Step 5: Define new velocity vector after collision. In local polar coordinate from intersection point
+   v_perp_new = - v_perp ! v_par is unchanged   
+
+   ! Step 6: Compute equivalent time to spend of the remaining distance
+   module_velocity = SQRT(v_perp**2+v_par**2)
+   dt_remaining = d_remaining/module_velocity   
+
+   ! Step 7: compute back velocity in current Cartesian frame
+   dot_prod_i = v_perp_new*COS(beta)-v_par*SIN(beta) ! dot product v_prime with i vector (x)
+   dot_prod_j = v_perp_new*SIN(beta)+v_par*COS(beta) ! dot product v_prime with j vector (y)
+   xf = x_star+dot_prod_i*dt_remaining
+   yf = y_star + dot_prod_j*dt_remaining   
+
+   IF (SQRT(xf**2+yf**2)>R_max) THEN
+      print*,'x_start,',x_start
+      print*,'vx,vy',vx,vy
+      print*,'xf,yf,',xf,yf
+      print*,'dot_prod_i,dot_prod_j',dot_prod_i,dot_prod_j
+      print*,'beta,',beta
+      print*,'v_par',v_par
+      print*,'v_perp',v_perp
+      print*,'d_star',d_star
+      print*,'xstar,dt_remaining',x_star,dt_remaining
+
+
+   ENDIF
+
+END SUBROUTINE        

@@ -179,6 +179,8 @@ MODULE CurrentProblemValues
                             ! For the z_theta plane we can take a Cartesian geometry for now
   INTEGER :: debug_level
 
+  INTEGER :: i_reflection_cyl_electron, i_reflection_cyl_ion ! Indicates if we asked for a specular reflection for electrons and ions in cylindrical geometry. Inelastic collisions are not implemented for now (Dec 20, 2022)
+
   REAL(8) eps_0_Fm
 
   INTEGER i_given_F_double_period_sys    ! in a system which is periodic in both X and Y directions, if there is no metal objects with given potential
@@ -566,6 +568,8 @@ MODULE ClusterAndItsBoundaries
   REAL(8) c_X_area_max
   REAL(8) c_Y_area_min
   REAL(8) c_Y_area_max
+
+  REAL(8) :: index_maxi_r, index_maxi_z
 
   INTEGER c_indx_x_min
   INTEGER c_indx_x_max
@@ -1357,6 +1361,30 @@ MODULE mod_print
   END SUBROUTINE  
 
 !--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_debug
+!>    @details Returns name of subroutine depending on debug_level
+!!    @authors W. Villafana
+!!    @date    Nov-25-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_debug ( routine,local_debug_level )
+      
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    USE CurrentProblemValues, ONLY: debug_level
+    IMPLICIT NONE
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: routine
+    INTEGER, INTENT(IN) :: local_debug_level
+    
+    IF ( Rank_of_process==0) THEN
+        IF ( local_debug_level<debug_level) THEN 
+            WRITE(*,'(T8,A)') "In subroutine "//TRIM(routine)
+        END IF
+    END IF
+
+  END SUBROUTINE    
+
+!--------------------------------------------------------------------------------------------------
 !     SUBROUTINE print_output
 !>    @details Print generic output by master proc 
 !!    @authors W. Villafana
@@ -1401,13 +1429,18 @@ MODULE mod_print
   SUBROUTINE print_error ( message,routine )
         
     USE ParallelOperationValues, ONLY: Rank_of_process
+    
     IMPLICIT NONE
+    INCLUDE 'mpif.h'
 
     !IN/OUT
     CHARACTER(LEN=string_length), INTENT(IN) :: message
     CHARACTER(LEN=string_length), INTENT(IN), OPTIONAL :: routine
     
+    ! LOCAL
+    INTEGER :: ierr
     WRITE(*,'(T8,A,I4,A)') ">>> In subroutine "//TRIM(routine)//", error PROC ",Rank_of_process," "//TRIM(message)
+    CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
 
   END SUBROUTINE        
 

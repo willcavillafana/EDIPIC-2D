@@ -295,7 +295,7 @@ SUBROUTINE INITIATE_SNAPSHOTS
         diagnostics_neutral(n)%activated_collision(p)%ionization_rate_local = 0.0
      END DO
   END DO
-  
+
 END SUBROUTINE INITIATE_SNAPSHOTS
 
 !------------------------------------------------------------------------------------------------------------
@@ -2286,7 +2286,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
   USE ParallelOperationValues
   USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_of_boundary_and_inner_objects, delta_t_s, &
-                                 & delta_x_m, V_scale_ms, N_scale_part_m3, ion_colls_with_bo, whole_object
+                                 & delta_x_m, V_scale_ms, N_scale_part_m3, ion_colls_with_bo, whole_object, zero
   USE IonParticles, ONLY : N_spec, M_i_amu
   USE Snapshots
 
@@ -2358,7 +2358,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
      ALLOCATE(rbufer(1:(bufsize+4+N_spec+2)), STAT=ALLOC_ERR)  ! 4+N_spec+2 allows same process save 
                                                                ! start time, mesh size, scale density to particle number ratio, scale_velocity, 
                                                                ! ion masses, total number of particles (from all processes), and record time
-
+     rbufer(1:(bufsize+4+N_spec+2)) = zero
      IF (start_new_bo_coll_file) THEN
         CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                           & filename,  &
@@ -2413,7 +2413,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
      IF (Rank_of_process.EQ.0) THEN
         rbufer(pos) = T_cntr * (delta_t_s * 1.0d9) ! record time [ns]
-        rbufer(pos+1) = shortibuf2(1)
+        rbufer(pos+1) = REAL(shortibuf2(1))
         bufsize = bufsize+2
         pos = pos+2
      END IF
@@ -2449,7 +2449,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
   USE ParallelOperationValues
   USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_of_boundary_and_inner_objects, delta_t_s, &
-                                 & delta_x_m, V_scale_ms, N_scale_part_m3, e_colls_with_bo, whole_object
+                                 & delta_x_m, V_scale_ms, N_scale_part_m3, e_colls_with_bo, whole_object, zero
   USE Snapshots
 
   IMPLICIT NONE
@@ -2512,6 +2512,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
   IF (T_cntr.EQ.(Tcntr_snapshot(current_snap)-1)) this_was_last_record_to_bo_coll_file = .TRUE.
 
   DO n = 1, N_of_boundary_and_inner_objects
+   
 
      IF (.NOT.e_colls_with_bo(n)%must_be_saved) CYCLE
 
@@ -2530,7 +2531,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
                                                       ! start time, mesh size, scale density to particle number ratio, scale_velocity, 
                                                       ! total number of particles (from all processes), and record time
                                                       ! (reserved fora an improbable case when one process has to save everything)
-
+     rbufer(1:(bufsize+6)) = zero
      IF (start_new_bo_coll_file) THEN
         CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                           & filename,  &
@@ -2581,7 +2582,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
      IF (Rank_of_process.EQ.0) THEN
         rbufer(pos) = T_cntr * (delta_t_s * 1.0d9) ! record time [ns]
-        rbufer(pos+1) = shortibuf2(1)
+        rbufer(pos+1) = REAL(shortibuf2(1))
         bufsize = bufsize+2
         pos = pos+2
      END IF

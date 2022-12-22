@@ -80,12 +80,13 @@ END SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_LEFT
 
 !-----------------------------------------
 !
-SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag)
+SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
   USE IonParticles, ONLY : Qs
-  USE CurrentProblemValues, ONLY : whole_object, VACUUM_GAP, METAL_WALL, DIELECTRIC
+  USE CurrentProblemValues, ONLY : whole_object, VACUUM_GAP, METAL_WALL, DIELECTRIC,i_reflection_cyl_ion,string_length
+  USE mod_print, ONLY: print_error
 
   IMPLICIT NONE
 
@@ -95,6 +96,7 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag)
 
   INTEGER s
   REAL(8) x, y, vx, vy, vz
+  REAL(8), INTENT(IN), OPTIONAL :: x_old,vx_old,vy_old ! original positoin and velocity in r-theta plane (cylindrical only. We need this to properly perform a specular reflection)
   INTEGER tag
 
   INTEGER n, m, nwo  ! nwo stands for number of the whole object
@@ -102,6 +104,16 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag)
 
   INTEGER jbelow, jabove
   REAL(8) dqbelow, dqabove
+
+  ! Local
+  REAL(8) :: x_reflected,y_reflected,vx_reflected,vy_reflected ! position and veloicty in local Cartesian frame after specular reflection in Cylindrical
+  REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
+  REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
+  REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
+  REAL(8) :: vx_temp,vy_temp,vz_temp
+
+  CHARACTER(LEN=string_length) :: routine
+  CHARACTER(LEN=string_length) :: message  
 
   particle_not_processed = .TRUE.
 
@@ -120,28 +132,71 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag)
 
         CALL ADD_ION_TO_BO_COLLS_LIST(s, REAL(y), REAL(vx), REAL(vy), REAL(vz), tag, nwo, c_local_object_part(m)%segment_number)
 
-        IF (whole_object(nwo)%reflects_all_ions) THEN
-           CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
-           particle_not_processed = .FALSE.
-           EXIT
-        END IF
+         ! By default I do not have a specular reflection in cylindrica coordinates
+         IF ( i_reflection_cyl_ion==0 ) THEN        
 
-        SELECT CASE (whole_object(nwo)%object_type)
-           CASE (VACUUM_GAP)
-           CASE (METAL_WALL)
-           CASE (DIELECTRIC)
-! update the surface charge
-              jbelow = MAX(INT(y), c_local_object_part(m)%jstart)
-              jabove = MIN(jbelow + 1, c_local_object_part(m)%jend)
-              dqabove = (y - jbelow) * Qs(s)
-              dqbelow = Qs(s) - dqabove
-              c_local_object_part(m)%surface_charge(jbelow) = c_local_object_part(m)%surface_charge(jbelow) + dqbelow
-              c_local_object_part(m)%surface_charge(jabove) = c_local_object_part(m)%surface_charge(jabove) + dqabove
-        END SELECT
+            IF (whole_object(nwo)%reflects_all_ions) THEN
+               CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
+               particle_not_processed = .FALSE.
+               EXIT
+            END IF
 
-        IF (whole_object(nwo)%ion_induced_EE_enabled) THEN
-           CALL PROCESS_ION_INDUCED_ELECTRON_EMISSION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
-        END IF
+            SELECT CASE (whole_object(nwo)%object_type)
+               CASE (VACUUM_GAP)
+               CASE (METAL_WALL)
+               CASE (DIELECTRIC)
+                  ! update the surface charge
+                  jbelow = MAX(INT(y), c_local_object_part(m)%jstart)
+                  jabove = MIN(jbelow + 1, c_local_object_part(m)%jend)
+                  dqabove = (y - jbelow) * Qs(s)
+                  dqbelow = Qs(s) - dqabove
+                  c_local_object_part(m)%surface_charge(jbelow) = c_local_object_part(m)%surface_charge(jbelow) + dqbelow
+                  c_local_object_part(m)%surface_charge(jabove) = c_local_object_part(m)%surface_charge(jabove) + dqabove
+            END SELECT
+
+            IF (whole_object(nwo)%ion_induced_EE_enabled) THEN
+               CALL PROCESS_ION_INDUCED_ELECTRON_EMISSION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
+            END IF
+         
+         ! By default I do not have a specular reflection in cylindrica coordinates. Only for domain boundary
+         ELSE IF ( i_reflection_cyl_ion==1 ) THEN
+            IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
+               message='missing optional paramaters'
+               CALL print_error(message,routine)
+            ELSE IF ( m<=0 ) THEN
+               message='specular reflection is not implemented for inner objects'
+               CALL print_error(message,routine)
+            END IF
+
+            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected )
+
+            ! Adjust position in local Cartesian frame after collision
+            x_cart = x_reflected
+            z_cart = y_reflected
+            radius = SQRT( x_cart**2+z_cart**2 )
+
+            ! Velocity in local cartesian frame
+            vx = vx_reflected
+            vz = vy_reflected  ! theta direction in z  
+
+            ! Then compute increment angle alpha
+            alpha_ang = DATAN2(z_cart,x_cart)         
+
+            ! Update radius (X). 
+            x = radius
+            
+            ! Get Final velocities in cylindrical system. (z speed has already been update above)
+            vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+            vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+
+            vx = vx_temp
+            vz = vz_temp        
+            
+            ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+
+            CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, whole_object(nwo)%object_id_number)
+        
+         END IF
 
         particle_not_processed = .FALSE.
         EXIT
@@ -1166,7 +1221,7 @@ SUBROUTINE ADD_ION_TO_BO_COLLS_LIST(s, coll_coord, vx, vy, vz, tag, nwo, nseg)
   k = ion_colls_with_bo(nwo)%N_of_saved_parts
 
   ion_colls_with_bo(nwo)%part(k)%token = tag + 100 * nseg + 10000 * s
-
+  
   ion_colls_with_bo(nwo)%part(k)%coll_coord = coll_coord
   ion_colls_with_bo(nwo)%part(k)%VX = vx
   ion_colls_with_bo(nwo)%part(k)%VY = vy

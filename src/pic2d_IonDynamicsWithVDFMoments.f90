@@ -213,6 +213,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
+  REAL(8) :: x_old,vx_old,vy_old
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
@@ -468,6 +469,11 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
       x_cart = ion(s)%part(k)%X + ion(s)%part(k)%VX * N_subcycles
       z_cart = ion(s)%part(k)%VZ * N_subcycles ! in theta direction
       radius =  SQRT( x_cart**2 + z_cart**2 )
+
+      ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
+      x_old =  ion(s)%part(k)%X
+      vx_old = ion(s)%part(k)%VX
+      vy_old = ion(s)%part(k)%VZ          
 
       ! Then compute increment angle alpha
       alpha_ang = DATAN2(z_cart,x_cart) 
@@ -760,7 +766,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
               CALL ADD_ION_TO_SEND_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
            ELSE
 ! right neighbor cluster does not exist
-              CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+              CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
            END IF
 
         ELSE IF (ion(s)%part(k)%Y.LT.(c_Y_area_min+1.0_8)) THEN
@@ -779,7 +785,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
                 
               CASE (FLAT_WALL_RIGHT)
                  IF (ion(s)%part(k)%Y.GE.c_Y_area_min) THEN
-                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ION_TO_SEND_BELOW(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)                       
                  END IF
@@ -788,7 +794,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
                  IF ((ion(s)%part(k)%X-c_X_area_max).LT.(c_Y_area_min-ion(s)%part(k)%Y)) THEN
                     CALL PROCESS_ION_COLL_WITH_BOUNDARY_BELOW(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
                  ELSE
-                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -815,7 +821,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
 
               CASE (FLAT_WALL_RIGHT)
                  IF (ion(s)%part(k)%Y.LE.c_Y_area_max) THEN
-                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ION_TO_SEND_ABOVE(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)                    
                  END IF
@@ -824,7 +830,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
                  IF ((ion(s)%part(k)%X-c_X_area_max).LT.(ion(s)%part(k)%Y-c_Y_area_max)) THEN
                     CALL PROCESS_ION_COLL_WITH_BOUNDARY_ABOVE(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
                  ELSE
-                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                    CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -1121,6 +1127,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
+  REAL(8) :: x_old,vx_old,vy_old
 
 !------------------------------------------>>>
   REAL(8) updVX, updVY, updVZ
@@ -1312,6 +1319,11 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
          x_cart = ion(s)%part(k)%X + ion(s)%part(k)%VX * N_subcycles
          z_cart = ion(s)%part(k)%VZ * N_subcycles ! in theta direction
          radius =  SQRT( x_cart**2 + z_cart**2 )
+         
+         ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
+         x_old =  ion(s)%part(k)%X
+         vx_old = ion(s)%part(k)%VX
+         vy_old = ion(s)%part(k)%VZ         
 
          ! Then compute increment angle alpha
          alpha_ang = DATAN2(z_cart,x_cart) 
@@ -1591,7 +1603,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
                  CALL ADD_ION_TO_SEND_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
               ELSE
 ! right neighbor cluster does not exist
-                 CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                 CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
               END IF
 
            ELSE IF (ion(s)%part(k)%Y.LT.(c_Y_area_min+1.0_8)) THEN
@@ -1610,7 +1622,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
                 
                  CASE (FLAT_WALL_RIGHT)
                     IF (ion(s)%part(k)%Y.GE.c_Y_area_min) THEN
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                     ELSE
                        CALL ADD_ION_TO_SEND_BELOW(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)                       
                     END IF
@@ -1619,7 +1631,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
                     IF ((ion(s)%part(k)%X-c_X_area_max).LT.(c_Y_area_min-ion(s)%part(k)%Y)) THEN
                        CALL PROCESS_ION_COLL_WITH_BOUNDARY_BELOW(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
                     ELSE
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                     END IF
 
                  CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -1646,7 +1658,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
 
                  CASE (FLAT_WALL_RIGHT)
                     IF (ion(s)%part(k)%Y.LE.c_Y_area_max) THEN
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                     ELSE
                        CALL ADD_ION_TO_SEND_ABOVE(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)                    
                     END IF
@@ -1655,7 +1667,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
                     IF ((ion(s)%part(k)%X-c_X_area_max).LT.(ion(s)%part(k)%Y-c_Y_area_max)) THEN
                        CALL PROCESS_ION_COLL_WITH_BOUNDARY_ABOVE(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
                     ELSE
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag)
+                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, x_old,vx_old,vy_old)
                     END IF
 
                  CASE (EMPTY_CORNER_WALL_RIGHT)

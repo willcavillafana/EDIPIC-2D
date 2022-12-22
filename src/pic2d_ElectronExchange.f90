@@ -520,6 +520,7 @@ SUBROUTINE EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS
   USE ParallelOperationValues
   USE ElectronParticles
   USE ClusterAndItsBoundaries, ONLY : c_X_area_min, c_X_area_max, c_Y_area_min, c_Y_area_max
+  USE CurrentProblemValues, ONLY: zero
 
   IMPLICIT NONE
 
@@ -544,6 +545,12 @@ SUBROUTINE EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS
 
   REAL(8) x, y, vx, vy, vz
   INTEGER tag
+  REAL(8) :: x_old,vx_old,vy_old
+
+  ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame. I do not know previous value so this will not work if more than one proc. 
+  x_old =  zero
+  vx_old = zero
+  vy_old = zero 
 
 !print '("Process ",i4," entered EXCHANGE_ELECTRONS_WITH_NEIGHBOURS")', Rank_of_process
 ! before sending ### ABOVE ###, move particles from upper levels to lower levels if the upper levels have no horizontal neighbors
@@ -816,7 +823,8 @@ SUBROUTINE EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
+                  print*,'je passe la attention 5'
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -859,7 +867,8 @@ SUBROUTINE EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
+                  print*,'je passe la attention 6'
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -904,7 +913,8 @@ SUBROUTINE EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
+                  print*,'je passe la attention 7'
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -947,7 +957,8 @@ SUBROUTINE EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)
+                  print*,'je passe la attention 8'
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO

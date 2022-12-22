@@ -182,7 +182,7 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(A1)') buf !"---ddd---------- number of cells along the Y-direction in a block")')
   READ (9, '(3x,i3)') N_grid_block_y
   READ (9, '(A1)') buf !"--dddd---------- number of macroparticles per cell for the scale density")')
-  READ (9, '(2x,i4)') N_of_particles_cell
+  READ (9, '(1x,i5)') N_of_particles_cell
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the X-direction")')
   READ (9, '(5x,i1)') cluster_N_blocks_x
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the Y-direction")')
@@ -740,7 +740,7 @@ SUBROUTINE INITIATE_PARAMETERS
      END DO
   END DO
 
-  v_Te_ms     = SQRT(2.0_8 * T_e_eV * e_Cl / m_e_kg)
+  v_Te_ms     = SQRT(2.0_8 * T_e_eV * e_Cl / m_e_kg)!SQRT( T_e_eV * e_Cl / m_e_kg)!
   W_plasma_s1 = SQRT(N_plasma_m3 * e_Cl**2 / (eps_0_Fm * m_e_kg))
   L_debye_m   = v_Te_ms / W_plasma_s1
   delta_x_m   = L_debye_m / DBLE(N_of_cells_debye)
@@ -1404,7 +1404,11 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
      c_X_area_min = DBLE(c_indx_x_min)
      c_X_area_max = DBLE(c_indx_x_max)
      c_Y_area_min = DBLE(c_indx_y_min)
-     c_Y_area_max = DBLE(c_indx_y_max)        
+     c_Y_area_max = DBLE(c_indx_y_max)      
+  
+   !   ! Exact size of the box
+   !   CALL MPI_ALLREDUCE(indx_x_max, index_maxi_r,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+   !   CALL MPI_ALLREDUCE(indx_y_max, index_maxi_z,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)          
 
 ! find ranks of master processes in neighbor clusters
      IF (block_column.EQ.1) THEN
@@ -3240,9 +3244,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   REAL(8) :: N_ppc_min, N_ppc_max ! PIC diagnostics
   INTEGER :: int_test ! test if integer precision is enough! temporary fix 
   CHARACTER(LEN=string_length) :: routine
+!   REAL(8) :: Rmax,Delta_z_max ! artificall coefficients to intilialize plasma on portion of domain only
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
+
+!   Rmax = one!0.8_8
+!   Delta_z_max = one!0.8_8
 
   routine = "DISTRIBUTE_PARTICLES"
   n_limit_x_total = zero
@@ -3279,10 +3287,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      END IF
 
      N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y )
+   !   N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max )
 
      ! Quick check if I have not exceed greatest available integer
+   !   IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max>DBLE(HUGE(int_test)) ) THEN
      IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y>DBLE(HUGE(int_test)) ) THEN
-        WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y," is too big for integer precision. Max available integer =",HUGE(int_test)
+      WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y," is too big for integer precision. Max available integer =",HUGE(int_test)
+      !   WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max," is too big for integer precision. Max available integer =",HUGE(int_test)
         CALL print_error ( message,routine )
         CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
      END IF
@@ -3292,7 +3303,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)
      CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
      CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)     
-     
+
      ! r-z
      IF ( i_cylindrical==2 ) THEN
          ! Get total number of particles in domain
@@ -3304,10 +3315,17 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          ! We need to account for the change in volume and so we must update the number of electrons accordingly
          ! Note V_tot_cyl = pi*Nx*dx*V_tot_cart
          ! Since we cannot play direclty with the statistical weight (which does not exist), we must adjust the number of macroparticles
+         ! x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+         ! y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
+         ! y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)         
+         ! N_electrons =  INT( N_electrons_total_cyl*&
+         !                     (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
+         !                     (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
+         !                     pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
          N_electrons =  INT( N_electrons_total_cyl*&
                              n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
                              (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
-                             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+                             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m )                              
 
          ! Quick check if I have not exceed greatest available integer
          IF ( N_electrons_total_cyl*&
@@ -3332,6 +3350,18 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          !                                                  two*middle_r*n_limit_x,&
          !                                                  c_indx_x_max**2-c_indx_x_min**2
          ! print*,'nb cluster,mean cluster,cell',N_processes_horizontal,N_electron_mean/N_processes_horizontal,N_electron_mean/(N_processes_horizontal*n_limit_x*n_limit_y)
+   !   ELSE IF ( i_cylindrical==0 ) THEN
+   !       CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
+
+   !       x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+   !       y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
+   !       y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)  
+
+   !       N_electrons =  INT( N_electrons_total_cyl*&
+   !                         (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
+   !                         (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total) )              
+   !                         !   (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total-1)*&
+   !                         !   (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total-1) )                     
      END IF
      
      ! Print info on particles distribution
@@ -3402,12 +3432,18 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      DO k = 1, N_electrons
 
          IF ( i_cylindrical==0 ) THEN 
+            ! x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
             electron(k)%X = MAX(c_X_area_min, MIN(c_X_area_max, x_limit_left + (x_limit_right - x_limit_left) * well_random_number()))
          ELSE IF ( i_cylindrical==1 .OR. i_cylindrical==2 ) THEN ! radial distribution
+            ! electron(k)%X = MAX(c_X_area_min,MIN( c_X_area_max,SQRT((x_limit_right**2 - x_limit_left**2)*well_random_number() + x_limit_left**2)))
+            ! x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
             electron(k)%X = MAX(c_X_area_min,MIN( c_X_area_max,SQRT((x_limit_right**2 - x_limit_left**2)*well_random_number() + x_limit_left**2)))
          END IF
 
-        electron(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))
+         ! electron(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))
+         ! y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
+         ! y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)
+         electron(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))
 
 !        electron(k)%X = MIN(c_X_area_max-1.0_8, c_X_area_min + (c_X_area_max-1.0_8-c_X_area_min) * well_random_number())
 !!NEW #######################################################################

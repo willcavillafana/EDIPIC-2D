@@ -28,6 +28,8 @@ SUBROUTINE ADVANCE_ELECTRONS
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
+!   REAL(8) :: x_reflected,y_reflected,vx_reflected,vy_reflected ! position and veloicty in local Cartesian frame after specular reflection in Cylindrical
+  REAL(8) :: x_old,vx_old,vy_old
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
@@ -184,17 +186,40 @@ end if
 
      ELSEIF ( i_cylindrical==2 ) THEN ! r_z case ie r=X and z=Y, theta=Z
 
+        ! Update axial coordinate
+        electron(k)%Y = electron(k)%Y + electron(k)%VY
+        
         ! First compute intermediate position (X = radius)
         x_cart = electron(k)%X + electron(k)%VX
         z_cart = electron(k)%VZ ! in theta direction
         radius =  SQRT( x_cart**2 + z_cart**2 )
 
+        ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
+        x_old =  electron(k)%X
+        vx_old = electron(k)%VX
+        vy_old = electron(k)%VZ
+
+      !   ! Need to double check in case of specular reflection. I must correct position and velocity now
+      !   IF ( i_reflection_cyl_electron==1 .AND. radius>DBLE(index_maxi_r) .AND. electron(k)%Y ) THEN
+      !       CALL REFLECT_CYLINDRICAL(z_cart,electron(k)%X,electron(k)%VX,electron(k)%VZ,Rmax,x_reflected,y_reflected,vx_reflected,vy_reflected)
+
+      !       ! Adjust position in local Cartesian frame after collision
+      !       x_cart = x_reflected
+      !       z_cart = y_reflected
+      !       radius = SQRT( x_cart**2+z_cart**2 )
+
+      !       ! Velocity in local cartesian frame
+      !       electron(k)%VX = vx_reflected
+      !       electron(k)%VZ = vy_reflected               
+
+      !   END IF
+
         ! Then compute increment angle alpha
-        alpha_ang = DATAN2(z_cart,x_cart) 
+        alpha_ang = DATAN2(z_cart,x_cart)         
 
         ! Update radius (X). 
         electron(k)%X = radius
-        electron(k)%Y = electron(k)%Y + electron(k)%VY
+        
 
         ! Get Final velocities in cylindrical system. (z speed has already been update above)
         vx_temp =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VZ
@@ -206,7 +231,7 @@ end if
      ENDIF
 
 ! a particle crossed symmetry plane, reflect it. Only for Cartesian
-     IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
+     IF (symmetry_plane_X_left ) THEN!.AND. i_cylindrical==0 ) THEN
         IF (electron(k)%X.LT.c_X_area_min) THEN
            electron(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - electron(k)%X)
            electron(k)%VX = -electron(k)%VX
@@ -243,11 +268,11 @@ end if
      IF (electron(k)%X.LT.c_X_area_min) THEN
 
         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN
-! if the cluster is periodically [X] connected on itself we avoid exchange in the X-direction
-! shift the electron by the period length
+         ! if the cluster is periodically [X] connected on itself we avoid exchange in the X-direction
+         ! shift the electron by the period length
            electron(k)%X = electron(k)%X + L_period_X
            IF (electron(k)%Y.LT.c_Y_area_min) THEN
-! particle is somewhere near the left bottom cell of the area
+          ! particle is somewhere near the left bottom cell of the area
               IF (Rank_of_master_below.LT.0) THEN
                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
               ELSE
@@ -255,7 +280,7 @@ end if
               END IF
               CALL REMOVE_ELECTRON(k)  ! this subroutine does  N_electrons = N_electrons - 1 and k = k-1
            ELSE IF (electron(k)%Y.GT.c_Y_area_max) THEN
-! particle is somewhere near the top left cell of the area
+          ! particle is somewhere near the top left cell of the area
               IF (Rank_of_master_above.LT.0) THEN
                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
               ELSE
@@ -268,18 +293,18 @@ end if
 
         IF ( (electron(k)%Y.GE.(c_Y_area_min+1.0_8)).AND. &
            & (electron(k)%Y.LE.(c_Y_area_max-1.0_8)) ) THEN
-! most probable situation when the particle stays at least one cell away from the Y-boundaries of the area
+           ! most probable situation when the particle stays at least one cell away from the Y-boundaries of the area
 
            IF (Rank_of_master_left.GE.0) THEN
-! left neighbor cluster exists
+           ! left neighbor cluster exists
               CALL ADD_ELECTRON_TO_SEND_LEFT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
            ELSE
-! left neighbor cluster does not exist
+           ! left neighbor cluster does not exist
               CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_LEFT(electron(k)%X, electron(k)%Y, electron(k)%VX,  electron(k)%VY, electron(k)%VZ, electron(k)%tag)   ! left
            END IF
 
         ELSE IF (electron(k)%Y.LT.(c_Y_area_min+1.0_8)) THEN
-! particle is somewhere near the left bottom cell of the area
+          ! particle is somewhere near the left bottom cell of the area
 
            SELECT CASE (c_left_bottom_corner_type)
               CASE (HAS_TWO_NEIGHBORS)
@@ -362,11 +387,11 @@ end if
      IF (electron(k)%X.GT.c_X_area_max) THEN
 
         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN
-! if the cluster is periodically [X] connected on itself we avoid exchange in the X-direction
-! shift the electron by the period length
+          ! if the cluster is periodically [X] connected on itself we avoid exchange in the X-direction
+         ! shift the electron by the period length
            electron(k)%X = electron(k)%X - L_period_X
            IF (electron(k)%Y.LT.c_Y_area_min) THEN
-! particle is somewhere near the left bottom cell of the area
+            ! particle is somewhere near the left bottom cell of the area
               IF (Rank_of_master_below.LT.0) THEN
                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
               ELSE
@@ -374,7 +399,7 @@ end if
               END IF
               CALL REMOVE_ELECTRON(k)  ! this subroutine does  N_electrons = N_electrons - 1 and k = k-1
            ELSE IF (electron(k)%Y.GT.c_Y_area_max) THEN
-! particle is somewhere near the top left cell of the area
+               ! particle is somewhere near the top left cell of the area
               IF (Rank_of_master_above.LT.0) THEN
                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
               ELSE
@@ -387,18 +412,18 @@ end if
 
         IF ( (electron(k)%Y.GE.(c_Y_area_min+1.0_8)).AND. &
            & (electron(k)%Y.LE.(c_Y_area_max-1.0_8)) ) THEN
-! most probable situation when the particle stays at least one cell away from the Y-boundaries of the area
+               ! most probable situation when the particle stays at least one cell away from the Y-boundaries of the area
 
            IF (Rank_of_master_right.GE.0) THEN
-! right neighbor cluster exists
+            ! right neighbor cluster exists
               CALL ADD_ELECTRON_TO_SEND_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
            ELSE
-! right neighbor cluster does not exist
-              CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+            ! right neighbor cluster does not exist
+              CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
            END IF
 
         ELSE IF (electron(k)%Y.LT.(c_Y_area_min+1.0_8)) THEN
-! particle is somewhere near the right bottom cell of the area
+               ! particle is somewhere near the right bottom cell of the area
 
            SELECT CASE (c_right_bottom_corner_type)
               CASE (HAS_TWO_NEIGHBORS)
@@ -413,7 +438,7 @@ end if
                 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.GE.c_Y_area_min) THEN
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                       
                  END IF
@@ -422,7 +447,7 @@ end if
                  IF ((electron(k)%X-c_X_area_max).LT.(c_Y_area_min-electron(k)%Y)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -449,7 +474,7 @@ end if
 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.LE.c_Y_area_max) THEN
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                    
                  END IF
@@ -458,7 +483,7 @@ end if
                  IF ((electron(k)%X-c_X_area_max).LT.(electron(k)%Y-c_Y_area_max)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)

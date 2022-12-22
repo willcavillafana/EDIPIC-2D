@@ -5,6 +5,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
   USE ParallelOperationValues
   USE CurrentProblemValues
   USE IonParticles, ONLY : N_spec
+  USE mod_print, ONLY: print_error,print_message
 
   IMPLICIT NONE
 
@@ -27,6 +28,9 @@ SUBROUTINE PREPARE_WALL_MATERIALS
   INTEGER j
   REAL(8) energy, coef1, coef2, coef3, coefion(10)
 
+  CHARACTER(LEN=string_length) :: routine
+  CHARACTER(LEN=string_length) :: message
+
 ! functions
   REAL(8) Coeff_SEE_Elastic
   REAL(8) Coeff_SEE_Inelastic
@@ -40,6 +44,8 @@ SUBROUTINE PREPARE_WALL_MATERIALS
        INTEGER length_of_string
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
+
+  routine = 'PREPARE_WALL_MATERIALS'
 
   DO n = 1, N_of_boundary_and_inner_objects
      whole_object(n)%eps_diel = 1.0_8
@@ -151,6 +157,10 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      READ (9, '(A1)') buf ! =======d===== ION-MATERIAL INTERACTION MODEL (0/1/2 = 100% ion adsorption/100% specular reflection/ion-induced electron emission)
      READ (9, '(7x,i1)') ion_wall_interaction_flag
 
+     ! By default , I do not need a special treatment in cylindrical coordinates for specular reflection
+     i_reflection_cyl_electron = 0
+     i_reflection_cyl_ion = 0
+
      ion_wall_interaction_flag = MAX(0,MIN(ion_wall_interaction_flag,2))
      SELECT CASE (ion_wall_interaction_flag)
         CASE (0)
@@ -158,6 +168,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
            whole_object(n)%ion_induced_EE_enabled = .FALSE.
            IF (Rank_of_process.EQ.0) PRINT '("### boundary object ",i3," adsorbs all ions ###")', n
         CASE (1)
+           IF ( i_cylindrical==2 ) i_reflection_cyl_ion = 1 ! I need a special treatment for specular reflection in cylindrical coordinates
            whole_object(n)%reflects_all_ions = .TRUE.
            whole_object(n)%ion_induced_EE_enabled = .FALSE.
            IF (Rank_of_process.EQ.0) PRINT '("### boundary object ",i3," reflects [specularly] all ions ###")', n
@@ -224,6 +235,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      SELECT CASE (whole_object(n)%Emitted_model(1))
         CASE (1)
            whole_object(n)%lowest_energy_for_see = MIN(whole_object(n)%lowest_energy_for_see, whole_object(n)%minE_see_elastic)
+           IF ( i_cylindrical==2 ) i_reflection_cyl_electron = 1 ! I need a special treatment in cylindrical coordinates 
         CASE (2)
            whole_object(n)%lowest_energy_for_see = MIN(whole_object(n)%lowest_energy_for_see, whole_object(n)%E_elast_0)
      END SELECT
@@ -245,6 +257,20 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      IF ((whole_object(n)%Emitted_model(1) + whole_object(n)%Emitted_model(2) + whole_object(n)%Emitted_model(3)).GT.0) whole_object(n)%SEE_enabled = .TRUE.
 
   END DO
+
+   IF ( i_reflection_cyl_electron==1 ) THEN
+      message = 'Specular reflection in cylindrical geometry activated for electrons'
+      CALL print_message( message,routine )
+   ELSE IF( i_reflection_cyl_ion==1 ) THEN
+      message = 'Specular reflection in cylindrical geometry activated for ions'
+      CALL print_message( message,routine )
+   END IF      
+
+   IF ( (i_reflection_cyl_electron==1 .OR. i_reflection_cyl_ion==1) .AND. N_blocks_x*N_blocks_y/=1) THEN
+      message = 'Specular reflection in cylindrical geometry only works with one processor for now'
+      CALL print_error( message,routine )
+   ENDIF
+
 
   IF (Rank_of_process.EQ.0) THEN
        DO n = 1, N_of_boundary_and_inner_objects

@@ -192,6 +192,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system  
+  REAL(8) :: x_old,vx_old,vy_old
 
 !------------------------------------------>>>
   INTEGER n1  ! number of nodes in the y-direction
@@ -442,6 +443,11 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
       z_cart = electron(k)%VZ ! in theta direction
       radius =  SQRT( x_cart**2 + z_cart**2 )
 
+      ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
+      x_old =  electron(k)%X
+      vx_old = electron(k)%VX
+      vy_old = electron(k)%VZ      
+
       ! Then compute increment angle alpha
       alpha_ang = DATAN2(z_cart,x_cart) 
 
@@ -556,7 +562,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
 
 
 ! a particle crossed symmetry plane, reflect it. Only needed for Cartesian
-     IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
+     IF (symmetry_plane_X_left ) THEN! .AND. i_cylindrical==0 ) THEN
         IF (electron(k)%X.LT.c_X_area_min) THEN
            electron(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - electron(k)%X)
            electron(k)%VX = -electron(k)%VX
@@ -744,7 +750,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
               CALL ADD_ELECTRON_TO_SEND_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
            ELSE
 ! right neighbor cluster does not exist
-              CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+              CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
            END IF
 
         ELSE IF (electron(k)%Y.LT.(c_Y_area_min+1.0_8)) THEN
@@ -763,7 +769,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
                 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.GE.c_Y_area_min) THEN
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                       
                  END IF
@@ -772,7 +778,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
                  IF ((electron(k)%X-c_X_area_max).LT.(c_Y_area_min-electron(k)%Y)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -799,7 +805,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.LE.c_Y_area_max) THEN
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                    
                  END IF
@@ -808,7 +814,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
                  IF ((electron(k)%X-c_X_area_max).LT.(electron(k)%Y-c_Y_area_max)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -1104,7 +1110,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_PROBES
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
-
+  REAL(8) :: x_old,vx_old,vy_old
 !------------------------------------------>>>
   REAL(8) updVX, updVY, updVZ
   LOGICAL no_probe_in_cell_corner
@@ -1281,6 +1287,11 @@ end if
       z_cart = electron(k)%VZ ! in theta direction
       radius =  SQRT( x_cart**2 + z_cart**2 )
 
+      ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
+      x_old =  electron(k)%X
+      vx_old = electron(k)%VX
+      vy_old = electron(k)%VZ
+
       ! Then compute increment angle alpha
       alpha_ang = DATAN2(z_cart,x_cart) 
 
@@ -1383,7 +1394,7 @@ end if
 
 
 ! a particle crossed symmetry plane, reflect it. Only for Cartesian
-     IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
+     IF (symmetry_plane_X_left ) THEN !.AND. i_cylindrical==0 ) THEN.AND. i_cylindrical==0 ) THEN
         IF (electron(k)%X.LT.c_X_area_min) THEN
            electron(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - electron(k)%X)
            electron(k)%VX = -electron(k)%VX
@@ -1571,7 +1582,7 @@ end if
               CALL ADD_ELECTRON_TO_SEND_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
            ELSE
 ! right neighbor cluster does not exist
-              CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+              CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
            END IF
 
         ELSE IF (electron(k)%Y.LT.(c_Y_area_min+1.0_8)) THEN
@@ -1590,7 +1601,7 @@ end if
                 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.GE.c_Y_area_min) THEN
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                       
                  END IF
@@ -1599,7 +1610,7 @@ end if
                  IF ((electron(k)%X-c_X_area_max).LT.(c_Y_area_min-electron(k)%Y)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)
@@ -1626,7 +1637,7 @@ end if
 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.LE.c_Y_area_max) THEN
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                    
                  END IF
@@ -1635,7 +1646,7 @@ end if
                  IF ((electron(k)%X-c_X_area_max).LT.(electron(k)%Y-c_Y_area_max)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
+                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
               CASE (EMPTY_CORNER_WALL_RIGHT)

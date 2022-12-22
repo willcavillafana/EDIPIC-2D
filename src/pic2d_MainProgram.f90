@@ -8,6 +8,7 @@ PROGRAM MainProg
   USE Checkpoints
   USE mod_def_timers
   USE mod_timers, ONLY: start_timer, end_timer, print_timer, pic_loop_timer
+  USE mod_print, ONLY: print_message
 
   IMPLICIT NONE
 
@@ -104,7 +105,9 @@ PROGRAM MainProg
 
   DO T_cntr = Start_T_cntr, Max_T_cntr
 
-     if (Rank_of_process.eq.0) print *, "Iteration # ",T_cntr
+     WRITE( message,'(A,I7.3,A,ES10.3,A)') "Iteration #",T_cntr,", t= ",T_cntr*delta_t_s," [s]"
+     CALL print_message( message )
+   !   if (Rank_of_process.eq.0) print *, "Iteration, time (ns) # ",T_cntr,T_cntr*delta_t_s*1e9
 
      CALL start_timer( save_checkpoint_timer )
      !t0 = MPI_WTIME()
@@ -299,6 +302,7 @@ PROGRAM MainProg
         CALL COLLECT_PARTICLE_BOUNDARY_HITS
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+      !   IF ( T_cntr>1000)STOP
 
         CALL end_timer( collect_particles_hitting_with_bo_timer )
         CALL start_timer( compute_mcc_timer ) 
