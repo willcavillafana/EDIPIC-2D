@@ -487,6 +487,7 @@ MODULE IonParticles
 
   LOGICAL ions_sense_magnetic_field
   LOGICAL ions_sense_EZ
+  INTEGER :: i_freeze_ions ! indicates if ions are moving or frozen in current simulation
 
 !  INTEGER, PARAMETER :: N_spec = 1         ! number of ion species
   INTEGER N_spec        ! number of ion species
@@ -1441,6 +1442,32 @@ MODULE mod_print
     INTEGER :: ierr
     WRITE(*,'(T8,A,I4,A)') ">>> In subroutine "//TRIM(routine)//", error PROC ",Rank_of_process," "//TRIM(message)
     CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+
+  END SUBROUTINE       
+  
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_parser_error
+!>    @details Print error message by root proc when reading input files
+!!    @authors W. Villafana
+!!    @date    Dec-23-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_parser_error ( message )
+        
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    
+    IMPLICIT NONE
+    INCLUDE 'mpif.h'
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: message
+    
+    ! LOCAL
+    INTEGER :: ierr
+
+    IF ( Rank_of_process==0 ) THEN
+      WRITE(*,'(T8,A,I4,A)') ">>> Parser error: "//TRIM(message)
+      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+    END IF
 
   END SUBROUTINE        
 
