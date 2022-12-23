@@ -9,6 +9,7 @@ PROGRAM MainProg
   USE mod_def_timers
   USE mod_timers, ONLY: start_timer, end_timer, print_timer, pic_loop_timer
   USE mod_print, ONLY: print_message
+  USE IonParticles, ONLY: i_freeze_ions
 
   IMPLICIT NONE
 
@@ -111,7 +112,6 @@ PROGRAM MainProg
 
      CALL start_timer( save_checkpoint_timer )
      !t0 = MPI_WTIME()
-
      IF (T_cntr.EQ.T_cntr_save_checkpoint) THEN
         IF (use_mpiio_checkpoint) THEN
            CALL SAVE_CHECKPOINT_MPIIO_2(n_sub)
@@ -129,17 +129,13 @@ PROGRAM MainProg
            CALL SYSTEM(rmandmkdir_command)
         END IF
      END IF
-
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-
      CALL end_timer( save_checkpoint_timer )
      CALL start_timer( global_load_balance_timer )
      !t1 = MPI_WTIME()
-
      call report_total_number_of_particles
-
      IF (T_cntr.EQ.T_cntr_global_load_balance) THEN
-        IF (n_sub.NE.0) THEN
+        IF (n_sub.NE.0 .AND. i_freeze_ions==0) THEN
            PRINT '("Process ",i5," :: ERROR-1 in MainProg :: GLOBAL_LOAD_BALANCE is about to be called at wrong time :: T_cntr = ",i8," n_sub = ",i8)', Rank_of_process, T_cntr, n_sub
            CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
         END IF
@@ -257,7 +253,7 @@ PROGRAM MainProg
      !t10 = MPI_WTIME()
 
      n_sub = n_sub + 1
-     IF (n_sub.EQ.N_subcycles) THEN            ! N_subcycles is odd
+     IF (n_sub.EQ.N_subcycles .AND. i_freeze_ions==0) THEN            ! N_subcycles is odd
 
         if (Rank_of_process.eq.0) print '("----- doing ions at step ",i6," ------")', T_cntr
 

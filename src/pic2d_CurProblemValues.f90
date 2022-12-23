@@ -70,7 +70,7 @@ SUBROUTINE INITIATE_PARAMETERS
   USE ExternalFields
   USE Checkpoints
   USE SetupValues, ONLY : ht_grid_requested, F_grid, grid_j
-  USE mod_print, ONLY: print_message
+  USE mod_print, ONLY: print_message, print_parser_error
 
   USE rng_wrapper
 
@@ -129,6 +129,7 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER :: i_found ! flag to decide if I found keyword or not.
   REAL(8) :: rval ! buffer for real values
   INTEGER :: ival ! buffer for integer values
+  CHARACTER(LEN=string_length) :: caval ! buffer for string values
   CHARACTER(LEN=string_length) :: message, routine
 
 ! functions
@@ -149,6 +150,7 @@ SUBROUTINE INITIATE_PARAMETERS
   given_F_double_period_sys = 1000000.0_8        !
   i_given_F_double_period_sys = -7777777   ! should be sufficient to not to trigger accidentally the node with given potential
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
+  i_freeze_ions = 0 ! By default ions are moving
 
   INQUIRE (FILE = 'init_configuration.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -791,7 +793,36 @@ SUBROUTINE INITIATE_PARAMETERS
       IF ( i_found==0 ) THEN
          WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
          CALL print_message( message,routine )         
-      END IF       
+      END IF    
+      
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="freeze_ions" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_freeze_ions = 1
+               WRITE( message,'(A)') "ions are frozen"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_freeze_ions = 0
+               WRITE( message,'(A)') "ions are not frozen"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if freeze_ions is used. Received: ',caval,achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
+         CALL print_message( message,routine )         
+      END IF         
       
    END IF
 
@@ -3244,13 +3275,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   REAL(8) :: N_ppc_min, N_ppc_max ! PIC diagnostics
   INTEGER :: int_test ! test if integer precision is enough! temporary fix 
   CHARACTER(LEN=string_length) :: routine
-!   REAL(8) :: Rmax,Delta_z_max ! artificall coefficients to intilialize plasma on portion of domain only
+  REAL(8) :: Rmax,Delta_z_max ! artificall coefficients to intilialize plasma on portion of domain only
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
 
-!   Rmax = one!0.8_8
-!   Delta_z_max = one!0.8_8
+  Rmax = 0.8_8
+  Delta_z_max = 0.4_8
 
   routine = "DISTRIBUTE_PARTICLES"
   n_limit_x_total = zero
@@ -3286,14 +3317,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
         n_limit_y = c_indx_y_max - c_indx_y_min
      END IF
 
-     N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y )
-   !   N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max )
-
+   !   N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y )
+     N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y)!*Rmax*Delta_z_max )
      ! Quick check if I have not exceed greatest available integer
-   !   IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max>DBLE(HUGE(int_test)) ) THEN
-     IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y>DBLE(HUGE(int_test)) ) THEN
-      WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y," is too big for integer precision. Max available integer =",HUGE(int_test)
-      !   WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max," is too big for integer precision. Max available integer =",HUGE(int_test)
+     IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max>DBLE(HUGE(int_test)) ) THEN
+   !   IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y>DBLE(HUGE(int_test)) ) THEN
+      ! WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y," is too big for integer precision. Max available integer =",HUGE(int_test)
+        WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max," is too big for integer precision. Max available integer =",HUGE(int_test)
         CALL print_error ( message,routine )
         CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
      END IF
@@ -3315,18 +3345,20 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          ! We need to account for the change in volume and so we must update the number of electrons accordingly
          ! Note V_tot_cyl = pi*Nx*dx*V_tot_cart
          ! Since we cannot play direclty with the statistical weight (which does not exist), we must adjust the number of macroparticles
-         ! x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
-         ! y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
-         ! y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)         
-         ! N_electrons =  INT( N_electrons_total_cyl*&
-         !                     (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
-         !                     (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
-         !                     pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+         x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+         x_limit_left = MIN(x_limit_left,Rmax*c_indx_x_max_total)
+         y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)/two*c_indx_y_max_total)
+         y_limit_top = MIN(y_limit_top,(one+Delta_z_max)/two*c_indx_y_max_total)    
+         IF (y_limit_top<y_limit_bot) y_limit_bot = y_limit_top! make sure we have zero if domain has zero particles
+         ! y_limit_bot = MIN(y_limit_top,y_limit_bot) 
          N_electrons =  INT( N_electrons_total_cyl*&
-                             n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
+                             (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
                              (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
-                             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m )                              
-
+                             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+                             ! N_electrons =  INT( N_electrons_total_cyl*&
+         !                     n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
+         !                     (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
+         !                     pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m )                              
          ! Quick check if I have not exceed greatest available integer
          IF ( N_electrons_total_cyl*&
               n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
@@ -3337,7 +3369,6 @@ SUBROUTINE DISTRIBUTE_PARTICLES
              (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
              pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m," is too big for integer precision. Max available integer =",HUGE(int_test)
              CALL print_error ( message,routine )
-             CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
          END IF
 
          ! Check we have Nppc*n_init/n0*pi*Nx*delta_x particles per cells in average 
@@ -3377,11 +3408,11 @@ SUBROUTINE DISTRIBUTE_PARTICLES
       END IF     
 
 
-     WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster:",N_ppc_min
+     WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster (no inner object):",N_ppc_min
      CALL print_output( message )
-     WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain:",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
+     WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
      CALL print_output( message )
-     WRITE( message,'(A,ES10.3,A)') "Maximal average number of particles per cell in a cluster:",N_ppc_max,achar(10)
+     WRITE( message,'(A,ES10.3,A)') "Maximal average number of particles per cell in a cluster (no inner object):",N_ppc_max,achar(10)
      CALL print_output( message )          
 
      WRITE( message,'(T8,A,T27,A,T55,A)') "Cluster master","Electron macroparticles","Particles per cell in average"
@@ -3432,17 +3463,22 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      DO k = 1, N_electrons
 
          IF ( i_cylindrical==0 ) THEN 
-            ! x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+            !x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
             electron(k)%X = MAX(c_X_area_min, MIN(c_X_area_max, x_limit_left + (x_limit_right - x_limit_left) * well_random_number()))
          ELSE IF ( i_cylindrical==1 .OR. i_cylindrical==2 ) THEN ! radial distribution
             ! electron(k)%X = MAX(c_X_area_min,MIN( c_X_area_max,SQRT((x_limit_right**2 - x_limit_left**2)*well_random_number() + x_limit_left**2)))
-            ! x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+            !x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+            !x_limit_left = MIN(x_limit_left,Rmax*c_indx_x_max_total)
             electron(k)%X = MAX(c_X_area_min,MIN( c_X_area_max,SQRT((x_limit_right**2 - x_limit_left**2)*well_random_number() + x_limit_left**2)))
          END IF
 
+         !y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)/two*c_indx_y_max_total)
+         !y_limit_top = MIN(y_limit_top,(one+Delta_z_max)/two*c_indx_y_max_total)    
+         !IF (Rank_of_process==0) print*,'y_limit_top_after',y_limit_top
+         !IF (y_limit_top<y_limit_bot) y_limit_bot = y_limit_top! make sure we have zero if domain has zero particles
          ! electron(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))
-         ! y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
-         ! y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)
+         !y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
+         !y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)
          electron(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))
 
 !        electron(k)%X = MIN(c_X_area_max-1.0_8, c_X_area_min + (c_X_area_max-1.0_8-c_X_area_min) * well_random_number())

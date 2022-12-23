@@ -67,7 +67,7 @@ SUBROUTINE SAVE_CHECKPOINT_MPIIO_2(n_sub)
   END INTERFACE
 
 ! fool proof
-  IF (n_sub.NE.0) THEN
+  IF (n_sub.NE.0 .AND. i_freeze_ions==0) THEN
      PRINT '("Process :: ",i5," ERROR :: SAVE_CHECKPOINT_MPIIO_2 called at wrong time, n_sub = ",i4)', Rank_of_process, n_sub
      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
   END IF
