@@ -139,8 +139,14 @@ PROGRAM MainProg
            PRINT '("Process ",i5," :: ERROR-1 in MainProg :: GLOBAL_LOAD_BALANCE is about to be called at wrong time :: T_cntr = ",i8," n_sub = ",i8)', Rank_of_process, T_cntr, n_sub
            CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
         END IF
-        CALL GLOBAL_LOAD_BALANCE  ! includes calls to SET_COMMUNICATIONS 
+      !   IF (i_cylindrical/=0 .OR. Delta_r/=one .OR. Delta_z/=one ) THEN!IF (T_cntr==Start_T_cntr .AND. i_cylindrical/=0 ) THEN
+      !    ! WRITE( message,'(A)') achar(10)//"No global load balancing in cylindrical coordinates for first iteration. Avoids bad redistributions if arrays have not been initialized"
+      !    WRITE( message,'(A)') achar(10)//"No global load balancing in cylindrical coordinates or partial cartesian. I need to fix this at some point"
+      !    CALL print_message( message )
+      !   ELSE
+         CALL GLOBAL_LOAD_BALANCE  ! includes calls to SET_COMMUNICATIONS 
                                   !                   DISTRIBUTE_CLUSTER_PARAMETERS
+      !   ENDIF
         T_cntr_global_load_balance = T_cntr_global_load_balance + dT_global_load_balance
      END IF
 

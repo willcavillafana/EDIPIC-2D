@@ -266,8 +266,8 @@ SUBROUTINE PREPARE_WALL_MATERIALS
       CALL print_message( message,routine )
    END IF      
 
-   IF ( (i_reflection_cyl_electron==1 .OR. i_reflection_cyl_ion==1) .AND. N_blocks_x*N_blocks_y/=1) THEN
-      message = 'Specular reflection in cylindrical geometry only works with one processor for now'
+   IF ( (i_reflection_cyl_electron==1 .OR. i_reflection_cyl_ion==1) .AND. cluster_N_blocks_y/=N_blocks_y ) THEN
+      message = 'Specular reflection in cylindrical geometry only works if the last column of blocks is one cluster is N_blocks_y=cluster_N_blocks_y'
       CALL print_error( message,routine )
    ENDIF
 

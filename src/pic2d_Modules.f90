@@ -221,6 +221,7 @@ MODULE CurrentProblemValues
   REAL(8) L_debye_m
   REAL(8) delta_x_m
   REAL(8) delta_t_s
+  REAL(8) :: Delta_r,Delta_z
 
   REAL(8) E_scale_Vm
   REAL(8) B_scale_T

@@ -65,8 +65,8 @@ contains
     REAL(8) :: factor_axis_geom_cyl  ! additional factor for node at the top and bottom in the stencil for axis.
 
     ! By default we have no additional factors
-    factor_geom_cyl = one
-    factor_axis_geom_cyl = one
+    factor_geom_cyl = 1.0_8
+    factor_axis_geom_cyl = 1.0_8
 
 !    integer            :: m, n, nx, ny, i, j, k, ix, jy
 !    PetscInt :: nrows, ncols, one=1, five=5, temp
@@ -565,6 +565,7 @@ contains
              value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
              value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+            !  print*,'value_at_jcol(1:4)_wil',value_at_jcol(1:4)
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
 !             value_at_jcol(3) = -1.0_8
@@ -641,6 +642,7 @@ contains
                    value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                    value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl ! this is 2
                    value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl              
+                  !  print*,'value_at_jcol(1:4)_wil2',value_at_jcol(1:4)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = -1.0_8
 !                   value_at_jcol(3) = 0.5_8
@@ -722,6 +724,7 @@ contains
                 value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                 value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                 value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+               !  print*,'value_at_jcol(1:4)_3',value_at_jcol(1:4)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = 0.25_8
 !                value_at_jcol(3) = -1.0_8
@@ -795,6 +798,7 @@ contains
                    value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                    value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+                  !  print*,'value_at_jcol(1:4)_wil4',value_at_jcol(1:4)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
 !                   value_at_jcol(3) = -1.0_8
@@ -874,6 +878,7 @@ contains
                 value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                 value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                 value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+               !  print*,'value_at_jcol(1:4)_wil5',value_at_jcol(1:4)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = 0.25_8
 !                value_at_jcol(3) = -1.0_8
@@ -956,6 +961,7 @@ contains
                 value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                 value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl ! this is 2 
                 value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl
+               !  print*,'value_at_jcol(1:4)_wil6',value_at_jcol(1:4)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = -1.0_8
 !                value_at_jcol(3) = 0.5_8
@@ -1042,6 +1048,7 @@ contains
              value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
              value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+            !  print*,'value_at_jcol(1:4)_wil7',value_at_jcol(1:4)
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
 !             value_at_jcol(3) = -1.0_8
@@ -1117,6 +1124,7 @@ contains
                    value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                    value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+                  !  print*,'value_at_jcol(1:4)_wil8',value_at_jcol(1:4)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
 !                   value_at_jcol(3) = -1.0_8
@@ -1192,6 +1200,7 @@ contains
                    value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                    value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
                    value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+                  !  print*,'value_at_jcol(1:4)_wil9',value_at_jcol(1:4)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = 0.25_8
 !                   value_at_jcol(3) = -1.0_8
@@ -1277,6 +1286,7 @@ contains
              value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
              value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
              value_at_jcol(5) =   eps_i_jshifted(i,j+1)
+            !  print*,'value_at_jcol(1:4)_wil_10',value_at_jcol(1:4)
 !             value_at_jcol(1) = 0.25_8
 !             value_at_jcol(2) = 0.25_8
 !             value_at_jcol(3) = -1.0_8

@@ -1417,8 +1417,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                  print*,'je passe la attention'
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                  ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -1444,7 +1444,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                     IF (Rank_of_master_right.GE.0) THEN
                        CALL ADD_ION_TO_SEND_RIGHT(s, x, y, vx, vy, vz, tag)              
                     ELSE
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                     ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                     END IF
                  END IF
               END DO
@@ -1489,8 +1490,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                  print*,'je passe la attention 2'
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                  ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -1516,7 +1517,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                     IF (Rank_of_master_right.GE.0) THEN
                        CALL ADD_ION_TO_SEND_RIGHT(s, x, y, vx, vy, vz, tag)              
                     ELSE
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                     ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                     END IF
                  END IF
               END DO
@@ -1564,8 +1566,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                  print*,'je passe la attention 3'
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                  ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -1591,7 +1593,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                     IF (Rank_of_master_right.GE.0) THEN
                        CALL ADD_ION_TO_SEND_RIGHT(s, x, y, vx, vy, vz, tag)              
                     ELSE
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                     ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                     END IF
                  END IF
               END DO
@@ -1636,8 +1639,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                  IF (Rank_of_master_right.GE.0) THEN
                     CALL ADD_ELECTRON_TO_SEND_RIGHT(x, y, vx, vy, vz, tag)              
                  ELSE
-                  print*,'je passe la attention 4'
-                    CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                  CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                  ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                  END IF
               END IF
            END DO
@@ -1663,7 +1666,8 @@ SUBROUTINE EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS
                     IF (Rank_of_master_right.GE.0) THEN
                        CALL ADD_ION_TO_SEND_RIGHT(s, x, y, vx, vy, vz, tag)              
                     ELSE
-                       CALL PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
+                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag)  
+                     ! CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_old,vx_old,vy_old)
                     END IF
                  END IF
               END DO

@@ -131,6 +131,7 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER :: ival ! buffer for integer values
   CHARACTER(LEN=string_length) :: caval ! buffer for string values
   CHARACTER(LEN=string_length) :: message, routine
+  INTEGER :: c_indx_x_max_total,c_indx_x_min_total
 
 ! functions
   REAL(8) Bx, By
@@ -147,6 +148,10 @@ SUBROUTINE INITIATE_PARAMETERS
   routine = "INITIATE_PARAMETERS"
 
 ! default values
+  c_indx_x_min_total = 0
+  c_indx_x_max_total = 0
+  Delta_r = one
+  Delta_z = one
   given_F_double_period_sys = 1000000.0_8        !
   i_given_F_double_period_sys = -7777777   ! should be sufficient to not to trigger accidentally the node with given potential
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
@@ -755,7 +760,45 @@ SUBROUTINE INITIATE_PARAMETERS
       IF ( Rank_of_process==0 ) PRINT *,'init_params.dat found.'
       
       OPEN (9, file='init_params.dat')
-      
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="Delta_z" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            Delta_z = rval
+            WRITE( message,'(A,ES10.3,A)') "Partial init Delta_z= ",Delta_z," [-]"
+            CALL print_message( message,routine )            
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A,ES10.3,A)') "Delta_z keyword no present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF          
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="Delta_r" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            Delta_r = rval
+            WRITE( message,'(A,ES10.3,A)') "Partial init Delta_r= ",Delta_r," [-]"
+            CALL print_message( message,routine )            
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A,ES10.3,A)') "Delta_r keyword no present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF          
+
       i_found = 0
       REWIND(9)
       DO
@@ -1000,10 +1043,6 @@ SUBROUTINE INITIATE_PARAMETERS
   B_scale_T  = m_e_kg / (e_Cl * delta_t_s)
   F_scale_V  = e_Cl * N_plasma_m3 * delta_x_m**2 / eps_0_Fm
 
-  N_scale_part_m3 = N_plasma_m3 / N_of_particles_cell
-  current_factor_Am2 = e_Cl * V_scale_ms * N_scale_part_m3
-  energy_factor_eV = 0.5_8 * m_e_kg * V_scale_ms**2 / e_Cl
-
   temperature_factor_eV = m_e_kg * V_scale_ms**2 / e_Cl
   heat_flow_factor_Wm2 = 0.5_8 * m_e_kg * V_scale_ms**2 * N_scale_part_m3
 
@@ -1090,6 +1129,23 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
   Rank_of_bottom_left_cluster_master = 0  ! in MPI_COMM_WORLD, ### in future, this may be some other process, fixmeplease!!!
 
   CALL SET_CLUSTER_STRUCTURE
+
+  IF ( i_cylindrical==2) THEN
+   ! Get min and max of index in x/r and y/z directions
+   ! print*,'c_indx_x_max,c_indx_x_min',c_indx_x_max,c_indx_x_min
+   CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+   CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
+   ! print*,'c_indx_x_max_total,c_indx_x_min_total,factor',c_indx_x_max_total,c_indx_x_min_total,pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m
+   ! CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
+   ! CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)  
+
+   N_of_particles_cell = INT(N_of_particles_cell/(pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m))
+
+  END IF
+
+  N_scale_part_m3 = N_plasma_m3 / N_of_particles_cell
+  current_factor_Am2 = e_Cl * V_scale_ms * N_scale_part_m3
+  energy_factor_eV = 0.5_8 * m_e_kg * V_scale_ms**2 / e_Cl
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
@@ -2954,6 +3010,7 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
   INTEGER ALLOC_ERR
 
   INTEGER pos, n
+  INTEGER :: index_r  
 
   IF (Rank_cluster.EQ.0) THEN
 
@@ -3071,6 +3128,38 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
      IF (ht_use_ionization_source) THEN
         CALL MPI_BCAST(yi(0:c_R_max), c_R_max+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)        
      END IF
+
+     IF (ALLOCATED(factor_cyl_vol)) DEALLOCATE(factor_cyl_vol,STAT=ALLOC_ERR )
+     IF (ALLOCATED(vol_cart))       DEALLOCATE(vol_cart,STAT=ALLOC_ERR )
+     IF (ALLOCATED(vol_r_m3))       DEALLOCATE(vol_r_m3,STAT=ALLOC_ERR )
+
+     ALLOCATE(factor_cyl_vol(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
+     ALLOCATE(vol_r_m3(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
+     ALLOCATE(vol_cart(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)     
+
+     vol_r_m3(c_indx_x_min:c_indx_x_max) = one
+     vol_cart(c_indx_x_min:c_indx_x_max) = one
+     factor_cyl_vol(c_indx_x_min:c_indx_x_max) = one
+     IF ( i_cylindrical==2 ) THEN
+      DO index_r = c_indx_x_min, c_indx_x_max  
+            
+          IF ( index_r==c_indx_x_min .AND. symmetry_plane_X_left ) THEN
+            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(1**2) 
+              vol_r_m3(index_r) = pi*delta_x_m**3/three*(3*c_indx_x_min+1) ! delta_z*pi/3*(r1-r0)*(2*r0+r1)
+              vol_cart(index_r) = delta_x_m**2/two
+          ELSE IF ( index_r==c_indx_x_max .AND. Rank_of_process_right < 0 ) THEN ! right point at boundary
+            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(c_indx_x_max**2-(c_indx_x_max-1)**2) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
+            vol_r_m3(index_r) = pi*delta_x_m**3/three*(c_indx_x_max-1+2*c_indx_x_max) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
+            vol_cart(index_r) = delta_x_m**2/two
+          ELSE
+            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(DBLE(index_r+1)**2-DBLE(index_r-1)**2) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
+              vol_r_m3(index_r) = pi*delta_x_m**3*two*DBLE(index_r) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
+              vol_cart(index_r) = delta_x_m**2
+          END IF
+          factor_cyl_vol(index_r) = vol_cart(index_r)/vol_r_m3(index_r)!delta_x_m**2/vol_r_m3(index_r) ! this is dimensionless. In 2D Cartesian the volume is dx**2*1 m3
+               
+      END DO
+     END IF     
 
   ELSE
 
@@ -3222,7 +3311,12 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
         CALL MPI_BCAST(yi(0:c_R_max), c_R_max+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)        
      END IF
 
+     IF (ALLOCATED(factor_cyl_vol)) DEALLOCATE(factor_cyl_vol,STAT=ALLOC_ERR )
+     ALLOCATE(factor_cyl_vol(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
+
   END IF
+
+  CALL MPI_BCAST(factor_cyl_vol(c_indx_x_min:c_indx_x_max), c_indx_x_max-c_indx_x_min+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)
 
   DEALLOCATE(ibufer, STAT=ALLOC_ERR)
 
@@ -3263,7 +3357,6 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   INTEGER k, n, s, pos
   INTEGER sum_Ni
 
-  INTEGER :: index_r
   INTEGER :: n_limit_x_total,n_limit_y_total ! total number of cells in whole domain in r direction (cylindrical)
   INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
   INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
@@ -3280,8 +3373,8 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 ! functions
   REAL(8) Bx, By, Bz, Ez
 
-  Rmax = 0.8_8
-  Delta_z_max = 0.4_8
+  Rmax = Delta_r !0.8_8
+  Delta_z_max = Delta_z !0.4_8
 
   routine = "DISTRIBUTE_PARTICLES"
   n_limit_x_total = zero
@@ -3381,18 +3474,20 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          !                                                  two*middle_r*n_limit_x,&
          !                                                  c_indx_x_max**2-c_indx_x_min**2
          ! print*,'nb cluster,mean cluster,cell',N_processes_horizontal,N_electron_mean/N_processes_horizontal,N_electron_mean/(N_processes_horizontal*n_limit_x*n_limit_y)
-   !   ELSE IF ( i_cylindrical==0 ) THEN
-   !       CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
+     ELSE IF ( i_cylindrical==0 ) THEN
+         CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
 
-   !       x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
-   !       y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)*c_indx_y_max_total)
-   !       y_limit_top = MIN(y_limit_top,(Delta_z_max)*c_indx_y_max_total)  
+         x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
+         x_limit_left = MIN(x_limit_left,Rmax*c_indx_x_max_total)
+         y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)/two*c_indx_y_max_total)
+         y_limit_top = MIN(y_limit_top,(one+Delta_z_max)/two*c_indx_y_max_total)    
+         IF (y_limit_top<y_limit_bot) y_limit_bot = y_limit_top! make sure we have zero if domain has zero particles
 
-   !       N_electrons =  INT( N_electrons_total_cyl*&
-   !                         (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
-   !                         (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total) )              
-   !                         !   (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total-1)*&
-   !                         !   (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total-1) )                     
+         N_electrons =  INT( N_electrons_total_cyl*&
+                           (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
+                           (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total) )              
+                           !   (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total-1)*&
+                           !   (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total-1) )                     
      END IF
      
      ! Print info on particles distribution
@@ -3410,6 +3505,10 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster (no inner object):",N_ppc_min
      CALL print_output( message )
+     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in first colum of cells (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two/(c_indx_x_max_total+c_indx_x_min_total))
+     CALL print_output( message )     
+     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in last colum of cells (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two*(c_indx_x_max_total-1)/(c_indx_x_max_total+c_indx_x_min_total))
+     CALL print_output( message )          
      WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
      CALL print_output( message )
      WRITE( message,'(A,ES10.3,A)') "Maximal average number of particles per cell in a cluster (no inner object):",N_ppc_max,achar(10)
@@ -3427,39 +3526,6 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      factor_convert = SQRT(init_Te_eV / T_e_eV) / N_max_vel
 
-     ! Compute volume in cylindrial coordinates following Verboncoeur (r-z) only. First node is at symmetry axis. Compute coorective factor s to calculate density
-     ALLOCATE(vol_r_m3(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
-     ALLOCATE(vol_cart(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
-     ALLOCATE(factor_cyl_vol(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
-     
-   !   print*,"allocation volume", c_indx_x_min,c_indx_x_max
-     factor_cyl_vol(c_indx_x_min:c_indx_x_max) = one ! By default there is no need for a correction (Cartesian)
-     vol_r_m3(c_indx_x_min:c_indx_x_max) = one
-     vol_cart(c_indx_x_min:c_indx_x_max) = one
-     IF ( i_cylindrical==2 ) THEN
-      DO index_r = c_indx_x_min, c_indx_x_max  
-            
-          IF ( index_r==c_indx_x_min .AND. block_has_symmetry_plane_X_left ) THEN
-            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(1**2) 
-              vol_r_m3(index_r) = pi*delta_x_m**3/three*(3*c_indx_x_min+1) ! delta_z*pi/3*(r1-r0)*(2*r0+r1)
-              vol_cart(index_r) = delta_x_m**2/two
-          ELSE IF ( index_r==c_indx_x_max .AND. Rank_of_process_right < 0 ) THEN ! right point at boundary
-            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(c_indx_x_max**2-(c_indx_x_max-1)**2) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
-            vol_r_m3(index_r) = pi*delta_x_m**3/three*(c_indx_x_max-1+2*c_indx_x_max) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
-            vol_cart(index_r) = delta_x_m**2/two
-          ELSE
-            !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(DBLE(index_r+1)**2-DBLE(index_r-1)**2) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
-              vol_r_m3(index_r) = pi*delta_x_m**3*two*DBLE(index_r) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
-              vol_cart(index_r) = delta_x_m**2
-          END IF
-          factor_cyl_vol(index_r) = vol_cart(index_r)/vol_r_m3(index_r)!delta_x_m**2/vol_r_m3(index_r) ! this is dimensionless. In 2D Cartesian the volume is dx**2*1 m3
-               
-      END DO
-     END IF
-
-     ! Somme des volumes est OK
-   !   print*,'vol_r,sum,sum/dz,expected_r,rank',vol_r_m3,SUM(vol_r_m3(c_indx_x_min:c_indx_x_max)),SUM(vol_r_m3(c_indx_x_min:c_indx_x_max))/delta_x_m,pi*((c_indx_x_max-c_indx_x_min)*delta_x_m)**2,Rank_of_process
-   !   print*,'total_vol_r expected',pi*((c_indx_x_max_total-c_indx_x_min_total)*delta_x_m)**2
      DO k = 1, N_electrons
 
          IF ( i_cylindrical==0 ) THEN 
@@ -3567,6 +3633,14 @@ SUBROUTINE DISTRIBUTE_PARTICLES
            pos = pos+1
            ion(s)%part(k)%X = electron(pos)%X
            ion(s)%part(k)%Y = electron(pos)%Y
+
+            ! IF ( i_cylindrical==0 ) THEN 
+            !    ion(s)%part(k)%X = MAX(c_X_area_min, MIN(c_X_area_max, x_limit_left + (x_limit_right - x_limit_left) * well_random_number()))
+            ! ELSE IF ( i_cylindrical==1 .OR. i_cylindrical==2 ) THEN ! radial distribution
+            !    ion(s)%part(k)%X = MAX(c_X_area_min,MIN( c_X_area_max,SQRT((x_limit_right**2 - x_limit_left**2)*well_random_number() + x_limit_left**2)))
+            ! END IF
+
+            ! ion(s)%part(k)%Y = MAX(c_Y_area_min, MIN(c_Y_area_max, y_limit_bot + (y_limit_top - y_limit_bot) * well_random_number()))           
 
            CALL GetMaxwellVelocity(v)
            ion(s)%part(k)%VX = v * factor_convert

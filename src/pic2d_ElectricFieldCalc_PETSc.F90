@@ -45,8 +45,8 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
 !   CALL MPI_ALLREDUCE(indx_x_max, index_maxi_r,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
 !   CALL MPI_ALLREDUCE(indx_y_max, index_maxi_z,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
   
-!   Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
-!   Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
+  Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
+  Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
 !   print*,'Lr,Lz,index_maxi_r,index_maxi_z',Lr,Lz,index_maxi_r,index_maxi_z
 !   k_test_r = 11./4*two*pi/Lr
 !   k_test_z = 5.0*two*pi/Lz
@@ -123,8 +123,9 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
            END DO
         ELSE !IF (whole_object(nobj)%object_type.EQ.SYMMETRY_PLANE) THEN
            rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))
+         !   rhsvalue(nn) = zero
            ! Check if I am in inner dielecctric
-           CALL FIND_INNER_OBJECT_CONTAINING_POINT(0,j,ni0,position_flag)
+         !   CALL FIND_INNER_OBJECT_CONTAINING_POINT(0,j,ni0,position_flag)
          !   IF ( position_flag<0 ) THEN ! in plasma at symmetry axis
          !       ! print*,'at symmetry axis in plasma',nn
          !      rhsvalue(nn) = -(k_test_r**2+(k_test_r**2+k_test_z**2))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2/two
@@ -146,6 +147,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
      DO i = indx_x_min+1, indx_x_max-1
         nn = nn + 1
         rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))
+      !   rhsvalue(nn) = zero!-(k_test_r*SIN(delta_x_m*k_test_r*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r*i))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet at BCs z=0, z=2cm,r=3cm. Divide by scaling factor
       !   CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,ni0,position_flag)
       !   IF ( position_flag<0 ) THEN ! imposed right hand side to test solver in cyl coordinates
       !       rhsvalue(nn) = -(k_test_r*SIN(delta_x_m*k_test_r*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r*i))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet at BCs z=0, z=2cm,r=3cm. Divide by scaling factor
@@ -435,11 +437,11 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
   factor2_E_from_F = F_scale_V / (E_scale_Vm * 2.0_8 * delta_x_m)
   factor1_E_from_F = F_scale_V / (E_scale_Vm * delta_x_m)
 
+  ! Deactivate electric field and poisson
+!   phi = zero
 
   IF (cluster_rank_key.EQ.0) THEN
 
-   ! Deactivate electric field and poisson
-   ! phi = zero
 
 ! volume
      DO j = indx_y_min+1, indx_y_max-1

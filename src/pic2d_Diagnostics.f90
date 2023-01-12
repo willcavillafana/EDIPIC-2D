@@ -413,10 +413,10 @@ subroutine report_total_number_of_particles
              & T_cntr, &                       ! 1
              & T_cntr * delta_t_s * 1.0d9, &   ! 2
              & N_particles_total(0), &                                                  ! 3
-             & REAL(V_scale_ms * totpwbufer(1) / MAX(one, N_particles_total(0))), &             ! 4
-             & REAL(V_scale_ms * totpwbufer(2) / MAX(one, N_particles_total(0))), &             ! 5
-             & REAL(V_scale_ms * totpwbufer(3) / MAX(one, N_particles_total(0))), &             ! 6
-             & REAL(energy_factor_eV * totpwbufer(4) / MAX(one, N_particles_total(0)))    ! 7
+             & REAL(V_scale_ms * totpwbufer(1) / MAX(one, N_particles_total(0)) * N_plasma_m3*delta_x_m**2/N_of_particles_cell), &             ! 4
+             & REAL(V_scale_ms * totpwbufer(2) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &             ! 5
+             & REAL(V_scale_ms * totpwbufer(3) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &             ! 6
+             & REAL(energy_factor_eV * totpwbufer(4) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell)    ! 7
         close (21, status = 'keep')
 
         pos1=5
@@ -432,10 +432,10 @@ subroutine report_total_number_of_particles
              & T_cntr, &                                                                   ! 1
              & T_cntr * delta_t_s * 1.0d9, &                                               ! 2
              & N_particles_total(s), &                                                             ! 3
-             & REAL(V_scale_ms * totpwbufer(pos1)   / MAX(one, N_particles_total(s))), &                 ! 4
-             & REAL(V_scale_ms * totpwbufer(pos1+1) / MAX(one, N_particles_total(s))), &                 ! 5
-             & REAL(V_scale_ms * totpwbufer(pos1+2) / MAX(one, N_particles_total(s))), &                 ! 6
-             & REAL(Ms(s) * energy_factor_eV * totpwbufer(pos1+3) / MAX(one, N_particles_total(s)))  ! 7
+             & REAL(V_scale_ms * totpwbufer(pos1)   / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &                 ! 4
+             & REAL(V_scale_ms * totpwbufer(pos1+1) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &                 ! 5
+             & REAL(V_scale_ms * totpwbufer(pos1+2) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &                 ! 6
+             & REAL(Ms(s) * energy_factor_eV * totpwbufer(pos1+3) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell)  ! 7
            close (21, status = 'keep')
 
            pos1=pos2+1
