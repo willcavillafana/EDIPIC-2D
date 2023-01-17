@@ -4,8 +4,9 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
   USE ParallelOperationValues
   USE ExternalFields
-  USE CurrentProblemValues, ONLY : E_scale_Vm, B_scale_T, delta_x_m, global_maximal_j, pi, mu_0_Hm
+  USE CurrentProblemValues, ONLY : E_scale_Vm, B_scale_T, delta_x_m, global_maximal_j, pi, mu_0_Hm, i_cylindrical,string_length
   USE IonParticles, ONLY : ions_sense_magnetic_field, ions_sense_EZ
+  USE mod_print, ONLY: print_parser_error
 
   IMPLICIT NONE
 
@@ -23,6 +24,7 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
   INTEGER ALLOC_ERR
   INTEGER n
+  CHARACTER(LEN=string_length) :: message
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -152,6 +154,11 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
   IF (exists) THEN
+
+      IF ( i_cylindrical/=0 ) THEN
+         WRITE( message,'(A)') 'You cannot have an init_extmagfieldsBxBy.dat if you use a cylindrical geometry. Static B field generated with wires have not been implemented yet.'//achar(10)
+         CALL print_parser_error( message )
+      END IF
      
      IF (Rank_of_process.EQ.0) THEN
         PRINT '(2x,"Process ",i5," : init_extmagfieldsBxBy.dat is found. Reading the data file...")', Rank_of_process
