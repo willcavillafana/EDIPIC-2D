@@ -152,6 +152,7 @@ SUBROUTINE INITIATE_PARAMETERS
   c_indx_x_max_total = 0
   Delta_r = one
   Delta_z = one
+  i_no_poisson = 0
   given_F_double_period_sys = 1000000.0_8        !
   i_given_F_double_period_sys = -7777777   ! should be sufficient to not to trigger accidentally the node with given potential
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
@@ -837,7 +838,11 @@ SUBROUTINE INITIATE_PARAMETERS
          WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
          CALL print_message( message,routine )         
       END IF    
-      
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
+         CALL print_message( message,routine )         
+      END IF 
+
       i_found = 0
       REWIND(9)
       DO
@@ -862,10 +867,32 @@ SUBROUTINE INITIATE_PARAMETERS
             END IF
          END IF
       END DO
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
-         CALL print_message( message,routine )         
-      END IF         
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="i_no_poisson" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_no_poisson = 1
+               WRITE( message,'(A)') "Potential is set to 0. No electric field"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_no_poisson = 0
+               WRITE( message,'(A)') "Potential is self consistantly calculated"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_no_poisson is used. Received: ',caval,achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO      
+        
       
    END IF
 
@@ -3505,9 +3532,9 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster (no inner object):",N_ppc_min
      CALL print_output( message )
-     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in first colum of cells (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two/(c_indx_x_max_total+c_indx_x_min_total))
+     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in first colum of cells (no inner object):",DBLE(N_electron_tot*1/((c_indx_x_max_total-c_indx_x_min_total)**2*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two/(c_indx_x_max_total+c_indx_x_min_total))
      CALL print_output( message )     
-     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in last colum of cells (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two*(c_indx_x_max_total-1)/(c_indx_x_max_total+c_indx_x_min_total))
+     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in last colum of cells (no inner object):",DBLE(N_electron_tot*(2*(c_indx_x_max_total-c_indx_x_min_total)+1)/((c_indx_x_max_total-c_indx_x_min_total)**2*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two*(c_indx_x_max_total-1)/(c_indx_x_max_total+c_indx_x_min_total))
      CALL print_output( message )          
      WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
      CALL print_output( message )
@@ -3648,7 +3675,9 @@ SUBROUTINE DISTRIBUTE_PARTICLES
            CALL GetMaxwellVelocity(v)
            ion(s)%part(k)%VY = v * factor_convert
 
-           ion(s)%part(k)%VZ = 0.0_8
+           CALL GetMaxwellVelocity(v)
+           ion(s)%part(k)%VZ = v * factor_convert
+         !   ion(s)%part(k)%VZ = 0.0_8
            ion(s)%part(k)%tag = 0
         END DO
      END DO

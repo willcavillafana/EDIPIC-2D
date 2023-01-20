@@ -199,21 +199,6 @@ end if
         vx_old = electron(k)%VX
         vy_old = electron(k)%VZ
 
-      !   ! Need to double check in case of specular reflection. I must correct position and velocity now
-      !   IF ( i_reflection_cyl_electron==1 .AND. radius>DBLE(index_maxi_r) .AND. electron(k)%Y ) THEN
-      !       CALL REFLECT_CYLINDRICAL(z_cart,electron(k)%X,electron(k)%VX,electron(k)%VZ,Rmax,x_reflected,y_reflected,vx_reflected,vy_reflected)
-
-      !       ! Adjust position in local Cartesian frame after collision
-      !       x_cart = x_reflected
-      !       z_cart = y_reflected
-      !       radius = SQRT( x_cart**2+z_cart**2 )
-
-      !       ! Velocity in local cartesian frame
-      !       electron(k)%VX = vx_reflected
-      !       electron(k)%VZ = vy_reflected               
-
-      !   END IF
-
         ! Then compute increment angle alpha
         alpha_ang = DATAN2(z_cart,x_cart)         
 
@@ -234,7 +219,7 @@ end if
      IF (symmetry_plane_X_left ) THEN!.AND. i_cylindrical==0 ) THEN
         IF (electron(k)%X.LT.c_X_area_min) THEN
            electron(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - electron(k)%X)
-           CALL ADD_ELECTRON_TO_BO_COLLS_LIST(REAL(electron(k)%Y), REAL(electron(k)%VX), REAL(electron(k)%VY), REAL(electron(k)%VZ), electron(k)%tag, 1, 0)
+         !   CALL ADD_ELECTRON_TO_BO_COLLS_LIST(REAL(electron(k)%Y), REAL(electron(k)%VX), REAL(electron(k)%VY), REAL(electron(k)%VZ), electron(k)%tag, 1, 0)
            electron(k)%VX = -electron(k)%VX
 !###          electron(k)%VZ = -electron(k)%VZ   !###??? do we not have to do this when BY is on ??? 
         END IF

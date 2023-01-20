@@ -438,7 +438,7 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
   factor1_E_from_F = F_scale_V / (E_scale_Vm * delta_x_m)
 
   ! Deactivate electric field and poisson
-!   phi = zero
+   IF ( i_no_poisson==1 )   phi = zero
 
   IF (cluster_rank_key.EQ.0) THEN
 

@@ -169,7 +169,7 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_ol
             alpha_ang = DATAN2(z_cart,x_cart)         
 
             ! Update radius (X). 
-            IF ( radius>c_X_area_max) print*,'x_wil',x
+            ! IF ( radius>c_X_area_max) print*,'x_wil',x
             radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
             x = radius
             

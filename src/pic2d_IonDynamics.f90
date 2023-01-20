@@ -214,7 +214,7 @@ SUBROUTINE ADVANCE_IONS
 
 
 ! a particle crossed symmetry plane, reflect it. Only for Cartesian
-        IF (symmetry_plane_X_left .AND. i_cylindrical==0 ) THEN
+        IF (symmetry_plane_X_left ) THEN
            IF (ion(s)%part(k)%X.LT.c_X_area_min) THEN
               ion(s)%part(k)%X = MAX(c_X_area_min, c_X_area_min + c_X_area_min - ion(s)%part(k)%X)
               ion(s)%part(k)%VX = -ion(s)%part(k)%VX
