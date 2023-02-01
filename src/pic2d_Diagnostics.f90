@@ -336,7 +336,7 @@ subroutine report_total_number_of_particles
   INTEGER ibufer(0:N_spec)
   REAL(8), allocatable :: rbufer(:), pwbufer(:), totpwbufer(:)
   INTEGER ALLOC_ERR
-  INTEGER k, s, k1, k2, k3, k4
+  INTEGER k, s, k1, k2, k3, k4!, k5, k6
   INTEGER pos1, pos2
 
   INTEGER N_particles_cluster(0:N_spec)!, N_particles_total(0:N_spec)
@@ -371,6 +371,8 @@ subroutine report_total_number_of_particles
      rbufer(2) = rbufer(2) + electron(k)%VY
      rbufer(3) = rbufer(3) + electron(k)%VZ
      rbufer(4) = rbufer(4) + electron(k)%VX**2 + electron(k)%VY**2 + electron(k)%VZ**2
+   !   rbufer(5) = rbufer(5) + electron(k)%X
+   !   rbufer(6) = rbufer(6) + electron(k)%Y
   END DO
 
   DO s = 1, N_spec
@@ -378,11 +380,15 @@ subroutine report_total_number_of_particles
      k2=4*s+2
      k3=4*s+3
      k4=4*s+4
+   !   k5=6*s+4
+   !   k6=6*s+4
      DO k = 1, N_ions(s)
         rbufer(k1) = rbufer(k1) + ion(s)%part(k)%VX
         rbufer(k2) = rbufer(k2) + ion(s)%part(k)%VY
         rbufer(k3) = rbufer(k3) + ion(s)%part(k)%VZ
         rbufer(k4) = rbufer(k4) + ion(s)%part(k)%VX**2 + ion(s)%part(k)%VY**2 + ion(s)%part(k)%VZ**2
+      !   rbufer(k5) = rbufer(k5) + ion(s)%part(k)%X
+      !   rbufer(k6) = rbufer(k6) + ion(s)%part(k)%Y        
      END DO
   END DO
 
@@ -409,18 +415,20 @@ subroutine report_total_number_of_particles
         PRINT '("Total : number of electron particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', N_particles_total(0), totpwbufer(1:4)
 
         open (21, file = 'history_e.dat', position = 'append')
-        write (21, '(2x,i8,2x,f12.5,2x,ES18.10,2x,4(2x,e14.7))') &
+        write (21, '(2x,i8,2x,f12.5,2x,ES18.10,2x,4(2x,ES14.7))') &
              & T_cntr, &                       ! 1
              & T_cntr * delta_t_s * 1.0d9, &   ! 2
              & N_particles_total(0), &                                                  ! 3
              & REAL(V_scale_ms * totpwbufer(1) / MAX(one, N_particles_total(0)) * N_plasma_m3*delta_x_m**2/N_of_particles_cell), &             ! 4
              & REAL(V_scale_ms * totpwbufer(2) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &             ! 5
              & REAL(V_scale_ms * totpwbufer(3) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &             ! 6
-             & REAL(energy_factor_eV * totpwbufer(4) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell)    ! 7
+             & REAL(energy_factor_eV * totpwbufer(4) / MAX(one, N_particles_total(0))* N_plasma_m3*delta_x_m**2/N_of_particles_cell)!, &   ! 7
+            !  & REAL(totpwbufer(5)), &
+            !  & REAL(totpwbufer(6)) 
         close (21, status = 'keep')
 
-        pos1=5
-        pos2=8
+        pos1=5!+2
+        pos2=8!+2
         DO s = 1, N_Spec
            PRINT '("Total : number of ion  ",i2,"  particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', s, N_particles_total(s), totpwbufer(pos1:pos2)
 
@@ -435,7 +443,9 @@ subroutine report_total_number_of_particles
              & REAL(V_scale_ms * totpwbufer(pos1)   / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &                 ! 4
              & REAL(V_scale_ms * totpwbufer(pos1+1) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &                 ! 5
              & REAL(V_scale_ms * totpwbufer(pos1+2) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell), &                 ! 6
-             & REAL(Ms(s) * energy_factor_eV * totpwbufer(pos1+3) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell)  ! 7
+             & REAL(Ms(s) * energy_factor_eV * totpwbufer(pos1+3) / MAX(one, N_particles_total(s))* N_plasma_m3*delta_x_m**2/N_of_particles_cell)!, &  ! 7
+            !  & REAL(totpwbufer(pos1+4)), &
+            !  & REAL(totpwbufer(pos1+5)) 
            close (21, status = 'keep')
 
            pos1=pos2+1

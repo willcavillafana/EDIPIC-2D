@@ -3186,8 +3186,8 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
           factor_cyl_vol(index_r) = vol_cart(index_r)/vol_r_m3(index_r)!delta_x_m**2/vol_r_m3(index_r) ! this is dimensionless. In 2D Cartesian the volume is dx**2*1 m3
                
       END DO
-     END IF     
-
+     END IF
+     
   ELSE
 
      CALL MPI_BCAST(bufer_length, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)

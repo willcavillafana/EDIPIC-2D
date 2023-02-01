@@ -155,10 +155,10 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
   IF (exists) THEN
 
-      IF ( i_cylindrical/=0 ) THEN
-         WRITE( message,'(A)') 'You cannot have an init_extmagfieldsBxBy.dat if you use a cylindrical geometry. Static B field generated with wires have not been implemented yet.'//achar(10)
-         CALL print_parser_error( message )
-      END IF
+      ! IF ( i_cylindrical/=0 ) THEN
+      !    WRITE( message,'(A)') 'You cannot have an init_extmagfieldsBxBy.dat if you use a cylindrical geometry. Static B field generated with wires have not been implemented yet.'//achar(10)
+      !    CALL print_parser_error( message )
+      ! END IF
      
      IF (Rank_of_process.EQ.0) THEN
         PRINT '(2x,"Process ",i5," : init_extmagfieldsBxBy.dat is found. Reading the data file...")', Rank_of_process
@@ -203,17 +203,48 @@ END SUBROUTINE PREPARE_EXTERNAL_FIELDS
 REAL(8) FUNCTION Bx(x, y)
 
   USE ExternalFields
+  USE CurrentProblemValues, ONLY: i_cylindrical,two, zero, one, third,delta_x_m,B_scale_T
+  USE carlson_elliptic_module, ONLY: drf, drd
+  USE ParallelOperationValues, ONLY: Rank_of_process
 
   IMPLICIT NONE
 
   REAL(8) x, y
   INTEGER n
+  REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second
+  INTEGER :: ierr
 
   Bx = Bx_ext
 
-  DO n = 1, N_JZ_wires
-     Bx = Bx - JZwire_JZ(n) * (y - JZwire_Y(n)) / ((x - JZwire_X(n))**2 + (y - JZwire_Y(n))**2)
-  END DO
+   IF ( i_cylindrical==0 ) THEN
+      DO n = 1, N_JZ_wires
+         Bx = Bx - JZwire_JZ(n) * (y - JZwire_Y(n)) / ((x - JZwire_X(n))**2 + (y - JZwire_Y(n))**2)
+      END DO
+   ELSE IF ( i_cylindrical==2 ) THEN ! from James C. Simpson et al., “Simple Analytic Expressions for the Magnetic Field of a Circular Current Loop” (January 1, 2001), https://ntrs.nasa.gov/citations/20010038494.
+      rho = x ! radius of ptcl
+      z = y ! axial position of ptcl
+      IF ( rho/=zero ) THEN
+         DO n = 1, N_JZ_wires ! JZwire_JZ = muI/(2*pi*delta_x*B_scale)
+            a = JZwire_X(n) ! radius of loop
+            z = z-JZwire_Y(n) ! distance from loop
+            alpha_square = a**2+rho**2+z**2-two*a*rho
+            beta_square = a**2+rho**2+z**2+two*a*rho
+            k_square = one-alpha_square/beta_square
+            C_const = JZwire_JZ(n)*two 
+            elliptic_first = drf(zero,one-k_square,one,ierr)
+            elliptic_second = drf(zero,one-k_square,one,ierr)-third*k_square*drd(zero,one-k_square,one,ierr)
+            ! IF ( k_square==one ) print*,'Bx,a,rho,alpha,beta,k_square,rank',a,rho,alpha,beta,k_square,Rank_of_process
+            ! use superposition and https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.ellipk.html#rb8dc91d0a263-2
+            ! If rho is 0, Br =0
+            Bx = Bx + C_const *z/(two*alpha_square*SQRT(beta_square)*rho) * ( (a**2+rho**2+z**2)*elliptic_second - alpha_square*elliptic_first)
+         END DO      
+      ELSE 
+         Bx = zero
+      END IF
+   END IF
+
+   ! IF (Rank_of_process==0) print*,'r,z,fact',rho*delta_x_m,z*delta_x_m,k_square, ( (a**2+rho**2+z**2)*delta_x_m**2*elliptic_second ),- alpha_square*delta_x_m**2*elliptic_first
+   ! print*,'r,z,k^2,K,E',rho*delta_x_m,z*delta_x_m,k_square,drf(zero,one-k_square,one,ierr),drf(zero,one-k_square,one,ierr)-third*k_square*drd(zero,one-k_square,one,ierr)
 
 END FUNCTION Bx
 
@@ -222,17 +253,43 @@ END FUNCTION Bx
 REAL(8) FUNCTION By(x, y)
 
   USE ExternalFields
-
+  USE CurrentProblemValues, ONLY: i_cylindrical,two, zero, one, third
+  USE carlson_elliptic_module, ONLY: drf, drd  
+  USE ParallelOperationValues, ONLY: Rank_of_process
   IMPLICIT NONE
 
   REAL(8) x, y
   INTEGER n
+  REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second
+  INTEGER :: ierr
 
   By = By_ext
 
-  DO n = 1, N_JZ_wires
-     By = By + JZwire_JZ(n) * (x - JZwire_X(n)) / ((x - JZwire_X(n))**2 + (y - JZwire_Y(n))**2)
-  END DO
+!   DO n = 1, N_JZ_wires
+!      By = By + JZwire_JZ(n) * (x - JZwire_X(n)) / ((x - JZwire_X(n))**2 + (y - JZwire_Y(n))**2)
+!   END DO
+
+   IF ( i_cylindrical==0 ) THEN
+      DO n = 1, N_JZ_wires
+         By = By + JZwire_JZ(n) * (x - JZwire_X(n)) / ((x - JZwire_X(n))**2 + (y - JZwire_Y(n))**2)
+      END DO
+   ELSE IF ( i_cylindrical==2 ) THEN ! from James C. Simpson et al., “Simple Analytic Expressions for the Magnetic Field of a Circular Current Loop” (January 1, 2001), https://ntrs.nasa.gov/citations/20010038494.
+      rho = x ! radius of ptcl
+      z = y ! axial position of ptcl
+      DO n = 1, N_JZ_wires ! JZwire_JZ = muI/(2*pi*delta_x*B_scale)
+         a = JZwire_X(n) ! radius of loop
+         z = z-JZwire_Y(n) ! distance from loop
+         alpha_square = a**2+rho**2+z**2-two*a*rho
+         beta_square = a**2+rho**2+z**2+two*a*rho
+         k_square = one-alpha_square/beta_square
+         C_const = JZwire_JZ(n)*two 
+         elliptic_first = drf(zero,one-k_square,one,ierr)
+         elliptic_second = drf(zero,one-k_square,one,ierr)-third*k_square*drd(zero,one-k_square,one,ierr)         
+         ! IF (k_square==one ) print*,'By,a,rho,alpha,beta,k_square,rank',a,rho,alpha,beta,k_square,Rank_of_process
+         ! use superposition and https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.ellipk.html#rb8dc91d0a263-2
+         By = By + C_const/(two*alpha_square*SQRT(beta_square)) * ( (a**2-rho**2-z**2)*elliptic_second + alpha_square*elliptic_first)
+      END DO      
+   END IF  
 
 END FUNCTION By
 
