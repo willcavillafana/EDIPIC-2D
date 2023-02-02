@@ -16,7 +16,7 @@ SUBROUTINE ADVANCE_ELECTRONS
   INTEGER k
   INTEGER i, j
   REAL(8) ax_ip1, ax_i, ay_jp1, ay_j
-  REAL(8) E_X, E_Y, E_Z
+  REAL(8) E_X, E_Y, E_Z, B_X, B_Y, B_Z
   REAL(8) alfa_x, alfa_y, alfa_z
   REAL(8) alfa_x2, alfa_y2, alfa_z2
   REAL(8) theta2, invtheta
@@ -93,15 +93,15 @@ end if
      E_Y = EY(i,j) * ax_i * ay_j + EY(i+1,j) * ax_ip1 * ay_j + EY(i,j+1) * ax_i * ay_jp1 + EY(i+1,j+1) * ax_ip1 * ay_jp1
      E_Z = Ez(electron(k)%X, electron(k)%Y)
 
-   !   E_X = 0.0_8 !-1e3/E_scale_Vm
-   !   E_Y = 0.0_8
-   !   E_Z = 0.0_8
+     B_X = BX_grid(i,j) * ax_i * ay_j + BX_grid(i+1,j) * ax_ip1 * ay_j + BX_grid(i,j+1) * ax_i * ay_jp1 + BX_grid(i+1,j+1) * ax_ip1 * ay_jp1
+     B_Y = BY_grid(i,j) * ax_i * ay_j + BY_grid(i+1,j) * ax_ip1 * ay_j + BY_grid(i,j+1) * ax_i * ay_jp1 + BY_grid(i+1,j+1) * ax_ip1 * ay_jp1
+     B_Z = Bz(electron(k)%X, electron(k)%Y)
 
 ! calculate magnetic field factors
 
-     alfa_x = -0.5_8 * Bx(electron(k)%X, electron(k)%Y)
-     alfa_y = -0.5_8 * By(electron(k)%X, electron(k)%Y)
-     alfa_z = -0.5_8 * Bz(electron(k)%X, electron(k)%Y)
+     alfa_x = -0.5_8 * B_X !Bx(electron(k)%X, electron(k)%Y)
+     alfa_y = -0.5_8 * B_Y !By(electron(k)%X, electron(k)%Y)
+     alfa_z = -0.5_8 * B_Z ! Bz(electron(k)%X, electron(k)%Y)
 
      alfa_x2 = alfa_x**2
      alfa_y2 = alfa_y**2

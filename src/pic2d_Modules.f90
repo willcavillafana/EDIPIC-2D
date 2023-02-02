@@ -419,6 +419,8 @@ MODULE CurrentProblemValues
 
   REAL(8), ALLOCATABLE :: EX(:,:)        ! these arrays cover the whole cluster
   REAL(8), ALLOCATABLE :: EY(:,:)        !
+  REAL(8), ALLOCATABLE :: BX_grid(:,:)        ! these arrays cover the whole cluster
+  REAL(8), ALLOCATABLE :: BY_grid(:,:)        !
  
   REAL(8), ALLOCATABLE :: acc_EX(:,:)    ! these arrays cover the whole cluster
   REAL(8), ALLOCATABLE :: acc_EY(:,:)    ! 

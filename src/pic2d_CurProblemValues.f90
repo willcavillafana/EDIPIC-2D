@@ -3037,7 +3037,20 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
   INTEGER ALLOC_ERR
 
   INTEGER pos, n
-  INTEGER :: index_r  
+  INTEGER :: index_r, index_z
+!   CHARACTER(26) BxBy_filename   ! proc_NNNN_BxBy_vs_xy.dat
+!    INTEGER :: i,j
+
+  ! functions
+  REAL(8) :: Bx, By  
+
+!   interface
+!   function convert_int_to_txt_string(int_number, length_of_string)
+!     character*(length_of_string) convert_int_to_txt_string
+!     integer int_number
+!     integer length_of_string
+!   end function convert_int_to_txt_string
+! end interface
 
   IF (Rank_cluster.EQ.0) THEN
 
@@ -3187,7 +3200,21 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
                
       END DO
      END IF
-     
+
+     ! Update B field
+     IF (ALLOCATED(BX_grid))     DEALLOCATE(BX_grid,     STAT=ALLOC_ERR)
+     IF (ALLOCATED(BY_grid))     DEALLOCATE(BY_grid,     STAT=ALLOC_ERR)        
+
+     ALLOCATE(BX_grid(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
+     ALLOCATE(BY_grid(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)     
+
+      DO index_r = c_indx_x_min, c_indx_x_max
+         DO index_z = c_indx_y_min, c_indx_y_max
+            BX_grid(index_r,index_z) = Bx(DBLE(index_r),DBLE(index_z))
+            BY_grid(index_r,index_z) = By(DBLE(index_r),DBLE(index_z))
+         END DO
+      END DO
+
   ELSE
 
      CALL MPI_BCAST(bufer_length, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
@@ -3202,7 +3229,7 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
      c_indx_y_max = ibufer(4)
 
      IF (ALLOCATED(EX))     DEALLOCATE(EX,     STAT=ALLOC_ERR)
-     IF (ALLOCATED(EY))     DEALLOCATE(EY,     STAT=ALLOC_ERR)
+     IF (ALLOCATED(EY))     DEALLOCATE(EY,     STAT=ALLOC_ERR)  
      IF (ALLOCATED(acc_EX)) DEALLOCATE(acc_EX, STAT=ALLOC_ERR)
      IF (ALLOCATED(acc_EY)) DEALLOCATE(acc_EY, STAT=ALLOC_ERR)
 
@@ -3341,9 +3368,19 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
      IF (ALLOCATED(factor_cyl_vol)) DEALLOCATE(factor_cyl_vol,STAT=ALLOC_ERR )
      ALLOCATE(factor_cyl_vol(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)
 
+     IF (ALLOCATED(BX_grid)) DEALLOCATE(BX_grid,STAT=ALLOC_ERR )
+     IF (ALLOCATED(BY_grid)) DEALLOCATE(BY_grid,STAT=ALLOC_ERR )
+     ALLOCATE(BX_grid(c_indx_x_min:c_indx_x_max,c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
+     ALLOCATE(BY_grid(c_indx_x_min:c_indx_x_max,c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)     
+
   END IF
 
+  ! Volume for cylindrical/cartesian
   CALL MPI_BCAST(factor_cyl_vol(c_indx_x_min:c_indx_x_max), c_indx_x_max-c_indx_x_min+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)
+
+  ! B field grid 
+  CALL MPI_BCAST(BX_grid(c_indx_x_min:c_indx_x_max,c_indx_y_min:c_indx_y_max), (c_indx_x_max-c_indx_x_min+1)*(c_indx_y_max-c_indx_y_min+1), MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)
+  CALL MPI_BCAST(BY_grid(c_indx_x_min:c_indx_x_max,c_indx_y_min:c_indx_y_max), (c_indx_x_max-c_indx_x_min+1)*(c_indx_y_max-c_indx_y_min+1), MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)
 
   DEALLOCATE(ibufer, STAT=ALLOC_ERR)
 

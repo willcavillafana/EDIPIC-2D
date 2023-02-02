@@ -3,7 +3,7 @@
 SUBROUTINE COLLECT_ELECTRON_MOMENTS
 
   USE ParallelOperationValues
-  USE CurrentProblemValues, ONLY : EX, EY   ! 
+  USE CurrentProblemValues, ONLY : EX, EY, BX_grid, BY_grid   ! 
   USE ElectronParticles
   USE ClusterAndItsBoundaries
   USE Snapshots
@@ -47,7 +47,7 @@ SUBROUTINE COLLECT_ELECTRON_MOMENTS
   REAL vij, vip1j, vijp1, vip1jp1
 
   REAL(8) dax_ip1, dax_i, day_jp1, day_j
-  REAL(8) E_X, E_Y, E_Z
+  REAL(8) E_X, E_Y, E_Z, B_X, B_Y, B_Z
   REAL(8) Bx, By, Bz, Ez       ! functions
   REAL(8) alfa_x, alfa_y, alfa_z
   REAL(8) alfa_x2, alfa_y2, alfa_z2
@@ -179,11 +179,15 @@ SUBROUTINE COLLECT_ELECTRON_MOMENTS
      E_Y = EY(i,j) * dax_i * day_j + EY(i+1,j) * dax_ip1 * day_j + EY(i,j+1) * dax_i * day_jp1 + EY(i+1,j+1) * dax_ip1 * day_jp1
      E_Z = Ez(electron(k)%X, electron(k)%Y)
 
+     B_X = BX_grid(i,j) * ax_i * ay_j + BX_grid(i+1,j) * ax_ip1 * ay_j + BX_grid(i,j+1) * ax_i * ay_jp1 + BX_grid(i+1,j+1) * ax_ip1 * ay_jp1
+     B_Y = BY_grid(i,j) * ax_i * ay_j + BY_grid(i+1,j) * ax_ip1 * ay_j + BY_grid(i,j+1) * ax_i * ay_jp1 + BY_grid(i+1,j+1) * ax_ip1 * ay_jp1
+     B_Z = Bz(electron(k)%X, electron(k)%Y)     
+
 ! calculate magnetic field factors
 
-     alfa_x = -0.5_8 * Bx(electron(k)%X, electron(k)%Y)
-     alfa_y = -0.5_8 * By(electron(k)%X, electron(k)%Y)
-     alfa_z = -0.5_8 * Bz(electron(k)%X, electron(k)%Y)
+     alfa_x = -0.5_8 * B_X !Bx(electron(k)%X, electron(k)%Y)
+     alfa_y = -0.5_8 * B_Y !By(electron(k)%X, electron(k)%Y)
+     alfa_z = -0.5_8 * B_Z ! Bz(electron(k)%X, electron(k)%Y)
 
      alfa_x2 = alfa_x**2
      alfa_y2 = alfa_y**2

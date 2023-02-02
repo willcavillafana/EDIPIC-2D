@@ -201,7 +201,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
 
   INTEGER i, j, k
   REAL(8) ax_ip1, ax_i, ay_jp1, ay_j
-  REAL(8) E_X, E_Y, E_Z
+  REAL(8) E_X, E_Y, E_Z, B_X, B_Y, B_Z
   REAL(8) alfa_x, alfa_y, alfa_z
   REAL(8) alfa_x2, alfa_y2, alfa_z2
   REAL(8) theta2, invtheta
@@ -381,9 +381,13 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
 ! magnetic field accounted for
 ! calculate magnetic field factors   !##### MODIFY FOR IONS ########
 
-        alfa_x = QM2sNsub(s) * Bx(ion(s)%part(k)%X, ion(s)%part(k)%Y)
-        alfa_y = QM2sNsub(s) * By(ion(s)%part(k)%X, ion(s)%part(k)%Y)
-        alfa_z = QM2sNsub(s) * Bz(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+         B_X = BX_grid(i,j) * ax_i * ay_j + BX_grid(i+1,j) * ax_ip1 * ay_j + BX_grid(i,j+1) * ax_i * ay_jp1 + BX_grid(i+1,j+1) * ax_ip1 * ay_jp1
+         B_Y = BY_grid(i,j) * ax_i * ay_j + BY_grid(i+1,j) * ax_ip1 * ay_j + BY_grid(i,j+1) * ax_i * ay_jp1 + BY_grid(i+1,j+1) * ax_ip1 * ay_jp1
+         B_Z = Bz(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+
+         alfa_x = QM2sNsub(s) * B_X !Bx(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+         alfa_y = QM2sNsub(s) * B_Y !By(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+         alfa_z = QM2sNsub(s) * B_Z !Bz(ion(s)%part(k)%X, ion(s)%part(k)%Y)
 
         alfa_x2 = alfa_x**2
         alfa_y2 = alfa_y**2
@@ -1115,7 +1119,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
   INTEGER s, k
   INTEGER i, j
   REAL(8) ax_ip1, ax_i, ay_jp1, ay_j
-  REAL(8) E_X, E_Y, E_Z
+  REAL(8) E_X, E_Y, E_Z, B_X, B_Y, B_Z
   REAL(8) alfa_x, alfa_y, alfa_z
   REAL(8) alfa_x2, alfa_y2, alfa_z2
   REAL(8) theta2, invtheta
@@ -1229,9 +1233,13 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
 ! magnetic field accounted for
 ! calculate magnetic field factors   !##### MODIFY FOR IONS ########
 
-           alfa_x = QM2sNsub(s) * Bx(ion(s)%part(k)%X, ion(s)%part(k)%Y)
-           alfa_y = QM2sNsub(s) * By(ion(s)%part(k)%X, ion(s)%part(k)%Y)
-           alfa_z = QM2sNsub(s) * Bz(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+            B_X = BX_grid(i,j) * ax_i * ay_j + BX_grid(i+1,j) * ax_ip1 * ay_j + BX_grid(i,j+1) * ax_i * ay_jp1 + BX_grid(i+1,j+1) * ax_ip1 * ay_jp1
+            B_Y = BY_grid(i,j) * ax_i * ay_j + BY_grid(i+1,j) * ax_ip1 * ay_j + BY_grid(i,j+1) * ax_i * ay_jp1 + BY_grid(i+1,j+1) * ax_ip1 * ay_jp1
+            B_Z = Bz(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+
+            alfa_x = QM2sNsub(s) * B_X !Bx(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+            alfa_y = QM2sNsub(s) * B_Y !By(ion(s)%part(k)%X, ion(s)%part(k)%Y)
+            alfa_z = QM2sNsub(s) * B_Z !Bz(ion(s)%part(k)%X, ion(s)%part(k)%Y)
 
            alfa_x2 = alfa_x**2
            alfa_y2 = alfa_y**2
