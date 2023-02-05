@@ -777,7 +777,7 @@ SUBROUTINE INITIATE_PARAMETERS
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "Delta_z keyword no present. I assume we do not want it"
+         WRITE( message,'(A,ES10.3,A)') "Delta_z keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF          
 
@@ -796,7 +796,7 @@ SUBROUTINE INITIATE_PARAMETERS
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "Delta_r keyword no present. I assume we do not want it"
+         WRITE( message,'(A,ES10.3,A)') "Delta_r keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF          
 
@@ -815,7 +815,7 @@ SUBROUTINE INITIATE_PARAMETERS
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "delta_x keyword no present. I assume we do not want it"
+         WRITE( message,'(A,ES10.3,A)') "delta_x keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF    
 
@@ -862,7 +862,7 @@ SUBROUTINE INITIATE_PARAMETERS
                WRITE( message,'(A)') "ions are not frozen"//achar(10)
                CALL print_message( message,routine )
             ELSE
-               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if freeze_ions is used. Received: ',caval,achar(10)
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if freeze_ions is used. Received: ',TRIM(caval),achar(10)
                CALL print_parser_error( message )
             END IF
          END IF
@@ -887,13 +887,13 @@ SUBROUTINE INITIATE_PARAMETERS
                WRITE( message,'(A)') "Potential is self consistantly calculated"//achar(10)
                CALL print_message( message,routine )
             ELSE
-               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_no_poisson is used. Received: ',caval,achar(10)
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_no_poisson is used. Received: ',TRIM(caval),achar(10)
                CALL print_parser_error( message )
             END IF
          END IF
       END DO      
         
-      
+      CLOSE (9, STATUS = 'KEEP')
    END IF
 
 
@@ -3509,9 +3509,9 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          IF (y_limit_top<y_limit_bot) y_limit_bot = y_limit_top! make sure we have zero if domain has zero particles
          ! y_limit_bot = MIN(y_limit_top,y_limit_bot) 
          N_electrons =  INT( N_electrons_total_cyl*&
-                             (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
-                             (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
-                             pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+                              (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
+                              (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
+                              pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
                              ! N_electrons =  INT( N_electrons_total_cyl*&
          !                     n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
          !                     (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&

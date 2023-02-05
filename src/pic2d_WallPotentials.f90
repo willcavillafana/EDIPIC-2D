@@ -11,6 +11,7 @@ SUBROUTINE UPDATE_WALL_POTENTIALS(T_cntr)
   REAL(8) Harmonic_Oscillation
   REAL(8) Custom_Waveform
   REAL(8) Amplitude_profile
+  REAL(8) customized_profile 
 
 ! set potentials of metal electrodes
   DO n = 1, N_of_boundary_and_inner_objects
@@ -22,7 +23,8 @@ SUBROUTINE UPDATE_WALL_POTENTIALS(T_cntr)
 !                            & ( whole_object(n)%phi_var * SIN(whole_object(n)%omega * T_cntr + whole_object(n)%phase) + &
                             & ( Harmonic_Oscillation(n, T_cntr) + &
                             &   Custom_Waveform(n, T_cntr) ) * &
-                            & Amplitude_Profile(n, T_cntr)
+                            & Amplitude_Profile(n, T_cntr) + &
+                            & customized_profile(n,T_cntr) 
      END IF
   END DO
 
@@ -52,6 +54,53 @@ SUBROUTINE UPDATE_WALL_POTENTIALS(T_cntr)
   END DO
 
 END SUBROUTINE UPDATE_WALL_POTENTIALS
+
+!--------------------------------------------------------------------------------------------------
+!     FUNCTION customized_profile
+!>    @details Apply harcoded profiles
+!!    @authors W. Villafana
+!!    @date    Feb-3-2023
+!-------------------------------------------------------------------------------------------------- 
+
+REAL(8) FUNCTION customized_profile(nwo, T_cntr)
+
+   USE CurrentProblemValues, ONLY : whole_object, string_length, zero, pi, two
+   USE mod_print, ONLY: print_debug
+   IMPLICIT NONE
+
+   !IN/OUT
+   INTEGER, INTENT(IN) :: nwo    ! number of the whole object
+   INTEGER, INTENT(IN) :: T_cntr ! Time   counter
+
+   ! LOCAL 
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level   
+   INTEGER :: k  
+   REAL(8) :: theta_k, Vk,compo_k
+
+   local_debug_level = 3
+
+   routine = 'customized_profile'
+   CALL print_debug(routine,local_debug_level)
+
+   customized_profile = zero
+
+   ! Check if I need to do something
+   IF ( whole_object(nwo)%i_customized_waveform==1 ) THEN
+      ! Choose profile
+      SELECT CASE ( whole_object(nwo)%i_customized_waveform_name ) 
+      ! cosine series as defined in DOI 10.1088/1361-6463/abf229
+      CASE (1)
+         DO k=1,whole_object(nwo)%nb_harmonics
+            theta_k = DBLE(k)*pi
+            Vk = two*whole_object(nwo)%customized_waveform_phi*DBLE((whole_object(nwo)%nb_harmonics-k+1))/DBLE(whole_object(nwo)%nb_harmonics*(whole_object(nwo)%nb_harmonics+1))
+            compo_k = Vk*COS(two*pi*DBLE(k)*T_cntr*whole_object(nwo)%customized_waveform_freq+theta_k)
+            customized_profile = customized_profile+ compo_k
+         END DO
+      END SELECT
+   END IF
+
+END FUNCTION
 
 !-------------------------------------
 !

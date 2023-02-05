@@ -100,6 +100,8 @@ SUBROUTINE PREPARE_SETUP_VALUES
 
      CLOSE (9, STATUS = 'KEEP')
 
+     CALL LOAD_CUSTOMIZED_WAVEFORM(n,initbo_filename)
+
      IF (whole_object(n)%model_constant_emit.EQ.0) THEN
 ! thermal emission
         whole_object(n)%factor_convert_vinj_normal_constant_emit = SQRT(Te_normal_constant_emit_eV / T_e_eV) / N_max_vel
@@ -144,6 +146,172 @@ SUBROUTINE PREPARE_SETUP_VALUES
   CALL PREPARE_EXTERNAL_CIRCUIT
 
 END SUBROUTINE PREPARE_SETUP_VALUES
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM
+!>    @details Load hardcoded waveforms if any.
+!!    @authors W. Villafana
+!!    @date    Feb-3-2023
+!-------------------------------------------------------------------------------------------------- 
+SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM ( n,file_name_bo )
+      
+   USE CurrentProblemValues, ONLY: whole_object, string_length,zero, F_scale_V, delta_t_s
+   USE mod_print, ONLY: print_debug,print_message,print_parser_error
+   IMPLICIT NONE
+
+   !IN/OUT
+   INTEGER, INTENT(IN) :: n ! number of bo file name 
+   CHARACTER(14), INTENT(IN) :: file_name_bo
+
+   ! LOCAL
+   CHARACTER(LEN=string_length) :: routine, message
+   INTEGER :: local_debug_level, ierr
+   LOGICAL :: exists
+   CHARACTER(LEN=string_length) :: long_buf,line,separator ! long   buffer for    string
+   CHARACTER(LEN=string_length) :: caval                   ! buffer for    string values
+   INTEGER :: i_found ! flag   to  decide  if I found keyword or not.
+   REAL(8) :: rval    ! buffer for real    values
+   INTEGER :: ival    ! buffer for integer values
+   INTEGER :: i_customized_waveform
+
+   
+   ! Defautl values
+   local_debug_level = 1
+   whole_object(n)%i_customized_waveform = 0
+
+
+   routine = 'LOAD_CUSTOMIZED_WAVEFORM'
+   CALL print_debug(routine,local_debug_level)
+   
+   ! Open bo file and determine of any wave forms must be loaded
+   INQUIRE (FILE = file_name_bo, EXIST = exists)
+   IF (exists) THEN
+
+      OPEN (9, file=file_name_bo)
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 .OR. i_found==1 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="customized_waveform" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval                    
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_customized_waveform = 1
+               WRITE( message,'(A,I2)') "a customized waveform will be used for boundary object ",n
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_customized_waveform = 0
+               WRITE( message,'(A,I2,A)') "no customized waveform will be used for boundary object ",n,achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,I2,A,A)') 'You must specify "yes" or "no" if customized_waveform is used for boundary object ',n,'. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+            whole_object(n)%i_customized_waveform = i_customized_waveform
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         i_customized_waveform = 0
+         WRITE( message,'(A,I2,A)') "customized_waveform keyword not present for boundary object ",n,". I assume we do not want it"//achar(10)
+         CALL print_message( message,routine )       
+      END IF 
+      
+      IF (i_customized_waveform==1) THEN
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="customized_waveform_name" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,caval  
+               
+               SELECT CASE ( caval )
+               CASE ( 'cosinus_series' )
+                  whole_object(n)%i_customized_waveform_name =1
+                  WRITE( message,'(A)') "a cosinus series (as defined in DOI 10.1088/1361-6463/abf229) for the customized waveform will be used"
+                  CALL print_message( message,routine )
+               CASE DEFAULT 
+                  WRITE( message,'(A,A,A)') 'The requested customized waveform does not exist. Received: ',TRIM(caval),'. I expect "cosinus_series" '
+                  CALL print_parser_error( message )
+               END SELECT
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "customized_waveform_name keyword not present. You must use it."
+            CALL print_parser_error( message )       
+         END IF   
+
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="customized_waveform_potential" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,rval
+               WRITE( message,'(A,ES10.3,A)') 'potential used for waveform="cosinus_series" phi= ',rval," [V]"
+               CALL print_message( message,routine )                
+               whole_object(n)%customized_waveform_phi = rval/F_scale_V ! normalize 
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "customized_waveform_potential keyword not present. You must use it."
+            CALL print_parser_error( message )       
+         END IF    
+         
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="customized_waveform_frequency" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,rval
+               WRITE( message,'(A,ES10.3,A)') 'frequency used for waveform="cosinus_series" freq= ',rval," [Hz]"
+               CALL print_message( message,routine )                
+               whole_object(n)%customized_waveform_freq = rval*delta_t_s ! normalize
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "customized_waveform_frequency keyword not present. You must use it."
+            CALL print_parser_error( message )       
+         END IF      
+         
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="customized_waveform_nb_harmonics" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,ival
+               whole_object(n)%nb_harmonics = ival
+               IF ( ival==0 ) THEN
+                  WRITE( message,'(A)') "Number of harmonics must be >0 ."
+                  CALL print_parser_error( message )                         
+               END IF
+               WRITE( message,'(A,I2,A)') 'No of harmonics used for waveform="cosinus_series" N= ',whole_object(n)%nb_harmonics,achar(10)
+               CALL print_message( message,routine )                
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "customized_waveform_nb_harmonics keyword not present. You must use it."
+            CALL print_parser_error( message )       
+         END IF       
+         
+      END IF
+      
+      CLOSE (9, STATUS = 'KEEP')
+   END IF
+
+ END SUBROUTINE  
 
 !--------------------------------------------
 !

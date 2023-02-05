@@ -274,6 +274,13 @@ MODULE CurrentProblemValues
      REAL(8) phase                ! phase of time varying part
      REAL(8) phase_adjusted       ! phase of time varying part adjusted to the beginning of the amplitude profile period
 
+     ! Customized waveform
+     INTEGER :: i_customized_waveform ! 0 = no, 1 = yes
+     INTEGER :: i_customized_waveform_name ! 1 = cosinus series as defined in DOI 10.1088/1361-6463/abf229 
+     INTEGER :: nb_harmonics ! number of harmonics to be used ( see DOI 10.1088/1361-6463/abf229 )
+     REAL(8) :: customized_waveform_phi ! phi_lf as in DOI 10.1088/1361-6463/abf229
+     REAL(8) :: customized_waveform_freq ! freq as in DOI 10.1088/1361-6463/abf229
+
 ! waveform defines periodic non-harmonic variation of potential, the shape is defined by a user via data file
      LOGICAL use_waveform
      INTEGER N_wf_points                    ! number of waveform data points, must be no less than 2
