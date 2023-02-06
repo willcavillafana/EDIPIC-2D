@@ -59,20 +59,6 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 
   INQUIRE (FILE = 'init_probes.dat', EXIST = exists)
 
-  IF (Rank_of_process.EQ.0) PRINT '(2x,"### Probes are temporarily deactivated. There is an apparent bug with commit from Feb 1st 2023  ###")'
-  N_of_probes = 0
-  N_of_probes_cluster = 0
-  N_of_probes_block = 0
-  Save_probes_e_data_T_cntr = 0
-  Save_probes_i_data_T_cntr = N_subcycles-1
-  Save_probes_e_data_step = 1
-  Save_probes_i_data_step = N_subcycles
-  Save_probes_data_step = 1   ! have to keep this for INITIATE_SNAPSHOT
-  text_output_counter = 0  ! obsolete values, keep them to have something to use in checkpoints
-  N_of_saved_records = 0
-  RETURN
-
-
   IF (.NOT.exists ) THEN
      IF (Rank_of_process.EQ.0) PRINT '(2x,"### init_probes.dat not found, time dependencies in probes will not be created ###")'
      N_of_probes = 0
@@ -1569,6 +1555,7 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_e_DATA
 
         IF (probe_Ne(npa).GT.1.0e-9) THEN    ! note this is small but not zero
 
+           i = Probe_position(1, npa)
            inv_N = 1.0 / ( probe_Ne(npa)/factor_cyl_vol(i) )
 
            probe_VXe(npa) = probe_VXe(npa) * inv_N
@@ -2091,6 +2078,7 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_i_DATA
 
            IF (probe_Ni(npa, s).GT.1.0e-9) THEN    ! note this is small but not zero
 
+              i = Probe_position(1, npa)
               inv_N = 1.0 / ( probe_Ni(npa, s)/factor_cyl_vol(i) )
 
               probe_VXi(npa, s) = probe_VXi(npa, s) * inv_N
