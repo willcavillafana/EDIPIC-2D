@@ -664,7 +664,7 @@ MODULE ClusterAndItsBoundaries
   TYPE(field_calc_proc), ALLOCATABLE :: field_calculator(:)
 
   REAL(8), ALLOCATABLE :: vol_r_m3(:) ! node volume in cylindrical 
-  REAL(8), ALLOCATABLE :: vol_cart(:) ! node volume in cartesian
+  REAL(8), ALLOCATABLE :: vol_cart(:) ! node volume in cartesian. By default it is dx**2. It is locally corrected after on the fly with IF conditions (not great) when there are wall boundaries 
   REAL(8), ALLOCATABLE :: factor_cyl_vol(:) ! corrective factory in claculation of density in cylindrical coordites: V_cart/V_cyl
 
 END MODULE ClusterAndItsBoundaries

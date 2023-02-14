@@ -2772,61 +2772,61 @@ SUBROUTINE SET_COMMUNICATIONS
 ! "white processes"
 
         IF (Rank_of_master_right.GE.0) THEN
-! ##  1 ## send right the number of levels ----------------------------------
+            ! ##  1 ## send right the number of levels ----------------------------------
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_right, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ##  2 ## send right the ranks
+            ! ##  2 ## send right the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_right, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_left.GE.0) THEN
-! ##  3 ## send left the number of levels
+            ! ##  3 ## send left the number of levels
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_left, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ##  4 ## send left the ranks
+            ! ##  4 ## send left the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_left, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_left.GE.0) THEN
-! ##  5 ## receive from left the number of levels ===========================
+            ! ##  5 ## receive from left the number of levels ===========================
            CALL MPI_RECV(N_processes_cluster_left, 1, MPI_INTEGER, Rank_of_master_left, Rank_of_master_left, MPI_COMM_WORLD, stattus, ierr)
-! ##  6 ## receive from left the ranks
+            ! ##  6 ## receive from left the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_left(1:N_processes_cluster_left), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_left, N_processes_cluster_left, MPI_INTEGER, Rank_of_master_left, Rank_of_master_left+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_right.GE.0) THEN
-! ##  7 ## receive from right the number of levels
+            ! ##  7 ## receive from right the number of levels
            CALL MPI_RECV(N_processes_cluster_right, 1, MPI_INTEGER, Rank_of_master_right, Rank_of_master_right, MPI_COMM_WORLD, stattus, ierr)
-! ##  8 ## receive from right the ranks
+            ! ##  8 ## receive from right the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_right(1:N_processes_cluster_right), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_right, N_processes_cluster_right, MPI_INTEGER, Rank_of_master_right, Rank_of_master_right+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_above.GE.0) THEN
-! ##  9 ## send up the number of levels -------------------------------------
+            ! ##  9 ## send up the number of levels -------------------------------------
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_above, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ## 10 ## send up the ranks
+            ! ## 10 ## send up the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_above, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_below.GE.0) THEN
-! ## 11 ## send down the number of levels
+            ! ## 11 ## send down the number of levels
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_below, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ## 12 ## send down the ranks
+            ! ## 12 ## send down the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_below, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_below.GE.0) THEN
-! ## 13 ## receive from below the number of levels ==========================
+            ! ## 13 ## receive from below the number of levels ==========================
            CALL MPI_RECV(N_processes_cluster_below, 1, MPI_INTEGER, Rank_of_master_below, Rank_of_master_below, MPI_COMM_WORLD, stattus, ierr)
-! ## 14 ## receive from below the ranks
+            ! ## 14 ## receive from below the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_below(1:N_processes_cluster_below), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_below, N_processes_cluster_below, MPI_INTEGER, Rank_of_master_below, Rank_of_master_below+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_above.GE.0) THEN
-! ## 15 ## receive from above the number of levels ==========================
+            ! ## 15 ## receive from above the number of levels ==========================
            CALL MPI_RECV(N_processes_cluster_above, 1, MPI_INTEGER, Rank_of_master_above, Rank_of_master_above, MPI_COMM_WORLD, stattus, ierr)
-! ## 16 ## receive from above the ranks
+            ! ## 16 ## receive from above the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_above(1:N_processes_cluster_above), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_above, N_processes_cluster_above, MPI_INTEGER, Rank_of_master_above, Rank_of_master_above+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
@@ -2835,62 +2835,62 @@ SUBROUTINE SET_COMMUNICATIONS
 ! "black" processes
 
         IF (Rank_of_master_left.GE.0) THEN
-! ##  1 ## receive from left the number of levels ===========================
+            ! ##  1 ## receive from left the number of levels ===========================
            CALL MPI_RECV(N_processes_cluster_left, 1, MPI_INTEGER, Rank_of_master_left, Rank_of_master_left, MPI_COMM_WORLD, stattus, ierr)
-! ##  2 ## receive from left the ranks
+            ! ##  2 ## receive from left the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_left(1:N_processes_cluster_left), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_left, N_processes_cluster_left, MPI_INTEGER, Rank_of_master_left, Rank_of_master_left+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_right.GE.0) THEN
-! ##  3 ## receive from right the number of levels
+            ! ##  3 ## receive from right the number of levels
            CALL MPI_RECV(N_processes_cluster_right, 1, MPI_INTEGER, Rank_of_master_right, Rank_of_master_right, MPI_COMM_WORLD, stattus, ierr)
-! ##  4 ## receive from right the ranks
+            ! ##  4 ## receive from right the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_right(1:N_processes_cluster_right), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_right, N_processes_cluster_right, MPI_INTEGER, Rank_of_master_right, Rank_of_master_right+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_right.GE.0) THEN
-! ##  5 ## send right the number of levels ----------------------------------
+            ! ##  5 ## send right the number of levels ----------------------------------
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_right, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ##  6 ## send right the ranks
+            ! ##  6 ## send right the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_right, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_left.GE.0) THEN
-! ##  7 ## send left the number of levels
+            ! ##  7 ## send left the number of levels
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_left, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ##  8 ## send left the ranks
+            ! ##  8 ## send left the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_left, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_below.GE.0) THEN
-! ##  9 ## receive from below the number of levels ==========================
+            ! ##  9 ## receive from below the number of levels ==========================
            CALL MPI_RECV(N_processes_cluster_below, 1, MPI_INTEGER, Rank_of_master_below, Rank_of_master_below, MPI_COMM_WORLD, stattus, ierr)
-! ## 10 ## receive from below the ranks
+            ! ## 10 ## receive from below the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_below(1:N_processes_cluster_below), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_below, N_processes_cluster_below, MPI_INTEGER, Rank_of_master_below, Rank_of_master_below+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_above.GE.0) THEN
-! ## 11 ## receive from above the number of levels ==========================
+            ! ## 11 ## receive from above the number of levels ==========================
            CALL MPI_RECV(N_processes_cluster_above, 1, MPI_INTEGER, Rank_of_master_above, Rank_of_master_above, MPI_COMM_WORLD, stattus, ierr)
-! ## 12 ## receive from above the ranks
+            ! ## 12 ## receive from above the ranks
            ALLOCATE(horizontal_rank_in_cluster_level_above(1:N_processes_cluster_above), STAT=ALLOC_ERR)
            CALL MPI_RECV(horizontal_rank_in_cluster_level_above, N_processes_cluster_above, MPI_INTEGER, Rank_of_master_above, Rank_of_master_above+SHIFT1, MPI_COMM_WORLD, stattus, ierr)     
         END IF
 
         IF (Rank_of_master_above.GE.0) THEN
-! ## 13 ## send up the number of levels -------------------------------------
+            ! ## 13 ## send up the number of levels -------------------------------------
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_above, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ## 14 ## send up the ranks
+            ! ## 14 ## send up the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_above, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
         IF (Rank_of_master_below.GE.0) THEN
-! ## 15 ## send down the number of levels
+            ! ## 15 ## send down the number of levels
            CALL MPI_SEND(N_processes_cluster, 1, MPI_INTEGER, Rank_of_master_below, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-! ## 16 ## send down the ranks
+            ! ## 16 ## send down the ranks
            CALL MPI_SEND(horizontal_rank_in_cluster_level, N_processes_cluster, MPI_INTEGER, Rank_of_master_below, Rank_of_process+SHIFT1, MPI_COMM_WORLD, request, ierr)     
         END IF
 
@@ -3186,11 +3186,11 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
           IF ( index_r==c_indx_x_min .AND. symmetry_plane_X_left ) THEN
             !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(1**2) 
               vol_r_m3(index_r) = pi*delta_x_m**3/three*DBLE(3*c_indx_x_min+1) ! delta_z*pi/3*(r1-r0)*(2*r0+r1)
-              vol_cart(index_r) = delta_x_m**2/two
-          ELSE IF ( index_r==c_indx_x_max .AND. Rank_horizontal_right < 0 ) THEN ! right point at boundary
+              vol_cart(index_r) = delta_x_m**2!/two
+          ELSE IF ( index_r==c_indx_x_max .AND. Rank_of_master_right < 0 ) THEN ! right point at boundary
             !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(c_indx_x_max**2-(c_indx_x_max-1)**2) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
             vol_r_m3(index_r) = pi*delta_x_m**3/three*DBLE(c_indx_x_max-1+2*c_indx_x_max) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
-            vol_cart(index_r) = delta_x_m**2/two
+            vol_cart(index_r) = delta_x_m**2!/two
           ELSE
             !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(DBLE(index_r+1)**2-DBLE(index_r-1)**2) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
               vol_r_m3(index_r) = pi*delta_x_m**3*two*DBLE(index_r) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
