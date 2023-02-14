@@ -153,6 +153,7 @@ SUBROUTINE INITIATE_PARAMETERS
   Delta_r = one
   Delta_z = one
   i_no_poisson = 0
+  i_empty_domain = 0
   given_F_double_period_sys = 1000000.0_8        !
   i_given_F_double_period_sys = -7777777   ! should be sufficient to not to trigger accidentally the node with given potential
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
@@ -892,7 +893,32 @@ SUBROUTINE INITIATE_PARAMETERS
             END IF
          END IF
       END DO      
-        
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="i_empty_domain" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_empty_domain = 1
+               WRITE( message,'(A)') "Domain will be initialized with no particles"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_empty_domain = 0
+               WRITE( message,'(A)') "Domain will be initialized with the specified density"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_empty_domain is used. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO        
+      
       CLOSE (9, STATUS = 'KEEP')
    END IF
 
@@ -3475,7 +3501,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      END IF
 
    !   N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y )
-     N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y)!*Rmax*Delta_z_max )
+     ! Check if I initilized the domain with particles or not 
+     IF ( i_empty_domain==1 ) THEN
+         N_electrons = 0
+     ELSE
+         N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y)!*Rmax*Delta_z_max )
+     END IF
+
      ! Quick check if I have not exceed greatest available integer
      IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max>DBLE(HUGE(int_test)) ) THEN
    !   IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y>DBLE(HUGE(int_test)) ) THEN
