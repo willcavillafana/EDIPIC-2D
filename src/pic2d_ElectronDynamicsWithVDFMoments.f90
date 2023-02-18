@@ -193,6 +193,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system  
   REAL(8) :: x_old,vx_old,vy_old
+  REAL(8) :: vx_new,vy_new,vz_new
    
 
 !------------------------------------------>>>
