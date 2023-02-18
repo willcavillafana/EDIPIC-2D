@@ -3212,11 +3212,11 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
           IF ( index_r==c_indx_x_min .AND. symmetry_plane_X_left ) THEN
             !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(1**2) 
               vol_r_m3(index_r) = pi*delta_x_m**3/three*DBLE(3*c_indx_x_min+1) ! delta_z*pi/3*(r1-r0)*(2*r0+r1)
-              vol_cart(index_r) = delta_x_m**2!/two
+              vol_cart(index_r) = delta_x_m**2/two
           ELSE IF ( index_r==c_indx_x_max .AND. Rank_of_master_right < 0 ) THEN ! right point at boundary
             !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(c_indx_x_max**2-(c_indx_x_max-1)**2) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
             vol_r_m3(index_r) = pi*delta_x_m**3/three*DBLE(c_indx_x_max-1+2*c_indx_x_max) ! delta_z*pi/3*( (r_N-r_{N-1})*(r_{N-1}+2*r_N) )
-            vol_cart(index_r) = delta_x_m**2!/two
+            vol_cart(index_r) = delta_x_m**2/two
           ELSE
             !   vol_r_m3(index_r) = pi*delta_x_m**3/two*(DBLE(index_r+1)**2-DBLE(index_r-1)**2) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
               vol_r_m3(index_r) = pi*delta_x_m**3*two*DBLE(index_r) ! delta_z*pi/3*(r_{j+1}*(r_j+r_{j+1})-r_{j-1}*(r_{j+1}r-j))
@@ -3672,7 +3672,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
         END IF
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VX = v * factor_convert + vx_drift
+        electron(k)%VX =  v * factor_convert + vx_drift
 
         CALL GetMaxwellVelocity(v)
         electron(k)%VY = v * factor_convert + vy_drift

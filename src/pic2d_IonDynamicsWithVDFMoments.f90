@@ -214,6 +214,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
   REAL(8) :: x_old,vx_old,vy_old
+  REAL(8) :: vx_new, vy_new, vz_new
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
@@ -367,10 +368,10 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
      vijp1 = REAL(ax_i   * ay_jp1)
      vip1jp1 = 1.0 - vij - vip1j - vijp1
 
-     rbufer_n(pos_i_j)     = rbufer_n(pos_i_j)     + vij*factor_cyl_vol(i)        !ax_i   * ay_j
-     rbufer_n(pos_ip1_j)   = rbufer_n(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)       !ax_ip1 * ay_j
-     rbufer_n(pos_i_jp1)   = rbufer_n(pos_i_jp1)   + vijp1*factor_cyl_vol(i)       !ax_i   * ay_jp1
-     rbufer_n(pos_ip1_jp1) = rbufer_n(pos_ip1_jp1) + vip1jp1*factor_cyl_vol(i+1)     !ax_ip1 * ay_jp1
+     rbufer_n(pos_i_j)     = rbufer_n(pos_i_j)     + vij*REAL(factor_cyl_vol(i))        !ax_i   * ay_j
+     rbufer_n(pos_ip1_j)   = rbufer_n(pos_ip1_j)   + vip1j*REAL(factor_cyl_vol(i+1))       !ax_ip1 * ay_j
+     rbufer_n(pos_i_jp1)   = rbufer_n(pos_i_jp1)   + vijp1*REAL(factor_cyl_vol(i))       !ax_i   * ay_jp1
+     rbufer_n(pos_ip1_jp1) = rbufer_n(pos_ip1_jp1) + vip1jp1*REAL(factor_cyl_vol(i+1))     !ax_ip1 * ay_jp1
 
      updVX = ion(s)%part(k)%VX
      updVY = ion(s)%part(k)%VY
@@ -435,6 +436,11 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
         ion(s)%part(k)%VZ = ion(s)%part(k)%VZ + (QM2s(s) + QM2s(s)) * E_Z
 
      END IF
+
+      ! Save newly computed velocity (time n+1/2).In old coordinate system for cylindrical
+     vx_new = ion(s)%part(k)%VX
+     vy_new = ion(s)%part(k)%VY
+     vz_new = ion(s)%part(k)%VZ
 
 ! coordinate advance
 
@@ -504,9 +510,9 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
      END IF
 
 !------------------------------------>>>
-     updVX = 0.5_8 * (ion(s)%part(k)%VX + updVX)
-     updVY = 0.5_8 * (ion(s)%part(k)%VY + updVY)
-     updVZ = 0.5_8 * (ion(s)%part(k)%VZ + updVZ)
+     updVX = 0.5_8 * (vx_new + updVX)
+     updVY = 0.5_8 * (vy_new + updVY)
+     updVZ = 0.5_8 * (vz_new + updVZ)
 
 !### ion velocities updV* correspond to the same time as the coordinates before update ###
      rvx = REAL(updVX)
@@ -1024,7 +1030,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
      DO i = c_indx_x_min, c_indx_x_max
         IF (cs_N(i,j).GT.1.0e-9) THEN    ! note this is small but not zero
 
-           inv_N = 1.0 / ( cs_N(i,j)/factor_cyl_vol(i) )
+           inv_N = 1.0 / ( cs_N(i,j)/REAL(factor_cyl_vol(i)) )
 
            cs_VX(i, j) = cs_VX(i, j) * inv_N
            cs_VY(i, j) = cs_VY(i, j) * inv_N
@@ -1132,7 +1138,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
   REAL(8) :: x_old,vx_old,vy_old
-
+  REAL(8) :: vx_new,vy_new,vz_new
 !------------------------------------------>>>
   REAL(8) updVX, updVY, updVZ
   LOGICAL no_probe_in_cell_corner
@@ -1290,6 +1296,11 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
 
         END IF
 
+      ! Save newly computed velocity (time n+1/2).In old coordinate system for cylindrical
+        vx_new = ion(s)%part(k)%VX
+        vy_new = ion(s)%part(k)%VY
+        vz_new = ion(s)%part(k)%VZ        
+
 ! coordinate advance
 
         ! Cartesian case
@@ -1360,21 +1371,21 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
               IF (j.EQ.Probe_position(2,npa)) THEN
 ! the probe is in the left bottom corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_i * ay_j)*factor_cyl_vol(i)       ! wij
+                 weight = REAL(ax_i * ay_j*factor_cyl_vol(i))       ! wij
               ELSE IF ((j+1).EQ.Probe_position(2,npa)) THEN
 ! the probe is in the left top corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_i * ay_jp1)*factor_cyl_vol(i)       ! vijp1
+                 weight = REAL(ax_i * ay_jp1*factor_cyl_vol(i))       ! vijp1
               END IF
            ELSE IF ((i+1).EQ.Probe_position(1,npa)) THEN
               IF (j.EQ.Probe_position(2,npa)) THEN
 ! the probe is in the right bottom corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_ip1 * ay_j)*factor_cyl_vol(i+1)       ! vip1j
+                 weight = REAL(ax_ip1 * ay_j*factor_cyl_vol(i+1))       ! vip1j
               ELSE IF ((j+1).EQ.Probe_position(2,npa)) THEN
 ! the probe is in the right top corner of the cell containing the particle
                  no_probe_in_cell_corner = .FALSE.
-                 weight = REAL(ax_ip1 * ay_jp1)*factor_cyl_vol(i+1)       ! vip1jp1
+                 weight = REAL(ax_ip1 * ay_jp1*factor_cyl_vol(i+1))       ! vip1jp1
               END IF
            END IF
 
@@ -1382,9 +1393,9 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
 
            pos = (npc-1) * 13 + (s-1) * N_of_probes_cluster * 13
 
-           rvx = REAL(0.5_8 * (ion(s)%part(k)%VX + updVX))
-           rvy = REAL(0.5_8 * (ion(s)%part(k)%VY + updVY))
-           rvz = REAL(0.5_8 * (ion(s)%part(k)%VZ + updVZ))
+           rvx = REAL(0.5_8 * (vx_new + updVX))
+           rvy = REAL(0.5_8 * (vy_new + updVY))
+           rvz = REAL(0.5_8 * (vz_new + updVZ))
 
            rvx2 = rvx * rvx
            rvy2 = rvy * rvy

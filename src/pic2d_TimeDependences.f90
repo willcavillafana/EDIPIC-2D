@@ -1556,7 +1556,7 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_e_DATA
         IF (probe_Ne(npa).GT.1.0e-9) THEN    ! note this is small but not zero
 
            i = Probe_position(1, npa)
-           inv_N = 1.0 / ( probe_Ne(npa)/factor_cyl_vol(i) )
+           inv_N = 1.0 / ( probe_Ne(npa)/REAL(factor_cyl_vol(i)) )
 
            probe_VXe(npa) = probe_VXe(npa) * inv_N
            probe_VYe(npa) = probe_VYe(npa) * inv_N
@@ -2079,7 +2079,7 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_i_DATA
            IF (probe_Ni(npa, s).GT.1.0e-9) THEN    ! note this is small but not zero
 
               i = Probe_position(1, npa)
-              inv_N = 1.0 / ( probe_Ni(npa, s)/factor_cyl_vol(i) )
+              inv_N = 1.0 / ( probe_Ni(npa, s)/REAL(factor_cyl_vol(i)) )
 
               probe_VXi(npa, s) = probe_VXi(npa, s) * inv_N
               probe_VYi(npa, s) = probe_VYi(npa, s) * inv_N

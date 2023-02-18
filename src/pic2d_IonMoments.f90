@@ -6,6 +6,7 @@ SUBROUTINE COLLECT_ION_MOMENTS(s)
   USE IonParticles
   USE ClusterAndItsBoundaries
   USE Snapshots
+  USE CurrentProblemValues, ONLY: zero
 
   IMPLICIT NONE
 
@@ -146,10 +147,10 @@ SUBROUTINE COLLECT_ION_MOMENTS(s)
      vijp1 = ax_i   * ay_jp1
      vip1jp1 = 1.0 - vij - vip1j - vijp1
 
-     rbufer_n(pos_i_j)     = rbufer_n(pos_i_j)     + vij*factor_cyl_vol(i)     !ax_i   * ay_j
-     rbufer_n(pos_ip1_j)   = rbufer_n(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)   !ax_ip1 * ay_j
-     rbufer_n(pos_i_jp1)   = rbufer_n(pos_i_jp1)   + vijp1*factor_cyl_vol(i)   !ax_i   * ay_jp1
-     rbufer_n(pos_ip1_jp1) = rbufer_n(pos_ip1_jp1) + vip1jp1*factor_cyl_vol(i+1) !ax_ip1 * ay_jp1
+     rbufer_n(pos_i_j)     = rbufer_n(pos_i_j)     + vij*REAL(factor_cyl_vol(i))     !ax_i   * ay_j
+     rbufer_n(pos_ip1_j)   = rbufer_n(pos_ip1_j)   + vip1j*REAL(factor_cyl_vol(i+1))   !ax_ip1 * ay_j
+     rbufer_n(pos_i_jp1)   = rbufer_n(pos_i_jp1)   + vijp1*REAL(factor_cyl_vol(i))   !ax_i   * ay_jp1
+     rbufer_n(pos_ip1_jp1) = rbufer_n(pos_ip1_jp1) + vip1jp1*REAL(factor_cyl_vol(i+1)) !ax_ip1 * ay_jp1
 
      rvx = REAL(ion(s)%part(k)%VX)
      rvy = REAL(ion(s)%part(k)%VY)
@@ -279,8 +280,10 @@ SUBROUTINE COLLECT_ION_MOMENTS(s)
   DO j = c_indx_y_min, c_indx_y_max
      DO i = c_indx_x_min, c_indx_x_max
         IF (cs_N(i,j).GT.1.0e-9) THEN    ! note this is small but not zero
+        ! IF (cs_N(i,j)/=zero) THEN    !This is zero
 
-           inv_N = 1.0 / ( cs_N(i,j)/factor_cyl_vol(i) )
+          ! inv_N = 1.0 / ( cs_N(i,j) )
+          inv_N = 1.0 / ( cs_N(i,j)/REAL(factor_cyl_vol(i)) )
 
            cs_VX(i, j) = cs_VX(i, j) * inv_N
            cs_VY(i, j) = cs_VY(i, j) * inv_N
