@@ -2286,7 +2286,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
   USE ParallelOperationValues
   USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_of_boundary_and_inner_objects, delta_t_s, &
-                                 & delta_x_m, V_scale_ms, N_scale_part_m3, ion_colls_with_bo, whole_object, zero
+                                 & delta_x_m, V_scale_ms, N_scale_part_m3, ion_colls_with_bo, whole_object
   USE IonParticles, ONLY : N_spec, M_i_amu
   USE Snapshots
 
@@ -2358,7 +2358,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
      ALLOCATE(rbufer(1:(bufsize+4+N_spec+2)), STAT=ALLOC_ERR)  ! 4+N_spec+2 allows same process save 
                                                                ! start time, mesh size, scale density to particle number ratio, scale_velocity, 
                                                                ! ion masses, total number of particles (from all processes), and record time
-     rbufer(1:(bufsize+4+N_spec+2)) = zero
+     rbufer(1:(bufsize+4+N_spec+2)) = 0.0
      IF (start_new_bo_coll_file) THEN
         CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                           & filename,  &
@@ -2449,7 +2449,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
   USE ParallelOperationValues
   USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_of_boundary_and_inner_objects, delta_t_s, &
-                                 & delta_x_m, V_scale_ms, N_scale_part_m3, e_colls_with_bo, whole_object, zero
+                                 & delta_x_m, V_scale_ms, N_scale_part_m3, e_colls_with_bo, whole_object
   USE Snapshots
 
   IMPLICIT NONE
@@ -2531,7 +2531,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
                                                       ! start time, mesh size, scale density to particle number ratio, scale_velocity, 
                                                       ! total number of particles (from all processes), and record time
                                                       ! (reserved fora an improbable case when one process has to save everything)
-     rbufer(1:(bufsize+6)) = zero
+     rbufer(1:(bufsize+6)) = 0.0
      IF (start_new_bo_coll_file) THEN
         CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                           & filename,  &
