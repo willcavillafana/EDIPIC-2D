@@ -3467,8 +3467,8 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   Delta_z_max = Delta_z !0.4_8
 
   routine = "DISTRIBUTE_PARTICLES"
-  n_limit_x_total = zero
-  N_electrons_total_cyl = zero
+  n_limit_x_total = 0 !zero
+  N_electrons_total_cyl = 0 !zero
   IF (Rank_cluster.EQ.0) THEN
 
 ! initialize particles
