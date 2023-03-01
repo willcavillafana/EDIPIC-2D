@@ -1482,7 +1482,33 @@ MODULE mod_print
       CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
     END IF
 
-  END SUBROUTINE        
+  END SUBROUTINE       
+  
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_warning
+!>    @details Print error message by root proc when reading input files
+!!    @authors W. Villafana
+!!    @date    Dec-23-2022
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_warning ( message )
+        
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    
+    IMPLICIT NONE
+    INCLUDE 'mpif.h'
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: message
+    
+    ! LOCAL
+    INTEGER :: ierr
+
+    IF ( Rank_of_process==0 ) THEN
+      WRITE(*,'(T8,A,I4,A)') ">>> WARNING: "//TRIM(message)
+      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+    END IF
+
+  END SUBROUTINE     
 
 END MODULE mod_print
 

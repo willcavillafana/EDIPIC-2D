@@ -70,7 +70,7 @@ SUBROUTINE INITIATE_PARAMETERS
   USE ExternalFields
   USE Checkpoints
   USE SetupValues, ONLY : ht_grid_requested, F_grid, grid_j
-  USE mod_print, ONLY: print_message, print_parser_error
+  USE mod_print, ONLY: print_message, print_parser_error, print_warning
 
   USE rng_wrapper
 
@@ -125,11 +125,6 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER bufsize
   REAL(8), ALLOCATABLE :: rbufer(:)
   INTEGER pos1, pos2
-  CHARACTER (LEN=1000) :: long_buf,line,separator ! long buffer for string
-  INTEGER :: i_found ! flag to decide if I found keyword or not.
-  REAL(8) :: rval ! buffer for real values
-  INTEGER :: ival ! buffer for integer values
-  CHARACTER(LEN=string_length) :: caval ! buffer for string values
   CHARACTER(LEN=string_length) :: message, routine
   INTEGER :: c_indx_x_max_total,c_indx_x_min_total
 
@@ -158,6 +153,8 @@ SUBROUTINE INITIATE_PARAMETERS
   i_given_F_double_period_sys = -7777777   ! should be sufficient to not to trigger accidentally the node with given potential
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
   i_freeze_ions = 0 ! By default ions are moving
+  i_cylindrical = 0 ! By default this is Cartesian
+  debug_level = 1000 ! By default I print everything
 
   INQUIRE (FILE = 'init_configuration.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -198,8 +195,8 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(5x,i1)') cluster_N_blocks_y
   READ (9, '(A1)') buf !"---ddd---ddd---- number of objects along domain boundary // number of material inner objects (>=0), each inner objects is a rectangle")')
   READ (9, '(3x,i3,3x,i3)') N_of_boundary_objects, N_of_inner_objects
-  READ (9, '(A1)') buf !"-----d---------- Choose Cartesian (=0) or cylindrical (=1 for r_theta, =2 for r_z) case 
-  READ (9, '(5x,i1)') i_cylindrical
+!   READ (9, '(A1)') buf !"-----d---------- Choose Cartesian (=0) or cylindrical (=1 for r_theta, =2 for r_z) case 
+!   READ (9, '(5x,i1)') i_cylindrical
 
 ! configuration consistency check (rectangular domain)
 ! N_blocks_x * N_blocks_y = N_of_processes
@@ -226,18 +223,11 @@ SUBROUTINE INITIATE_PARAMETERS
           & N_blocks_y, cluster_N_blocks_y, cluster_N_blocks_y, (N_blocks_y / cluster_N_blocks_y) * cluster_N_blocks_y, N_blocks_y
   END IF
 
-  IF ( i_cylindrical/=0 .AND. i_cylindrical/=2 ) THEN
-   config_inconsistent = .TRUE.
-   IF (Rank_of_process.EQ.0) PRINT '("@@@ INCONSISTENT CONFIGURATION ERROR-4, i_cylindrical should be 0 (Cartesian) or 2 (r-z with symmetry axis included). Received  "i4" @@@")', &
-   & i_cylindrical
-  END IF
-
-  IF ( i_cylindrical==0 ) THEN
-      WRITE( message, '(A)'), "Selected geometry: CARTESIAN"//achar(10)
-  ELSE IF ( i_cylindrical==2 ) THEN
-      WRITE( message, '(A)'), "Selected geometry: CYLINDRICAL r-z"//achar(10)
-  END IF
-  CALL print_message( message )
+!   IF ( i_cylindrical/=0 .AND. i_cylindrical/=2 ) THEN
+!    config_inconsistent = .TRUE.
+!    IF (Rank_of_process.EQ.0) PRINT '("@@@ INCONSISTENT CONFIGURATION ERROR-4, i_cylindrical should be 0 (Cartesian) or 2 (r-z with symmetry axis included). Received  "i4" @@@")', &
+!    & i_cylindrical
+!   END IF
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
@@ -755,173 +745,8 @@ SUBROUTINE INITIATE_PARAMETERS
   delta_x_m   = L_debye_m / DBLE(N_of_cells_debye)
   delta_t_s   = delta_x_m / (N_max_vel * v_Te_ms)
 
-  ! Implement new parser for geometry 
-  debug_level = 1000 ! By default I print everything
-  INQUIRE (FILE = 'init_params.dat', EXIST = exists)
-  IF (exists) THEN
-      IF ( Rank_of_process==0 ) PRINT *,'init_params.dat found.'
-      
-      OPEN (9, file='init_params.dat')
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="Delta_z" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,rval            
-            Delta_z = rval
-            WRITE( message,'(A,ES10.3,A)') "Partial init Delta_z= ",Delta_z," [-]"
-            CALL print_message( message,routine )            
-         END IF
-      END DO
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "Delta_z keyword not present. I assume we do not want it"
-         CALL print_message( message,routine )       
-      END IF          
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="Delta_r" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,rval            
-            Delta_r = rval
-            WRITE( message,'(A,ES10.3,A)') "Partial init Delta_r= ",Delta_r," [-]"
-            CALL print_message( message,routine )            
-         END IF
-      END DO
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "Delta_r keyword not present. I assume we do not want it"
-         CALL print_message( message,routine )       
-      END IF          
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,rval            
-            delta_x_m = rval
-            WRITE( message,'(A,ES10.3,A)') "space step dx is externally imposed dx= ",delta_x_m," [m]"
-            CALL print_message( message,routine )            
-         END IF
-      END DO
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "delta_x keyword not present. I assume we do not want it"
-         CALL print_message( message,routine )       
-      END IF    
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="debug_level" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,ival            
-            debug_level = ival
-
-            WRITE( message,'(A,I3,A)') "debug level set to ",debug_level,achar(10)
-            CALL print_message( message,routine )
-         END IF
-      END DO
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
-         CALL print_message( message,routine )         
-      END IF    
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
-         CALL print_message( message,routine )         
-      END IF 
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="freeze_ions" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,caval            
-
-            IF ( TRIM(caval)=="yes" ) THEN
-               i_freeze_ions = 1
-               WRITE( message,'(A)') "ions are frozen"//achar(10)
-               CALL print_message( message,routine )
-            ELSE IF ( TRIM(caval)=="no" ) THEN
-               i_freeze_ions = 0
-               WRITE( message,'(A)') "ions are not frozen"//achar(10)
-               CALL print_message( message,routine )
-            ELSE
-               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if freeze_ions is used. Received: ',TRIM(caval),achar(10)
-               CALL print_parser_error( message )
-            END IF
-         END IF
-      END DO
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="i_no_poisson" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,caval            
-
-            IF ( TRIM(caval)=="yes" ) THEN
-               i_no_poisson = 1
-               WRITE( message,'(A)') "Potential is set to 0. No electric field"//achar(10)
-               CALL print_message( message,routine )
-            ELSE IF ( TRIM(caval)=="no" ) THEN
-               i_no_poisson = 0
-               WRITE( message,'(A)') "Potential is self consistantly calculated"//achar(10)
-               CALL print_message( message,routine )
-            ELSE
-               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_no_poisson is used. Received: ',TRIM(caval),achar(10)
-               CALL print_parser_error( message )
-            END IF
-         END IF
-      END DO      
-
-      i_found = 0
-      REWIND(9)
-      DO
-         READ (9,"(A)",iostat=ierr) line ! read line into character variable
-         IF ( ierr/=0 ) EXIT
-         READ (line,*) long_buf ! read first word of line
-         IF ( TRIM(long_buf)=="i_empty_domain" ) THEN ! found search string at beginning of line
-            i_found = 1
-            READ (line,*) long_buf,separator,caval            
-
-            IF ( TRIM(caval)=="yes" ) THEN
-               i_empty_domain = 1
-               WRITE( message,'(A)') "Domain will be initialized with no particles"//achar(10)
-               CALL print_message( message,routine )
-            ELSE IF ( TRIM(caval)=="no" ) THEN
-               i_empty_domain = 0
-               WRITE( message,'(A)') "Domain will be initialized with the specified density"//achar(10)
-               CALL print_message( message,routine )
-            ELSE
-               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_empty_domain is used. Received: ',TRIM(caval),achar(10)
-               CALL print_parser_error( message )
-            END IF
-         END IF
-      END DO        
-      
-      CLOSE (9, STATUS = 'KEEP')
-   END IF
-
+  ! Call other parameters in 'init_params.dat' file
+  CALL read_flexible_parameters
 
 ! save geometry of inner objects (note that we kttow delta_x_m now :)
 
@@ -1465,6 +1290,231 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
   END IF
 
 END SUBROUTINE INITIATE_PARAMETERS
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE read_flexible_parameters
+!>    @details Read additional parameters that are called with a keyword that is human friendly. Alos allows for back compatiblity.
+!!    @authors W. Villafana
+!!    @date    Mar-01-2023
+!-------------------------------------------------------------------------------------------------- 
+SUBROUTINE read_flexible_parameters
+   
+   USE ParallelOperationValues, ONLY: Rank_of_process
+   USE mod_print, ONLY: print_message, print_parser_error
+   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain
+   USE IonParticles, ONLY: i_freeze_ions
+   
+   IMPLICIT NONE
+   INCLUDE 'mpif.h'
+   
+   ! LOCAL
+   INTEGER :: ierr
+   CHARACTER (LEN=1000) :: long_buf,line,separator ! long buffer for string
+   INTEGER :: i_found ! flag to decide if I found keyword or not.
+   REAL(8) :: rval ! buffer for real values
+   INTEGER :: ival ! buffer for integer values
+   CHARACTER(LEN=string_length) :: caval ! buffer for string values
+   CHARACTER(LEN=string_length) :: message, routine  
+   LOGICAL :: exists
+   
+   ! Declare routine name and debug level
+   routine = 'read_flexible_parameters'
+
+  ! Implement new parser for geometry 
+   INQUIRE (FILE = 'init_params.dat', EXIST = exists)
+   IF (exists) THEN
+      WRITE( message, '(A)'), "init_params.dat found."//achar(10)
+      CALL print_message(message,routine)
+      
+      OPEN (9, file='init_params.dat')
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="cylindrical_type" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+            
+            IF (TRIM(caval)=='cartesian') THEN
+               i_cylindrical = 0
+               WRITE( message, '(A)'), "Selected geometry: CARTESIAN"//achar(10)
+            ELSE IF (TRIM(caval)=='cylindrical_r_z') THEN
+               i_cylindrical = 2
+               WRITE( message, '(A)'), "Selected geometry: CYLINDRICAL r-z"//achar(10)
+            ELSE 
+               WRITE( message, '(A,A,A)'), "Selected geometry is not correct. Received: ",TRIM(caval),". Expected:'cartesian' or 'cylindrical_r_z'. Case sensitive"//achar(10)
+               CALL print_parser_error(message)
+            END IF
+            CALL print_message( message )
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A,ES10.3,A)') "cylindrical_type keyword not present. I assume it is CARTESIAN"
+         CALL print_message( message )       
+      END IF    
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="Delta_z" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            Delta_z = rval
+            WRITE( message,'(A,ES10.3,A)') "Partial init Delta_z= ",Delta_z," [-]"
+            CALL print_message( message,routine )            
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A,ES10.3,A)') "Delta_z keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF          
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="Delta_r" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            Delta_r = rval
+            WRITE( message,'(A,ES10.3,A)') "Partial init Delta_r= ",Delta_r," [-]"
+            CALL print_message( message,routine )            
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A,ES10.3,A)') "Delta_r keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF          
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            delta_x_m = rval
+            WRITE( message,'(A,ES10.3,A)') "space step dx is externally imposed dx= ",delta_x_m," [m]"
+            CALL print_message( message,routine )            
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A,ES10.3,A)') "delta_x keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF    
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="debug_level" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,ival            
+            debug_level = ival
+
+            WRITE( message,'(A,I3,A)') "debug level set to ",debug_level,achar(10)
+            CALL print_message( message,routine )
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
+         CALL print_message( message,routine )         
+      END IF    
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
+         CALL print_message( message,routine )         
+      END IF 
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="freeze_ions" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_freeze_ions = 1
+               WRITE( message,'(A)') "ions are frozen"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_freeze_ions = 0
+               WRITE( message,'(A)') "ions are not frozen"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if freeze_ions is used. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="i_no_poisson" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_no_poisson = 1
+               WRITE( message,'(A)') "Potential is set to 0. No electric field"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_no_poisson = 0
+               WRITE( message,'(A)') "Potential is self consistantly calculated"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_no_poisson is used. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO      
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="i_empty_domain" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_empty_domain = 1
+               WRITE( message,'(A)') "Domain will be initialized with no particles"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_empty_domain = 0
+               WRITE( message,'(A)') "Domain will be initialized with the specified density"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_empty_domain is used. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO        
+      
+      CLOSE (9, STATUS = 'KEEP')
+   END IF
+
+ END SUBROUTINE       
 
 !--------------------------------------------------------
 INTEGER FUNCTION convert_logical_to_int(logvar)
