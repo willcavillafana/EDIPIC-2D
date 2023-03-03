@@ -176,6 +176,11 @@ MODULE CurrentProblemValues
 
   INTEGER, PARAMETER :: string_length = 300
 
+  CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="GIT_BRANCH"
+  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="$GIT_HASH"
+  CHARACTER(len=string_length), PARAMETER :: GIT_DATE='$GIT_DATE'
+  CHARACTER(len=string_length), PARAMETER :: COMPILE_TIME='$COMPILE_TIME'
+
   INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
                             ! For the z_theta plane we can take a Cartesian geometry for now
   INTEGER :: debug_level
@@ -1488,7 +1493,7 @@ MODULE mod_print
 !     SUBROUTINE print_warning
 !>    @details Print error message by root proc when reading input files
 !!    @authors W. Villafana
-!!    @date    Dec-23-2022
+!!    @date    Mar-01-2023
 !-------------------------------------------------------------------------------------------------- 
   SUBROUTINE print_warning ( message )
         
@@ -1506,6 +1511,45 @@ MODULE mod_print
     IF ( Rank_of_process==0 ) THEN
       WRITE(*,'(T8,A,I4,A)') ">>> WARNING: "//TRIM(message)
       CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+    END IF
+
+  END SUBROUTINE     
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_git_info
+!>    @details Print last commit ID, branch and compilation time
+!!    @authors W. Villafana
+!!    @date    Mar-03-2023
+!-------------------------------------------------------------------------------------------------- 
+  SUBROUTINE print_git_info
+        
+    USE ParallelOperationValues, ONLY: Rank_of_process
+    USE CurrentProblemValues, ONLY: string_length, GIT_BRANCH, GIT_HASH, GIT_DATE, COMPILE_TIME
+    
+    IMPLICIT NONE
+    INCLUDE 'mpif.h'
+    
+    ! LOCAL
+    CHARACTER(LEN=string_length) :: message
+    
+    IF ( Rank_of_process==0 ) THEN
+
+      ! Print Branch
+      WRITE(message,'(A,A)') "GIT BRANCH: ",TRIM(GIT_BRANCH)
+      CALL print_message( message )
+
+      ! Print Commit ID
+      WRITE(message,'(A,A)') "GIT COMMIT: ",TRIM(GIT_HASH)
+      CALL print_message( message )
+
+      ! Print Commit date
+      WRITE(message,'(A,A)') "GIT DATE: ",TRIM(GIT_DATE)
+      CALL print_message( message )      
+
+      ! Print compilation time
+      WRITE(message,'(A,A,A)') "COMPILATION TIME: ",TRIM(COMPILE_TIME),achar(10)
+      CALL print_message( message )      
+      
     END IF
 
   END SUBROUTINE     

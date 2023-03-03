@@ -396,7 +396,9 @@ SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
   INTEGER ALLOC_ERR
   
   INTEGER k, pos1, pos2, s
+  INTEGER :: local_debug_level
 
+  local_debug_level = 3
   bufsize = N_of_boundary_and_inner_objects * (1 + N_spec)
 
   ALLOCATE(ibuf_send(1:bufsize), STAT = ALLOC_ERR)
@@ -426,12 +428,12 @@ SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
         whole_object(k)%ion_hit_count(1:N_spec) = ibuf_receive(pos1:pos2)
      END DO
      
-     print '("electrons hit boundaries :: ",20(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count           
+     IF (debug_level>=local_debug_level) print '("electrons hit boundaries :: ",20(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count           
      do s = 1, N_spec
         do k = 1, N_of_boundary_and_inner_objects
            ibuf_send(k) = whole_object(k)%ion_hit_count(s)
         end do
-        print '("ions (",i2,") hit boundaries :: ",20(2x,i8))', s, ibuf_send(1:N_of_boundary_and_inner_objects)
+        IF (debug_level>=local_debug_level) print '("ions (",i2,") hit boundaries :: ",20(2x,i8))', s, ibuf_send(1:N_of_boundary_and_inner_objects)
      end do
 
   END IF

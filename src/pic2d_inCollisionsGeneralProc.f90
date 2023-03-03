@@ -197,7 +197,7 @@ SUBROUTINE SAVE_in_COLLISIONS
   USE ParallelOperationValues
   USE MCCollisions
   USE IonParticles, ONLY : N_spec, N_ions
-  USE CurrentProblemValues, ONLY : T_cntr
+  USE CurrentProblemValues, ONLY : T_cntr, debug_level
 
   IMPLICIT NONE
 
@@ -214,6 +214,7 @@ SUBROUTINE SAVE_in_COLLISIONS
 
                                       ! ----x----I----x----I----x----
   CHARACTER(29) historycoll_filename  ! history_coll_i_S_n_AAAAAA.dat
+  INTEGER :: local_debug_level
 
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
@@ -222,6 +223,8 @@ SUBROUTINE SAVE_in_COLLISIONS
        INTEGER length_of_string
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
+
+  local_debug_level = 3
 
   IF (no_rcx_collisions) RETURN
 
@@ -245,7 +248,7 @@ SUBROUTINE SAVE_in_COLLISIONS
 
   IF (Rank_of_process.EQ.0) THEN
 
-     PRINT '("Total charge exchange collisions for all ions species :: ",10(2x,i6))', ibufer_receive(N_spec+1:N_spec+N_spec)
+   IF (debug_level>=local_debug_level) PRINT '("Total charge exchange collisions for all ions species :: ",10(2x,i6))', ibufer_receive(N_spec+1:N_spec+N_spec)
 
      DO s = 1, N_spec
 

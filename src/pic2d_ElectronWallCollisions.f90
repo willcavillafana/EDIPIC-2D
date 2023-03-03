@@ -369,6 +369,9 @@ SUBROUTINE COLLECT_ELECTRON_BOUNDARY_HITS
   INTEGER ALLOC_ERR
 
   INTEGER k
+  INTEGER :: local_debug_level
+
+  local_debug_level = 2
 
   ALLOCATE(ibuf_send(1:N_of_boundary_and_inner_objects), STAT = ALLOC_ERR)
   ALLOCATE(ibuf_receive(1:N_of_boundary_and_inner_objects), STAT = ALLOC_ERR)
@@ -384,7 +387,7 @@ SUBROUTINE COLLECT_ELECTRON_BOUNDARY_HITS
 ! now counters from all processes are assembled in the process with global rank zero
     
      whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count = ibuf_receive(1:N_of_boundary_and_inner_objects)
-     print '("electrons hit boundaries :: ",10(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count  
+     IF (debug_level>=local_debug_level) print '("electrons hit boundaries :: ",10(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count  
 
      DO k = 1, N_of_boundary_and_inner_objects
         whole_object(k)%ion_hit_count(1:N_spec) = 0

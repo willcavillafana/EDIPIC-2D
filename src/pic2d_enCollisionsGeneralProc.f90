@@ -763,7 +763,7 @@ SUBROUTINE SAVE_en_COLLISIONS
   USE ParallelOperationValues
   USE MCCollisions
   USE ElectronParticles, ONLY : N_electrons
-  USE CurrentProblemValues, ONLY : T_cntr
+  USE CurrentProblemValues, ONLY : T_cntr, debug_level
 
   IMPLICIT NONE
 
@@ -782,6 +782,10 @@ SUBROUTINE SAVE_en_COLLISIONS
 
                                       ! ----x----I----x----I----x--
   CHARACTER(27) historycoll_filename  ! history_coll_e_n_AAAAAA.dat
+
+  INTEGER :: local_debug_level
+
+  local_debug_level = 3  
 
 ! report all collision counters to the process with zero global rank
 
@@ -816,7 +820,7 @@ SUBROUTINE SAVE_en_COLLISIONS
            pos = pos+1
            collision_e_neutral(n)%counter(p) = ibufer_receive(pos)
         END DO
-        PRINT '("Total collisions with neutral species ",i2," (",A6,") :: ",10(2x,i6))', n, neutral(n)%name, collision_e_neutral(n)%counter(1:collision_e_neutral(n)%N_of_activated_colproc)
+        IF (debug_level>=local_debug_level) PRINT '("Total collisions with neutral species ",i2," (",A6,") :: ",10(2x,i6))', n, neutral(n)%name, collision_e_neutral(n)%counter(1:collision_e_neutral(n)%N_of_activated_colproc)
      END DO
   END IF
 

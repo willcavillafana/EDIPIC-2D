@@ -8,7 +8,7 @@ PROGRAM MainProg
   USE Checkpoints
   USE mod_def_timers
   USE mod_timers, ONLY: start_timer, end_timer, print_timer, pic_loop_timer
-  USE mod_print, ONLY: print_message
+  USE mod_print, ONLY: print_message, print_git_info
   USE IonParticles, ONLY: i_freeze_ions
 
   IMPLICIT NONE
@@ -19,6 +19,7 @@ PROGRAM MainProg
   REAL(8) start, finish
   INTEGER n_sub
   LOGICAL ions_moved
+  INTEGER :: local_debug_level
 
   ! Timer
   REAL(8)                      :: loop_time,time_measured
@@ -41,10 +42,14 @@ PROGRAM MainProg
   CALL MPI_COMM_RANK(MPI_COMM_WORLD, Rank_of_process, ierr)
   CALL MPI_COMM_SIZE(MPI_COMM_WORLD, N_of_processes, ierr)
 
+  ! Print current version of the code 
+  CALL print_git_info
+
   CALL SET_PHYSICAL_CONSTANTS
 
   CALL PrepareMaxwellDistribIntegral
 
+  local_debug_level = 3
   Start_T_cntr = 0
   T_cntr_global_load_balance = Start_T_cntr
   T_cntr_cluster_load_balance = Start_T_cntr
@@ -106,8 +111,7 @@ PROGRAM MainProg
 
   DO T_cntr = Start_T_cntr, Max_T_cntr
 
-     WRITE( message,'(A,I7.3,A,ES10.3,A)') "Iteration #",T_cntr,", t= ",T_cntr*delta_t_s," [s]"
-     CALL print_message( message )
+      CALL start_timer( single_pic_loop_timer )
    !   if (Rank_of_process.eq.0) print *, "Iteration, time (ns) # ",T_cntr,T_cntr*delta_t_s*1e9
 
      CALL start_timer( save_checkpoint_timer )
@@ -261,7 +265,7 @@ PROGRAM MainProg
      n_sub = n_sub + 1
      IF (n_sub.EQ.N_subcycles .AND. i_freeze_ions==0) THEN            ! N_subcycles is odd
 
-        if (Rank_of_process.eq.0) print '("----- doing ions at step ",i6," ------")', T_cntr
+        if (Rank_of_process.eq.0 .AND. debug_level>=local_debug_level) print '("----- doing ions at step ",i6," ------")', T_cntr
 
         CALL ADVANCE_IONS_PLUS                      !   velocity: n-N_e_subcycles+1/2 ---> n+1/2
                                                     ! coordinate: n-int(N_e_subcycles/2) ---> n-int(N_e_subcycles/2)+N_e_subcycles
@@ -557,6 +561,8 @@ PROGRAM MainProg
    !        & 100.0 * REAL((t19 - t18) / (t20 - t0)), &
    !        & 100.0 * REAL((t20 - t19) / (t20 - t0))
 
+     CALL end_timer( single_pic_loop_timer )
+     CALL print_iteration_info(T_cntr)
   END DO
   CALL end_timer( total_timer )     
   pic_loop_timer = total_timer  

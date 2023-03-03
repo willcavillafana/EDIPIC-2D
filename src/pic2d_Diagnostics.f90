@@ -344,6 +344,7 @@ subroutine report_total_number_of_particles
 
   INTEGER n
   real(8) surf_char
+  INTEGER :: local_debug_level
 
                                     ! ----x----I----x
   CHARACTER(15) history_i_filename  ! history_i_S.dat
@@ -360,6 +361,7 @@ subroutine report_total_number_of_particles
   ALLOCATE(   pwbufer(1:4*(N_spec+1)), STAT = ALLOC_ERR)
   ALLOCATE(totpwbufer(1:4*(N_spec+1)), STAT = ALLOC_ERR)
 
+  local_debug_level = 2
 !print '("report_total_number_of_particles :: Rank_of_process ",i4)', Rank_of_process
 
   rbufer = 0.0_8
@@ -412,7 +414,7 @@ subroutine report_total_number_of_particles
      CALL MPI_REDUCE(pwbufer, totpwbufer, 4*(N_spec+1), MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_HORIZONTAL, ierr)
 
      IF (Rank_horizontal.EQ.0) THEN 
-        PRINT '("Total : number of electron particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', N_particles_total(0), totpwbufer(1:4)
+        IF (debug_level>=local_debug_level) PRINT '("Total : number of electron particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', N_particles_total(0), totpwbufer(1:4)
 
         open (21, file = 'history_e.dat', position = 'append')
         write (21, '(2x,i8,2x,f12.5,2x,ES18.10,2x,4(2x,ES14.7))') &
@@ -430,7 +432,7 @@ subroutine report_total_number_of_particles
         pos1=5!+2
         pos2=8!+2
         DO s = 1, N_Spec
-           PRINT '("Total : number of ion  ",i2,"  particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', s, N_particles_total(s), totpwbufer(pos1:pos2)
+         IF (debug_level>=local_debug_level) PRINT '("Total : number of ion  ",i2,"  particles = ",ES18.10," momentum X/Y/Z = ",3(2x,e16.9)," energy = ",e16.9)', s, N_particles_total(s), totpwbufer(pos1:pos2)
 
            history_i_filename = 'history_i_S.dat'
            history_i_filename(11:11) = convert_int_to_txt_string(s, 1)
@@ -459,7 +461,7 @@ subroutine report_total_number_of_particles
               surf_char = surf_char + whole_object(n)%surface_charge(k)
            END DO
         END DO
-        PRINT '("Surface charge on inner dielectric objects ",f12.3," total charge ",f12.3)', surf_char, dble(-N_particles_total(0)+N_particles_total(1))+surf_char
+        IF (debug_level>=local_debug_level) PRINT '("Surface charge on inner dielectric objects ",f12.3," total charge ",f12.3)', surf_char, dble(-N_particles_total(0)+N_particles_total(1))+surf_char
 
      END IF
   END IF

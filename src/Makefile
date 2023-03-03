@@ -10,18 +10,32 @@ ifeq ($(strip $(PETSC_DIR)),)
    $(error Please set the PETSC_DIR environment variable)
 endif
 
+# Git version 
+GIT_HASH=$(shell git rev-parse HEAD)
+COMPILE_TIME=$(shell date +'%Y-%m-%d %H:%M:%S EST')
+GIT_BRANCH=$(shell git branch | grep "^\*" | sed 's/^..//')
+GIT_DATE=$(shell git log -1 --format=%cd)
+# GIT_HASH=`git rev-parse HEAD`
+# COMPILE_TIME=`date +'%Y-%m-%d %H:%M:%S EST'`
+# GIT_BRANCH=`git branch | grep "^\*" | sed 's/^..//'`
+# GIT_DATE=`git log -1 --format=%cd`
+export VERSION_FLAGS=-DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\"" -DGIT_DATE="\"$(GIT_DATE)\""
+
+
 ifeq ($(BASE_FCOMP),ifort)
    $(info "Using Intel compiler" )
-   FFLAGS := -O2 -I${PETSC_DIR}/include
-   CFLAGS := -O2
+   FFLAGS := -O2 -I${PETSC_DIR}/include $(VERSION_FLAGS)
+   CFLAGS := -O2 $(VERSION_FLAGS)
 else ifeq ($(BASE_FCOMP),gfortran)
    $(info "Using gcc/gfortran compilers" )
-   FFLAGS := -O2 -ffree-line-length-none -I${PETSC_DIR}/include
-   CFLAGS := -O2
+   FFLAGS := -O2 -ffree-line-length-none -I${PETSC_DIR}/include $(VERSION_FLAGS)
+   CFLAGS := -O2 $(VERSION_FLAGS)
 else
-   FFLAGS := -O2 -I${PETSC_DIR}/include
-   CFLAGS := -O2
+   FFLAGS := -O2 -I${PETSC_DIR}/include $(VERSION_FLAGS)
+   CFLAGS := -O2 $(VERSION_FLAGS)
 endif
+
+
 
 # The only external functions explicitly called by EDIPIC2D are from MPI and PETSc.
 # However, PETSc will internally call functions from HYPRE, LAPACK, and BLAS. In the
@@ -78,7 +92,7 @@ OBJ := WELL19937a_new.o \
        pic2d_ExternalCircuits.o \
        pic2d_ExternalCircuit_PS_Voltages.o
 
-edipic2d : $(OBJ)
+edipic2d : version_info $(OBJ) 
 	$(FC) $(FFLAGS) -o $@ $(OBJ) $(LIBS)
 
 %.o : %.f90
@@ -93,3 +107,11 @@ edipic2d : $(OBJ)
 clean:
 	rm -f *.mod *.o edipic2d
 
+version_info:
+	@echo "";   
+	@echo "     Branch: $(GIT_BRANCH)";   
+	@echo "     Commit ID: $(GIT_HASH)";
+	@echo "     Commit date: $(GIT_DATE)";
+	@echo "     Compilation time: $(COMPILE_TIME)";
+	@echo "";   
+   # @echo "     Branch: $(GIT_BRANCH)"; #echo "     Commit ID: $(GIT_HASH)": echo "     Commit date: $(GIT_DATE)"; echo "     Compilation time: $(COMPILE_TIME)";

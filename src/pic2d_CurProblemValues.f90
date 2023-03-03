@@ -154,7 +154,7 @@ SUBROUTINE INITIATE_PARAMETERS
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
   i_freeze_ions = 0 ! By default ions are moving
   i_cylindrical = 0 ! By default this is Cartesian
-  debug_level = 1000 ! By default I print everything
+  debug_level = 0 ! By default I print nothing
 
   INQUIRE (FILE = 'init_configuration.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -880,6 +880,9 @@ SUBROUTINE INITIATE_PARAMETERS
      CALL MPI_FINALIZE(ierr)
      STOP
   END IF
+
+  WRITE(message,'(A,I2,A)') "Ions are treated every ",N_subcycles," electron cycles."//achar(10)
+  CALL print_message(message)  
 
   dT_cluster_load_balance = dT_cluster_load_balance * N_subcycles             ! must be an integer number of N_subcycles
   dT_global_load_balance  = dT_global_load_balance * dT_cluster_load_balance  ! must be an integer number of dT_cluster_load_balance

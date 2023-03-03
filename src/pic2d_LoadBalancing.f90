@@ -552,6 +552,8 @@ SUBROUTINE BALANCE_LOAD_WITHIN_CLUSTER
   USE ParallelOperationValues
   USE ElectronParticles
   USE IonParticles
+  USE CurrentProblemValues, ONLY: debug_level, T_cntr, string_length
+  USE mod_print, ONLY: print_message, print_output
 
   IMPLICIT NONE
 
@@ -579,6 +581,16 @@ SUBROUTINE BALANCE_LOAD_WITHIN_CLUSTER
 
   INTEGER delta_N, ibuf
   INTEGER new_size
+  INTEGER :: local_debug_level
+  CHARACTER(LEN=string_length) :: message
+
+
+  local_debug_level = 2
+
+  WRITE(message,'(A)') " "
+  CALL print_output(message)     
+  WRITE(message,'(T4,A,I8,A)') "Load balancing at time step ",T_cntr,achar(10)
+  CALL print_output(message)   
 
   IF (N_processes_cluster.LE.1) RETURN
 
@@ -893,11 +905,13 @@ SUBROUTINE BALANCE_LOAD_WITHIN_CLUSTER
      IF (new_size.LT.max_N_ions(s)) CALL RESIZE_ION_ARRAY(s, new_size)
   END DO
 
-print '("Rank_of_process ",i4," Rank_cluster ",i4," particle_master ",i4," N_electrons before/after/max ",i8,"/",i8,"/",i8," N_ions(1) b/a/m ",i8,"/",i8,"/",i8)',  &
-     & Rank_of_process, Rank_cluster, particle_master, &
-     & initial_N_particles(0), N_electrons, max_N_electrons, &
-     & initial_N_particles(1), N_ions(1), max_N_ions(1)
-
+   IF (debug_level>=local_debug_level) THEN
+      print '("Rank_of_process ",i4," Rank_cluster ",i4," particle_master ",i4," N_electrons before/after/max ",i8,"/",i8,"/",i8," N_ions(1) b/a/m ",i8,"/",i8,"/",i8)',  &
+         & Rank_of_process, Rank_cluster, particle_master, &
+         & initial_N_particles(0), N_electrons, max_N_electrons, &
+         & initial_N_particles(1), N_ions(1), max_N_ions(1)
+   END IF
+   
 END SUBROUTINE BALANCE_LOAD_WITHIN_CLUSTER
 
 !--------------------------------------------------------------

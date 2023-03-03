@@ -9,6 +9,7 @@ MODULE mod_def_timers
 !-------------------------------------------------------------------------------------------------- 
     
     TYPE(T_TIMER) :: total_timer = t_timer ( start=zero,end=zero,total=zero )
+    TYPE(T_TIMER) :: single_pic_loop_timer = t_timer ( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: save_checkpoint_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: global_load_balance_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: internal_load_balance_timer = t_timer( start=zero,end=zero,total=zero )
@@ -87,6 +88,43 @@ MODULE mod_def_timers
         message = "Gather surface charge density"
         CALL print_timer( gather_surface_charge_density_timer,message )
         
-    END SUBROUTINE            
+    END SUBROUTINE 
+    
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_iteration_info
+!>    @details Print iteration information
+!!    @authors W. Villafana
+!!    @date    Mar-02-2023
+!-------------------------------------------------------------------------------------------------- 
+    SUBROUTINE print_iteration_info ( time_counter )
+        
+        USE CurrentProblemValues, ONLY: delta_t_s,one
+        USE mod_print, ONLY: print_message
+    
+        IMPLICIT NONE
+        INCLUDE 'mpif.h'
+    
+        !IN/OUT
+        INTEGER, INTENT(IN) :: time_counter
+        
+        ! LOCAL
+        REAL(8) :: new_time, old_time, speed_loop
+        CHARACTER(LEN=string_length) :: message
+    
+        ! First iteration
+        IF ( time_counter==0 ) THEN
+          WRITE(message,'(A)') "Iteration #        Total_time [s]        Iteration/second [s-1]"//achar(10)
+          CALL print_message(message)
+        END IF
+    
+        ! Compute time step ion the current iteration
+        new_time = single_pic_loop_timer%end
+        old_time = single_pic_loop_timer%start
+        speed_loop = one/(new_time-old_time)
+    
+        WRITE(message,'(I10,9x,ES12.4,9x,ES12.4)') time_counter,DBLE(time_counter)*delta_t_s,speed_loop
+        CALL print_message(message)
+    
+      END SUBROUTINE        
 
 END MODULE

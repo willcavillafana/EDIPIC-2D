@@ -789,6 +789,9 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
   INTEGER, ALLOCATABLE :: ibuf_send(:)
   INTEGER, ALLOCATABLE :: ibuf_receive(:)
   INTEGER ALLOC_ERR
+  INTEGER :: local_debug_level
+  
+  local_debug_level = 2
 
   IF (ht_use_e_emission_from_cathode.OR.ht_use_e_emission_from_cathode_zerogradf.OR.ht_emission_constant) RETURN   ! either PERFORM_ELECTRON_EMISSION_HT_SETUP or PERFORM_ELECTRON_EMISSION_HT_SETUP_ZERO_GRAD_F will be called instead
 
@@ -1151,7 +1154,7 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
      IF (Rank_of_process.EQ.0) THEN
         whole_object(1:N_of_boundary_objects)%electron_emit_count = ibuf_receive(1:N_of_boundary_objects)
 
-print '("electrons emitted by boundaries :: ",10(2x,i8))', whole_object(1:N_of_boundary_objects)%electron_emit_count  
+        IF (debug_level>=local_debug_level) print '("electrons emitted by boundaries :: ",10(2x,i8))', whole_object(1:N_of_boundary_objects)%electron_emit_count  
 
 !! set the ion hit counters here to zero because when this subroutine is called the ions do not move
 !           DO k = 1, N_of_boundary_objects
