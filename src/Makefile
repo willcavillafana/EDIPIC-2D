@@ -12,27 +12,27 @@ endif
 
 # Git version 
 GIT_HASH=$(shell git rev-parse HEAD)
-COMPILE_TIME=$(shell date +'%Y-%m-%d %H:%M:%S EST')
+# COMPILE_TIME=$(shell date +'%Y-%m-%d %H:%M:%S EST')
 GIT_BRANCH=$(shell git branch | grep "^\*" | sed 's/^..//')
 GIT_DATE=$(shell git log -1 --format=%cd)
 # GIT_HASH=`git rev-parse HEAD`
 # COMPILE_TIME=`date +'%Y-%m-%d %H:%M:%S EST'`
 # GIT_BRANCH=`git branch | grep "^\*" | sed 's/^..//'`
 # GIT_DATE=`git log -1 --format=%cd`
-export VERSION_FLAGS=-DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\"" -DGIT_DATE="\"$(GIT_DATE)\""
+#export VERSION_FLAGS=-DGIT_HASH="\"$(GIT_HASH)\"" -DCOMPILE_TIME="\"$(COMPILE_TIME)\"" -DGIT_BRANCH="\"$(GIT_BRANCH)\"" -DGIT_DATE="\"$(GIT_DATE)\""
 
 
 ifeq ($(BASE_FCOMP),ifort)
    $(info "Using Intel compiler" )
-   FFLAGS := -O2 -I${PETSC_DIR}/include $(VERSION_FLAGS)
-   CFLAGS := -O2 $(VERSION_FLAGS)
+   FFLAGS := -O2 -I${PETSC_DIR}/include #$(VERSION_FLAGS)
+   CFLAGS := -O2 #$(VERSION_FLAGS)
 else ifeq ($(BASE_FCOMP),gfortran)
    $(info "Using gcc/gfortran compilers" )
-   FFLAGS := -O2 -ffree-line-length-none -I${PETSC_DIR}/include $(VERSION_FLAGS)
-   CFLAGS := -O2 $(VERSION_FLAGS)
+   FFLAGS := -O2 -ffree-line-length-none -I${PETSC_DIR}/include #$(VERSION_FLAGS)
+   CFLAGS := -O2 #$(VERSION_FLAGS)
 else
-   FFLAGS := -O2 -I${PETSC_DIR}/include $(VERSION_FLAGS)
-   CFLAGS := -O2 $(VERSION_FLAGS)
+   FFLAGS := -O2 -I${PETSC_DIR}/include #$(VERSION_FLAGS)
+   CFLAGS := -O2 #$(VERSION_FLAGS)
 endif
 
 
@@ -94,6 +94,11 @@ OBJ := WELL19937a_new.o \
 
 edipic2d : version_info $(OBJ) 
 	$(FC) $(FFLAGS) -o $@ $(OBJ) $(LIBS)
+	@sed -e 's|\"$(GIT_BRANCH)\"|\"GIT_BRANCH\"|g' \
+	-e 's|\"$(GIT_HASH)\"|\"GIT_HASH\"|g' \
+	-e 's|\"$(GIT_DATE)\"|\"GIT_DATE\"|g' \
+	pic2d_Modules.f90  > temp_version
+	@mv temp_version pic2d_Modules.f90
 
 %.o : %.f90
 	$(FC) $(FFLAGS) -c $< 
@@ -104,14 +109,26 @@ edipic2d : version_info $(OBJ)
 %.o : %.c
 	$(CC) $(CFLAGS) -c $<
 
-clean:
+clean: clean_git_info
 	rm -f *.mod *.o edipic2d
 
+clean_git_info:
+	@sed -e 's|\"$(GIT_BRANCH)\"|\"GIT_BRANCH\"|g' \
+	-e 's|\"$(GIT_HASH)\"|\"GIT_HASH\"|g' \
+	-e 's|\"$(GIT_DATE)\"|\"GIT_DATE\"|g' \
+	pic2d_Modules.f90  > temp_version
+	@mv temp_version pic2d_Modules.f90
+
 version_info:
-	@echo "";   
-	@echo "     Branch: $(GIT_BRANCH)";   
-	@echo "     Commit ID: $(GIT_HASH)";
-	@echo "     Commit date: $(GIT_DATE)";
-	@echo "     Compilation time: $(COMPILE_TIME)";
-	@echo "";   
+	@echo ""   
+	@echo "     Branch: $(GIT_BRANCH)"   
+	@echo "     Commit ID: $(GIT_HASH)"
+	@echo "     Commit date: $(GIT_DATE)"
+	@sed -e 's|\"GIT_BRANCH\"|\"$(GIT_BRANCH)\"|g' \
+	-e 's|\"GIT_HASH\"|\"$(GIT_HASH)\"|g' \
+	-e 's|\"GIT_DATE\"|\"$(GIT_DATE)\"|g' \
+	pic2d_Modules.f90 > temp_version
+	@mv temp_version pic2d_Modules.f90   
+	@echo ""
+
    # @echo "     Branch: $(GIT_BRANCH)"; #echo "     Commit ID: $(GIT_HASH)": echo "     Commit date: $(GIT_DATE)"; echo "     Compilation time: $(COMPILE_TIME)";

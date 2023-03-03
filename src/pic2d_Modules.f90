@@ -177,9 +177,8 @@ MODULE CurrentProblemValues
   INTEGER, PARAMETER :: string_length = 300
 
   CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="GIT_BRANCH"
-  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="$GIT_HASH"
-  CHARACTER(len=string_length), PARAMETER :: GIT_DATE='$GIT_DATE'
-  CHARACTER(len=string_length), PARAMETER :: COMPILE_TIME='$COMPILE_TIME'
+  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="GIT_HASH"
+  CHARACTER(len=string_length), PARAMETER :: GIT_DATE="GIT_DATE"
 
   INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
                             ! For the z_theta plane we can take a Cartesian geometry for now
@@ -1524,7 +1523,7 @@ MODULE mod_print
   SUBROUTINE print_git_info
         
     USE ParallelOperationValues, ONLY: Rank_of_process
-    USE CurrentProblemValues, ONLY: string_length, GIT_BRANCH, GIT_HASH, GIT_DATE, COMPILE_TIME
+    USE CurrentProblemValues, ONLY: string_length, GIT_BRANCH, GIT_HASH, GIT_DATE
     
     IMPLICIT NONE
     INCLUDE 'mpif.h'
@@ -1543,12 +1542,8 @@ MODULE mod_print
       CALL print_message( message )
 
       ! Print Commit date
-      WRITE(message,'(A,A)') "GIT DATE: ",TRIM(GIT_DATE)
-      CALL print_message( message )      
-
-      ! Print compilation time
-      WRITE(message,'(A,A,A)') "COMPILATION TIME: ",TRIM(COMPILE_TIME),achar(10)
-      CALL print_message( message )      
+      WRITE(message,'(A,A,A)') "GIT DATE: ",TRIM(GIT_DATE),achar(10)
+      CALL print_message( message )              
       
     END IF
 
