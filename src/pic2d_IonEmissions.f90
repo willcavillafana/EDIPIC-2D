@@ -490,3 +490,145 @@ SUBROUTINE INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, m, dirflag)
 !???  myobject%ion_emit_count(s) = myobject%ion_emit_count(s) + 1
 
 END SUBROUTINE INJECT_REFLECTED_ION
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE THERMALIZE_ION
+!>    @details ions that reach the object boundary are re-injected from a Maxwellian distribution. 
+!!    @authors W. Villafana
+!!    @date    Feb-09-2023
+!-------------------------------------------------------------------------------------------------- 
+SUBROUTINE THERMALIZE_ION(s, x, y, vx, vy, vz, tag, myobject, m, dirflag)
+
+   !  USE ParallelOperationValues
+     USE ClusterAndItsBoundaries
+     USE CurrentProblemValues
+     USE IonParticles, ONLY: init_Ti_eV
+   
+     USE rng_wrapper
+   
+     IMPLICIT NONE
+   
+     INTEGER s            ! index of ion species
+     REAL(8) x, y         ! primary ion coordinates
+     REAL(8) vx, vy, vz   ! primary ion velocity components
+     INTEGER tag          ! primary electron tag 
+     
+     TYPE(boundary_object) myobject
+     INTEGER m            ! number of the local [belonging to this particular cluster] part of the whole object with which the primary ion collided
+     
+     INTEGER dirflag      ! direction flag, here left/right/below/above are -x/+x/-y/+y directions
+                          ! 1 = collision with wall on the left
+                          ! 2 = collision with wall above
+                          ! 3 = collision with wall on the right
+                          ! 4 = collision with wall below
+   
+     REAL(8) x_new, y_new             ! new ion coordinates
+     REAL(8) vx_new, vy_new, vz_new   ! new ion velocity components
+     INTEGER tag_new                  ! new ion tag 
+
+     REAL(8) :: v_maxwell_1, v_maxwell_2, v_half_maxwell
+     REAL(8) :: factor_convert
+     REAL(8) :: vx_drift, vy_drift, vz_drift  
+
+     
+
+     ! Set temperature of Maxwellian: as at t = 0
+     factor_convert = SQRT(init_Ti_eV(s)/ T_e_eV) / N_max_vel
+
+     ! Prepare velocity reset 
+     CALL GetMaxwellVelocity(v_maxwell_1)
+     CALL GetMaxwellVelocity(v_maxwell_2)
+     CALL GetInjMaxwellVelocity(v_half_maxwell) 
+
+     IF (m.GT.0) THEN
+   ! domain boundary 
+   
+   ! only specular reflection for now
+   
+        IF (dirflag.EQ.1) THEN
+   ! collision with the wall on the left
+           x_new = DBLE(c_indx_x_min) + 1.0d-6
+           y_new = y
+           vx_new = v_half_maxwell * factor_convert 
+           vy_new = v_maxwell_1 * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        ELSE IF (dirflag.EQ.2) THEN
+   !  collision with the wall above
+           x_new = x
+           y_new = DBLE(c_indx_y_max) - 1.0d-6 
+           vx_new =  v_maxwell_1 * factor_convert
+           vy_new = -v_half_maxwell * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        ELSE IF (dirflag.EQ.3) THEN
+   ! collision with the wall on the right
+           x_new = DBLE(c_indx_x_max) - 1.0d-6
+           y_new = y
+           vx_new = -v_half_maxwell * factor_convert 
+           vy_new = v_maxwell_1 * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        ELSE IF (dirflag.EQ.4) THEN
+   ! collision with the wall below
+           x_new = x
+           y_new = DBLE(c_indx_y_min) + 1.0d-6 
+           vx_new = v_maxwell_1 * factor_convert 
+           vy_new = v_half_maxwell * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        END IF   ! IF (dirflag.EQ.1) THEN
+   
+     ELSE
+   ! inner object
+   
+        IF (dirflag.EQ.1) THEN
+   ! collision with the wall on the left
+           x_new = myobject%xmax + 1.0d-6
+           y_new = y
+           vx_new = v_half_maxwell * factor_convert 
+           vy_new = v_maxwell_1 * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        ELSE IF (dirflag.EQ.2) THEN
+   !  collision with the wall above
+           x_new = x
+           y_new = myobject%ymin - 1.0d-6 
+           vx_new =  v_maxwell_1 * factor_convert 
+           vy_new = -v_half_maxwell * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        ELSE IF (dirflag.EQ.3) THEN
+   ! collision with the wall on the right
+           x_new = myobject%xmin - 1.0d-6
+           y_new = y
+           vx_new = -v_half_maxwell * factor_convert 
+           vy_new = v_maxwell_1 * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        ELSE IF (dirflag.EQ.4) THEN
+   ! collision with the wall below
+           x_new = x
+           y_new = myobject%ymax + 1.0d-6 
+           vx_new = v_maxwell_1 * factor_convert 
+           vy_new = v_half_maxwell * factor_convert 
+           vz_new = 0.0_8
+           tag_new = myobject%object_id_number
+   
+        END IF   ! IF (dirflag.EQ.1) THEN
+   
+     END IF   ! IF (m.GT.0) THEN
+   
+     CALL ADD_ION_TO_ADD_LIST(s, x_new, y_new, vx_new, vy_new, vz_new, tag_new)    ! the particle gets tag equal to the number of the whole object that reflected it
+   
+   !???  myobject%ion_emit_count(s) = myobject%ion_emit_count(s) + 1
+   
+   END SUBROUTINE THERMALIZE_ION
+   

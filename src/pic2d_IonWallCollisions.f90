@@ -46,6 +46,12 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_LEFT(s, x, y, vx, vy, vz, tag)
            EXIT
         END IF
 
+        IF (whole_object(nwo)%ion_thermalization) THEN
+         CALL THERMALIZE_ION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 1)   ! "1" is for a left wall 
+         particle_not_processed = .FALSE.
+         EXIT
+        END IF        
+
         SELECT CASE (whole_object(nwo)%object_type)
            CASE (VACUUM_GAP)
            CASE (METAL_WALL)
@@ -140,6 +146,12 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,
                particle_not_processed = .FALSE.
                EXIT
             END IF
+
+            IF (whole_object(nwo)%ion_thermalization) THEN
+               CALL THERMALIZE_ION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 3)   ! "3" is for a right wall 
+               particle_not_processed = .FALSE.
+               EXIT
+            END IF           
 
             SELECT CASE (whole_object(nwo)%object_type)
                CASE (VACUUM_GAP)
@@ -261,6 +273,12 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_BELOW(s, x, y, vx, vy, vz, tag)
            EXIT
         END IF
 
+        IF (whole_object(nwo)%ion_thermalization) THEN
+         CALL THERMALIZE_ION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 4)   ! "4" is for a wall below
+         particle_not_processed = .FALSE.
+         EXIT
+        END IF       
+
         SELECT CASE (whole_object(nwo)%object_type)
            CASE (VACUUM_GAP)
            CASE (METAL_WALL)
@@ -340,6 +358,12 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_ABOVE(s, x, y, vx, vy, vz, tag)
            particle_not_processed = .FALSE.
            EXIT
         END IF
+
+         IF (whole_object(nwo)%ion_thermalization) THEN
+            CALL THERMALIZE_ION(s, x, y, vx, vy, vz, tag, whole_object(nwo), m, 2)   ! "2" is for a wall above
+            particle_not_processed = .FALSE.
+            EXIT
+         END IF            
 
         SELECT CASE (whole_object(nwo)%object_type)
            CASE (VACUUM_GAP)

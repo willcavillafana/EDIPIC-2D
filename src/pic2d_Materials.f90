@@ -154,7 +154,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      READ (9, '(A1)') buf ! -------d.ddd- Smoothness factor (0 = very rough, 2 = polished)
      READ (9, '(7x,f5.3)') whole_object(n)%k_smooth
 
-     READ (9, '(A1)') buf ! =======d===== ION-MATERIAL INTERACTION MODEL (0/1/2 = 100% ion adsorption/100% specular reflection/ion-induced electron emission)
+     READ (9, '(A1)') buf ! =======d===== ION-MATERIAL INTERACTION MODEL (0/1/2/3 = 100% ion adsorption/100% specular reflection/ion-induced electron emission/thermalization)
      READ (9, '(7x,i1)') ion_wall_interaction_flag
 
      ! By default , I do not need a special treatment in cylindrical coordinates for specular reflection
@@ -199,6 +199,12 @@ SUBROUTINE PREPARE_WALL_MATERIALS
               whole_object(n)%factor_convert_ii_ee_true_vinj(s) = SQRT(whole_object(n)%T_ii_ee_true_eV(s) / T_e_eV) / N_max_vel
 
            END DO
+
+         CASE (3)
+            whole_object(n)%reflects_all_ions = .FALSE.
+            whole_object(n)%ion_induced_EE_enabled = .FALSE.  
+            whole_object(n)%ion_thermalization = .TRUE.    
+            IF (Rank_of_process.EQ.0) PRINT '("### boundary object ",i3," thermalizes ions based on initial temperature ###")', n                   
            
      END SELECT
 

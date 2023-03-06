@@ -189,6 +189,15 @@ SUBROUTINE INJECT_ELASTIC_REFLECTED_ELECTRON(x, y, vx, vy, vz, v, tag, myobject,
 
   REAL(8) theta, fi               ! scattering angles
 
+  REAL(8) :: v_maxwell_1, v_maxwell_2, v_half_maxwell
+  REAL(8) :: myEy_Vm, myEz_Vm
+  REAL(8) :: myBx_T, myBy_T, myBz_T, myB2
+  REAL(8) :: factor_convert
+  REAL(8) :: vx_drift, vy_drift, vz_drift  
+
+! functions
+  REAL(8) :: Bx, By, Bz, Ez  
+
 ! for inner object
   INTEGER i_left_top, i_right_top, i_right_bottom, i_left_bottom_bis, ip1
   INTEGER i
@@ -277,7 +286,7 @@ SUBROUTINE INJECT_ELASTIC_REFLECTED_ELECTRON(x, y, vx, vy, vz, v, tag, myobject,
 
         END IF   ! IF (dirflag.EQ.1) THEN
 
-     ELSE                             ! if elastic reflection occurs at a random angle
+     ELSE IF (myobject%Elast_refl_type==1) THEN                            ! if elastic reflection occurs at a random angle
 
 ! get the angles of reflection, you have to choose between the following:
 
@@ -365,7 +374,115 @@ SUBROUTINE INJECT_ELASTIC_REFLECTED_ELECTRON(x, y, vx, vy, vz, v, tag, myobject,
            END IF
 
         END IF      ! IF (dirflag.EQ.1) THEN
+     
+     ELSE IF ( myobject%Elast_refl_type==2 ) THEN    ! Thermalization
+
+      ! Prepare for possible electron drifts 
+      myBx_T = B_scale_T * Bx(x, y)
+      myBy_T = B_scale_T * By(x, y)
+      myBz_T = B_scale_T * Bz(x, y)
+
+      myB2 = (myBx_T**2 + myBy_T**2 + myBz_T**2) * V_scale_ms
+
+      IF (myB2.GT.0.0_8) THEN
+      ! account possible ExB drifts for electrons
+         myEz_Vm = E_scale_Vm * Ez(x, y)
+         vx_drift = ( myEy_Vm * myBz_T - myEz_Vm * myBy_T) / myB2
+         vy_drift = ( myEz_Vm * myBx_T) / myB2
+         vz_drift = (-myEy_Vm * myBx_T) / myB2
+      ELSE
+         vx_drift = 0.0_8
+         vy_drift = 0.0_8
+         vz_drift = 0.0_8
+      END IF
+
+      ! Set temperature of Maxwellian: as at t = 0
+      factor_convert = SQRT(init_Te_eV / T_e_eV) / N_max_vel
+
+      ! Prepare velocity reset 
+      CALL GetMaxwellVelocity(v_maxwell_1)
+      CALL GetMaxwellVelocity(v_maxwell_2)
+      CALL GetInjMaxwellVelocity(v_half_maxwell) 
+
+      IF (dirflag.EQ.1) THEN
+! collision with the wall on the left
+         x_new = DBLE(c_indx_x_min) + 1.0d-6
+         y_new = y
+         vx_new = v_half_maxwell * factor_convert + vx_drift
+         vy_new = v_maxwell_1 * factor_convert + vy_drift
+         vz_new = v_maxwell_2 * factor_convert + vz_drift
+         tag_new = myobject%object_id_number
+
+         IF (myobject%object_type.EQ.DIELECTRIC) THEN
+! update the surface charge
+            jbelow = MAX(INT(y), c_local_object_part(m)%jstart)
+            jabove = MIN(jbelow + 1, c_local_object_part(m)%jend)
+            dqabove = y - jbelow
+            dqbelow = 1.0_8 - dqabove
+            c_local_object_part(m)%surface_charge(jbelow) = c_local_object_part(m)%surface_charge(jbelow) + dqbelow   ! note the plus. remember ::
+            c_local_object_part(m)%surface_charge(jabove) = c_local_object_part(m)%surface_charge(jabove) + dqabove   ! we subtract electron charge, it's negative
+         END IF
       
+      ELSE IF (dirflag.EQ.2) THEN
+!  collision with the wall above
+         x_new = x
+         y_new = DBLE(c_indx_y_max) - 1.0d-6 
+         vx_new =  v_maxwell_1 * factor_convert + vx_drift
+         vy_new = -v_half_maxwell * factor_convert + vy_drift
+         vz_new = v_maxwell_2 * factor_convert + vz_drift
+         tag_new = myobject%object_id_number
+
+         IF (myobject%object_type.EQ.DIELECTRIC) THEN
+! update the surface charge
+            ileft = MAX(INT(x), c_local_object_part(m)%istart)
+            iright = MIN(ileft + 1, c_local_object_part(m)%iend)
+            dqright = x - ileft
+            dqleft = 1.0_8 - dqright
+            c_local_object_part(m)%surface_charge(ileft) = c_local_object_part(m)%surface_charge(ileft)   + dqleft
+            c_local_object_part(m)%surface_charge(iright) = c_local_object_part(m)%surface_charge(iright) + dqright
+         END IF
+
+      ELSE IF (dirflag.EQ.3) THEN
+! collision with the wall on the right
+         x_new = DBLE(c_indx_x_max) - 1.0d-6
+         y_new = y
+         vx_new = -v_half_maxwell * factor_convert + vx_drift
+         vy_new = v_maxwell_1 * factor_convert + vy_drift
+         vz_new = v_maxwell_2 * factor_convert + vz_drift
+         tag_new = myobject%object_id_number
+
+         IF (myobject%object_type.EQ.DIELECTRIC) THEN
+! update the surface charge
+            jbelow = MAX(INT(y), c_local_object_part(m)%jstart)
+            jabove = MIN(jbelow + 1, c_local_object_part(m)%jend)
+            dqabove = y - jbelow
+            dqbelow = 1.0_8 - dqabove
+            c_local_object_part(m)%surface_charge(jbelow) = c_local_object_part(m)%surface_charge(jbelow) + dqbelow   ! note the plus. remember ::
+            c_local_object_part(m)%surface_charge(jabove) = c_local_object_part(m)%surface_charge(jabove) + dqabove   ! we subtract electron charge, it's negative
+         END IF
+
+      ELSE IF (dirflag.EQ.4) THEN
+! collision with the wall below
+         x_new = x
+         y_new = DBLE(c_indx_y_min) + 1.0d-6 
+         vx_new = v_maxwell_1 * factor_convert + vx_drift
+         vy_new = v_half_maxwell * factor_convert + vy_drift
+         vz_new = v_maxwell_2 * factor_convert + vz_drift
+         tag_new = myobject%object_id_number
+
+         IF (myobject%object_type.EQ.DIELECTRIC) THEN
+! update the surface charge
+            ileft = MAX(INT(x), c_local_object_part(m)%istart)
+            iright = MIN(ileft + 1, c_local_object_part(m)%iend)
+            dqright = x - ileft
+            dqleft = 1.0_8 - dqright
+            c_local_object_part(m)%surface_charge(ileft) = c_local_object_part(m)%surface_charge(ileft)   + dqleft
+            c_local_object_part(m)%surface_charge(iright) = c_local_object_part(m)%surface_charge(iright) + dqright
+         END IF
+
+      END IF      ! IF (dirflag.EQ.1) THEN
+
+
      END IF    ! IF (myobject%Elast_refl_type.EQ.0) THEN
 
   ELSE
@@ -459,7 +576,7 @@ SUBROUTINE INJECT_ELASTIC_REFLECTED_ELECTRON(x, y, vx, vy, vz, v, tag, myobject,
 
         END IF   ! IF (dirflag.EQ.1) THEN
 
-     ELSE                             ! if elastic reflection occurs at a random angle
+     ELSE IF (myobject%Elast_refl_type==1) THEN                             ! if elastic reflection occurs at a random angle
 
 ! get the angles of reflection, you have to choose between the following:
 
@@ -545,7 +662,112 @@ SUBROUTINE INJECT_ELASTIC_REFLECTED_ELECTRON(x, y, vx, vy, vz, v, tag, myobject,
            END IF
 
         END IF      ! IF (dirflag.EQ.1) THEN
-      
+
+      ELSE IF ( myobject%Elast_refl_type==2) THEN ! thermalization
+
+      ! Prepare for possible electron drifts 
+         myBx_T = B_scale_T * Bx(x, y)
+         myBy_T = B_scale_T * By(x, y)
+         myBz_T = B_scale_T * Bz(x, y)
+   
+         myB2 = (myBx_T**2 + myBy_T**2 + myBz_T**2) * V_scale_ms
+   
+         IF (myB2.GT.0.0_8) THEN
+         ! account possible ExB drifts for electrons
+            myEz_Vm = E_scale_Vm * Ez(x, y)
+            vx_drift = ( myEy_Vm * myBz_T - myEz_Vm * myBy_T) / myB2
+            vy_drift = ( myEz_Vm * myBx_T) / myB2
+            vz_drift = (-myEy_Vm * myBx_T) / myB2
+         ELSE
+            vx_drift = 0.0_8
+            vy_drift = 0.0_8
+            vz_drift = 0.0_8
+         END IF
+   
+         ! Set temperature of Maxwellian: as at t = 0
+         factor_convert = SQRT(init_Te_eV / T_e_eV) / N_max_vel
+   
+         ! Prepare velocity reset 
+         CALL GetMaxwellVelocity(v_maxwell_1)
+         CALL GetMaxwellVelocity(v_maxwell_2)
+         CALL GetInjMaxwellVelocity(v_half_maxwell)          
+
+         IF (dirflag.EQ.1) THEN
+            ! collision with the wall on the left
+            x_new = myobject%xmax + 1.0d-6
+            y_new = y
+            vx_new = v_half_maxwell * factor_convert + vx_drift
+            vy_new = v_maxwell_1 * factor_convert + vy_drift
+            vz_new = v_maxwell_2 * factor_convert + vz_drift
+            tag_new = myobject%object_id_number
+
+            IF (myobject%object_type.EQ.DIELECTRIC) THEN
+               ! update the surface charge
+               i = MIN(INT(myobject%ymax - y) + i_right_top, i_right_bottom - 1)
+               dqi = y - INT(y)
+               dqip1 = 1.0_8 - dqi
+               myobject%surface_charge_variation(i)   = myobject%surface_charge_variation(i)   + dqi     ! note the plus. remember ::
+               myobject%surface_charge_variation(i+1) = myobject%surface_charge_variation(i+1) + dqip1   ! we subtract electron charge, it's negative
+            END IF
+         
+         ELSE IF (dirflag.EQ.2) THEN
+            !  collision with the wall above
+            x_new = x
+            y_new = myobject%ymin - 1.0d-6 
+            vx_new =  v_maxwell_1 * factor_convert + vx_drift
+            vy_new = -v_half_maxwell * factor_convert + vy_drift
+            vz_new = v_maxwell_2 * factor_convert + vz_drift
+            tag_new = myobject%object_id_number
+
+            IF (myobject%object_type.EQ.DIELECTRIC) THEN
+               ! update the surface charge
+               i = MIN(INT(myobject%xmax - x) + i_right_bottom, i_left_bottom_bis)
+               dqi = x - INT(x)
+               dqip1 = 1.0_8 - dqi
+               ip1 = i+1
+               IF (i.EQ.i_left_bottom_bis) ip1 = 1
+               myobject%surface_charge_variation(i)   = myobject%surface_charge_variation(i)   + dqi
+               myobject%surface_charge_variation(ip1) = myobject%surface_charge_variation(ip1) + dqip1
+            END IF
+
+         ELSE IF (dirflag.EQ.3) THEN
+            ! collision with the wall on the right
+            x_new = myobject%xmin - 1.0d-6
+            y_new = y
+            vx_new = -v_half_maxwell * factor_convert + vx_drift
+            vy_new = v_maxwell_1 * factor_convert + vy_drift
+            vz_new = v_maxwell_2 * factor_convert + vz_drift
+            tag_new = myobject%object_id_number
+
+            IF (myobject%object_type.EQ.DIELECTRIC) THEN
+               ! update the surface charge
+               i = MIN(INT(y - myobject%ymin) + 1, i_left_top - 1)
+               dqip1 = y - INT(y)
+               dqi = 1.0_8 - dqip1
+               myobject%surface_charge_variation(i)   = myobject%surface_charge_variation(i)   + dqi
+               myobject%surface_charge_variation(i+1) = myobject%surface_charge_variation(i+1) + dqip1
+            END IF
+
+         ELSE IF (dirflag.EQ.4) THEN
+            ! collision with the wall below
+            x_new = x
+            y_new = myobject%ymax + 1.0d-6 
+            vx_new = v_maxwell_1 * factor_convert + vx_drift
+            vy_new = v_half_maxwell * factor_convert + vy_drift
+            vz_new = v_maxwell_2 * factor_convert + vz_drift
+            tag_new = myobject%object_id_number
+
+            IF (myobject%object_type.EQ.DIELECTRIC) THEN
+               ! update the surface charge
+               i = MIN(INT(x - myobject%xmin) + i_left_top, i_right_top - 1)
+               dqip1 = x - INT(x)
+               dqi = 1.0_8 - dqip1
+               myobject%surface_charge_variation(i)   = myobject%surface_charge_variation(i)   + dqi
+               myobject%surface_charge_variation(i+1) = myobject%surface_charge_variation(i+1) + dqip1
+            END IF
+
+         END IF      ! IF (dirflag.EQ.1) THEN
+
      END IF    ! IF (myobject%Elast_refl_type.EQ.0) THEN
 
   END IF   ! IF (m.GT.0) THEN
