@@ -6,7 +6,8 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
   USE ExternalFields
   USE CurrentProblemValues, ONLY : E_scale_Vm, B_scale_T, delta_x_m, global_maximal_j, pi, mu_0_Hm, i_cylindrical,string_length
   USE IonParticles, ONLY : ions_sense_magnetic_field, ions_sense_EZ
-  USE mod_print, ONLY: print_parser_error
+  USE mod_print, ONLY: print_parser_error, print_message
+  USE MCCollisions, ONLY: i_neutral_profile ! not great to put some neutral profiles here but it is faster for now. 
 
   IMPLICIT NONE
 
@@ -198,6 +199,7 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
   ! Implement magnetic field for ECR simulation if file is present. Needs to be merged with other input files at some point
   i_mag_profile = 0 ! by default 
+  i_neutral_profile = 0 ! by default 
   INQUIRE (FILE = 'init_ecr_model.dat', EXIST = exists)
   IF (exists) THEN
       IF ( Rank_of_process==0 ) PRINT *,'init_ecr_model.dat found.'
@@ -225,17 +227,46 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
             ELSE
                IF ( Rank_of_process==0 ) PRINT *,'Cannot find an exising implementation for the magnetic profile. &
                                                 I expect "gaussian_profile_x" or "double_uniform_y". &
-                                                Received:',TRIM(long_buf) 
+                                                Received:',TRIM(chaval) 
                STOP              
             END IF
+            EXIT
          END IF
-
-         !!! Now I can compute Bext approprietely 
-
       END DO
       IF ( i_found==0 ) THEN
          IF ( Rank_of_process==0 ) PRINT*,'magnetic_field_profile no present. I assume we do not want it'
       END IF    
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="neutral_profile" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,chaval
+            
+            ! Compare requested profile with what is implemented
+            IF ( TRIM(chaval)=="gradient_aperture_1" ) THEN 
+               i_neutral_profile = 1
+               ! Print message and inform user
+               WRITE( message, '(A)'), "ECR project: neutral profile is gradient_aperture_1"//achar(10)
+            ELSE
+               WRITE( message, '(A,A,A)'), "ECR project: selected neutral profile is incorrect. Expected: 'gradient_aperture_1'. Received: ",TRIM(chaval),ACHAR(10)
+               CALL print_parser_error(message)            
+            END IF
+            CALL print_message( message )
+            EXIT
+         END IF
+
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "neutral_profile keyword not present. I assume it is uniform"
+         CALL print_message( message )    
+      END IF      
+
+      CLOSE (9, STATUS = 'KEEP')    
    END IF  
 
 END SUBROUTINE PREPARE_EXTERNAL_FIELDS

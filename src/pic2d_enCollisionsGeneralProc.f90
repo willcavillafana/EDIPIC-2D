@@ -852,13 +852,30 @@ END SUBROUTINE SAVE_en_COLLISIONS
 REAL(8) FUNCTION neutral_density_normalized(n, x, y)
 
 !  USE CurrentProblemValues, ONLY : N_cells, delta_x_m
+   USE MCCollisions, ONLY: i_neutral_profile
 
-  IMPLICIT NONE
+   IMPLICIT NONE
 
-  INTEGER n
-  REAL(8) x, y
-  
-  neutral_density_normalized  = 1.0_8  ! use this in case of uniform neutral density 
+   INTEGER n
+   REAL(8) x, y
+   REAL(8) :: slope, intersect
+   
+   neutral_density_normalized  = 1.0_8  ! use this in case of uniform neutral density 
+
+   IF ( i_neutral_profile==1 ) THEN
+      
+      ! in aperture and below
+      IF ( y< DBLE(677) .AND.y>DBLE(670) ) THEN
+         
+         ! Linear gradient
+         slope = (1.0_8-0.10_8)/(DBLE(677)-DBLE(670))
+         intersect = 1.0_8-slope*DBLE(677)
+
+         neutral_density_normalized = MAX(0.10_8,slope*y+intersect)
+      END IF
+   
+   END IF
+      
 
 END FUNCTION
 

@@ -1075,6 +1075,8 @@ MODULE MCCollisions
 
   INTEGER N_neutral_spec
 
+  INTEGER :: i_neutral_profile ! For ECR project. Selects predefined neutral profiles
+
   TYPE collision_type
      LOGICAL activated
      INTEGER type
