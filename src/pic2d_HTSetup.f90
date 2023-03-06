@@ -197,6 +197,91 @@ SUBROUTINE PREPARE_HT_SETUP_VALUES
 
 END SUBROUTINE PREPARE_HT_SETUP_VALUES
 
+SUBROUTINE PREPARE_ECR_SETUP_VALUES
+
+   USE SetupValues
+   USE ParallelOperationValues
+   USE CurrentProblemValues
+   USE IonParticles
+   USE ClusterAndItsBoundaries
+ 
+   IMPLICIT NONE
+ 
+   LOGICAl exists
+   
+   CHARACTER(1) buf 
+ 
+ 
+   REAL(8) T_inj_eV
+   REAL(8) :: T_inj_i_eV ! temperature of injected ions
+   REAL(8) T_ion_e_eV
+   REAL(8) T_ion_i_eV
+ 
+   INTEGER ALLOC_ERR
+ 
+   INTEGER s, j
+ 
+ 
+   use_ecr_injection = 0
+   total_cathode_N_e_to_inject = 0
+ 
+   INQUIRE (FILE = 'init_setup_ecr.dat', EXIST = exists)
+ 
+   IF (exists) THEN
+ 
+      IF (Rank_of_process.EQ.0) THEN
+         PRINT '(2x,"Process ",i5," : init_setup_ecr.dat is found. Reading the data file...")', Rank_of_process
+      END IF
+ 
+      OPEN (9, FILE = 'init_setup_ecr.dat')
+ 
+      READ (9, '(A1)') buf !"NOTE::")')
+      READ (9, '(A1)') buf !"Injection of ion-electron pairs for ECR setup"
+      READ (9, '(A1)') buf !"Injection at top boundary into domain
+      READ (9, '(A1)') buf !"or at the neighbor nodes of the cathode [one cell from the cathode]")')
+ 
+      READ (9, '(A1)') buf !"------d--------- "Do I want injection of e-/i pairs (0/1 = OFF/ON)"
+      READ (9, '(6x,i1)') use_ecr_injection
+      READ (9, '(A1)') buf !"---dddd--------- number of macroparticles to be injected each timestep for constant injection [dim-less]")')
+      READ (9, '(3x,i4)') N_macro_constant_injection
+      READ (9, '(A1)') buf !"---dddd.ddd----- y-coordinate of the emission plane [mm]")')
+      READ (9, '(3x,f8.3)') injection_y_ecr      
+      READ (9, '(A1)') buf !"---dddd.ddd----- temperature of electron emission [eV]")')
+      READ (9, '(3x,f8.3)') T_inj_eV
+      READ (9, '(A1)') buf !"---dddd.ddd----- temperature of ion emission [eV]")')
+      READ (9, '(3x,f8.3)') T_inj_i_eV      
+ 
+      CLOSE (9, STATUS = 'KEEP')
+ 
+   ELSE
+      
+      IF (Rank_of_process.EQ.0) THEN
+         PRINT '(2x,"Process ",i5," : WARNING : init_setup_ecr.dat not found. Default setup assumed")', Rank_of_process
+      END IF
+ 
+      RETURN
+ 
+   END IF
+  
+! place grid in such a way that it is not exactly on any boundary
+   grid_j = MAX(1, MIN(INT(injection_y_ecr * 0.001_8 / delta_x_m), global_maximal_j-1))
+
+   IF ((injection_y_ecr * 0.001_8).LT.(global_maximal_j * delta_x_m)) THEN
+      injection_y_ecr = DBLE(grid_j)
+      ecr_injection_inside = .TRUE.
+      IF (Rank_of_process.EQ.0) PRINT '(2x,"Injection ECR inside: y_inj=",f12.9," [mm]")',injection_y_ecr*delta_x_m/0.001_8
+   ELSE
+      injection_y_ecr = DBLE(global_maximal_j)-1.0d-6
+      ecr_injection_inside = .FALSE.
+      IF (Rank_of_process.EQ.0) PRINT '(2x,"Injection ECR at BC: y_inj=",f12.9," [mm]")',injection_y_ecr*delta_x_m/0.001_8
+   END IF
+
+ ! prepare velocity conversion factors
+   factor_convert_vinj = SQRT(T_inj_eV / T_e_eV) / N_max_vel
+   factor_convert_vinj_i = SQRT(T_inj_i_eV / T_e_eV) / (N_max_vel*SQRT(Ms(1))) ! One species for now. 
+ 
+ END SUBROUTINE PREPARE_ECR_SETUP_VALUES
+
 !-------------------------------------------------------------------------------------------
 ! Prepares the tabulated values of integral of the ionization rate distribution function
 ! is called only by cluster masters
@@ -606,6 +691,163 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_HT_SETUP
 !print '("process ",i4," of cluster ",i4," emitted ",i5," electrons from top boundary")', Rank_of_process, particle_master, add_N_e_to_emit
 
 END SUBROUTINE PERFORM_ELECTRON_EMISSION_HT_SETUP
+
+SUBROUTINE PERFORM_PLASMA_EMISSION_ECR_SETUP
+
+   USE ParallelOperationValues
+   USE CurrentProblemValues
+   USE ClusterAndItsBoundaries
+   USE SetupValues
+ 
+   USE rng_wrapper
+ 
+   IMPLICIT NONE
+ 
+   INCLUDE 'mpif.h'
+ 
+   INTEGER ierr
+ 
+   INTEGER, ALLOCATABLE :: ibufer(:)
+   INTEGER ALLOC_ERR
+ 
+   INTEGER add_N_e_to_emit
+   INTEGER n, m, nwo, N_plus, N_minus
+ 
+   REAL(8) x, y, vx, vy, vz
+   INTEGER tag
+   REAL(8) ::  x_ion, vx_ion, vy_ion, vz_ion !!! for ions
+   INTEGER :: s !!! number of ion species
+
+   !!! Check if I need to be here. Is it active
+   
+   IF ( use_ecr_injection==0 ) RETURN
+   s = 1 ! only one for now
+ 
+ 
+   add_N_e_to_emit = 0 ! This is for the e-/i pair
+ 
+   ALLOCATE(ibufer(1:N_of_boundary_objects), STAT = ALLOC_ERR)
+ 
+   IF ((cluster_rank_key.EQ.0).AND.(c_N_of_local_object_parts.GT.0)) THEN
+ 
+ ! define number of additionally injected particles (zero-rank process of COMM_BOUNDARY communicator)
+ ! note that everywhere it is assuemed that this process also has zero rank in MPI_COMM_WORLD
+ ! this may become a potential source of errors if the configuration will be such that this process will not be on a boundary 
+ 
+      IF (Rank_of_process.EQ.0) THEN
+         ibufer = 0
+ 
+         !!! Top boundary is where I inject. Account for subcylcing 
+         ibufer(2) = N_macro_constant_injection*N_subcycles
+ 
+         total_cathode_N_e_injected = ibufer(2)                               ! save for diagnostics
+ 
+      END IF
+ 
+ ! send all boundary cluster master processes info about the number of additionally injected particles for each boundary object
+      CALL MPI_BCAST(ibufer, N_of_boundary_objects, MPI_INTEGER, 0, COMM_BOUNDARY, ierr)
+ 
+ ! the master process determines how many additional particles it has to inject
+      DO n = 1, c_N_of_local_object_parts_above
+         m = c_index_of_local_object_part_above(n)
+ 
+         nwo = c_local_object_part(m)%object_number
+ 
+         IF (nwo.EQ.2) THEN
+ ! we are here if the cluster has a segment of the boundary object that will perform emission (hardwared object #2 now)
+ ! below it is assumed that object #2 has a shape of a straight line
+            N_plus = INT(ibufer(2) * REAL( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - whole_object(nwo)%segment(1)%istart ) / REAL(whole_object(nwo)%L))
+            IF (c_local_object_part(m)%iend.EQ.global_maximal_i) N_plus = ibufer(2)
+ 
+            N_minus = INT(ibufer(2) * REAL( MIN(c_local_object_part(m)%istart, c_indx_x_min) - whole_object(nwo)%segment(1)%istart ) / REAL(whole_object(nwo)%L))
+ 
+ ! we use N_plus and N_minus to guarantee that the sum of all emitted particles is always ibufer(2)
+            add_N_e_to_emit = N_plus - N_minus
+ 
+ !print '("Cluster ",i4," will emit ",i5," electrons")', Rank_of_process, add_N_e_to_emit
+ 
+         END IF
+      END DO
+ 
+   END IF
+ 
+   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+ 
+ ! all processes in each cluster receive proper value of add_N_e_to_emit
+ 
+   ibufer(1) = add_N_e_to_emit
+   CALL MPI_BCAST(ibufer(1:1), 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
+   add_N_e_to_emit = ibufer(1)
+ 
+   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+ 
+ ! clusters that do not have to inject any additional particles may leave
+ 
+   IF (add_N_e_to_emit.EQ.0) RETURN
+ 
+ ! produce particles to be emitted and place them into the add list
+ 
+ ! calculate number of particles to be emitted in each process of the cluster
+ !     temp = add_N_e_to_emit / N_processes_cluster
+   IF (Rank_cluster.EQ.N_processes_cluster-1) THEN
+      add_N_e_to_emit = add_N_e_to_emit - (N_processes_cluster-1) * (add_N_e_to_emit / N_processes_cluster) !temp
+   ELSE
+      add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster !temp
+   END IF
+ 
+   DO n = 1, add_N_e_to_emit
+ 
+      x = DBLE(c_indx_x_min) + well_random_number() * DBLE(c_indx_x_max-1-c_indx_x_min)
+      x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+      ! x = MIN(x,DBLE(390))
+      x_ion = DBLE(c_indx_x_min) + well_random_number() * DBLE(c_indx_x_max-1-c_indx_x_min)
+      x_ion = MIN(MAX(x_ion, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))    
+      ! x_ion = MIN(x_ion,DBLE(390))  
+ !###     y = DBLE(c_indx_y_max)-1.0d-6
+ 
+      y = injection_y_ecr
+ 
+ !     y = DBLE(c_indx_y_min + 1*(c_indx_y_max-c_indx_y_min)/3)   ! 3/4 does not work
+ 
+      !!! Electrons
+      CALL GetMaxwellVelocity(vx)
+      vx = vx * factor_convert_vinj  !###0.0_8
+      CALL GetMaxwellVelocity(vz)
+      vz = vz * factor_convert_vinj
+      ! Injection at emission line (BC normally)
+      IF (ecr_injection_inside) THEN 
+         CALL GetMaxwellVelocity(vy)
+         vy = vy * factor_convert_vinj
+      ELSE
+         CALL GetInjMaxwellVelocity(vy)
+         vy = -vy * factor_convert_vinj
+      END IF      
+
+      !!! Ions
+      CALL GetMaxwellVelocity(vx_ion)
+      vx_ion = vx_ion * factor_convert_vinj_i  !###0.0_8
+      CALL GetMaxwellVelocity(vz_ion)
+      vz_ion = vz_ion * factor_convert_vinj_i
+      ! Injection at emission line (BC normally)
+      IF (ecr_injection_inside) THEN 
+         CALL GetMaxwellVelocity(vy_ion)
+         vy_ion = vy_ion * factor_convert_vinj_i
+      ELSE
+         CALL GetInjMaxwellVelocity(vy_ion)
+         vy_ion = -vy_ion * factor_convert_vinj_i
+      END IF 
+ 
+ !???###      vy = vy * factor_convert_vinj !SQRT(T_inj_eV / T_e_eV)   ?????????????
+ 
+      tag = 0
+ 
+      CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+      CALL ADD_ION_TO_ADD_LIST(s, x_ion, y, vx_ion, vy_ion, vz_ion, tag)
+   END DO
+ 
+ !print '("process ",i4," of cluster ",i4," emitted ",i5," electrons from top boundary")', Rank_of_process, particle_master, add_N_e_to_emit
+ 
+ END SUBROUTINE PERFORM_PLASMA_EMISSION_ECR_SETUP
 
 !-------------------------------------------------
 !

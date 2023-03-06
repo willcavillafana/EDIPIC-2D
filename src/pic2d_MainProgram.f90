@@ -338,8 +338,9 @@ PROGRAM MainProg
 
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
+        CALL PERFORM_PLASMA_EMISSION_ECR_SETUP ! This is for the ECR configuration
 !###        CALL PERFORM_IONIZATION_HT_SETUP
-!        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+       CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
         CALL end_timer( compute_mcc_timer )
         CALL start_timer( add_ions_after_collisions_timer ) 
         !t14 = MPI_WTIME()

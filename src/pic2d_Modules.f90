@@ -396,6 +396,7 @@ MODULE CurrentProblemValues
 
      LOGICAL reflects_all_ions        ! switches on/off reflection of all ions (presently specular)
      LOGICAL ion_induced_EE_enabled   ! switches on/off electron emission caused by ions hitting the wall
+     LOGICAL :: ion_thermalization    ! switches on/off thermalization of ions based on initial temperature
 
      REAL(8), ALLOCATABLE :: setD_ii_ee_true(:)                    ! the coefficient (ratio of emitted to incident electrons)
      REAL(8), ALLOCATABLE :: minE_ii_ee_true(:)                    ! LOWER energy boundary, [dimensionless] 
@@ -1006,10 +1007,12 @@ MODULE SetupValues
   LOGICAL ht_grid_requested
   LOGICAL ht_soft_grid_requested
   LOGICAL ht_injection_inside
+  LOGICAL :: ecr_injection_inside
   LOGICAL ht_use_ionization_source
 
   INTEGER N_macro_constant_injection
   REAL(8) injection_y
+  REAL(8) :: injection_y_ecr
   INTEGER grid_j
   REAL(8) F_grid
 
@@ -1033,8 +1036,10 @@ MODULE SetupValues
   REAL(8) yi(0:c_R_max)
 
   REAL(8) factor_convert_vinj                       ! velocity conversion factors, injected electrons
+  REAL(8) :: factor_convert_vinj_i                       ! velocity conversion factors, injected ions. One species for now
   REAL(8) factor_convert_vion_e                     ! ionization electrons
   REAL(8), ALLOCATABLE ::  factor_convert_vion_i(:) !########(1:N_spec)  ! ionization ions
+  INTEGER :: use_ecr_injection ! 0=off, 1=ON (e-i injection pair)
 
 END MODULE SetupValues
 
