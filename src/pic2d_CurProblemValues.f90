@@ -1097,6 +1097,7 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
   CALL PREPARE_HT_SETUP_VALUES                ! <<<<<<<< SETUP <<<<<<<<< additional processes are here <<<<<<<<<<<<
+  CALL PREPARE_ECR_SETUP_VALUES                ! <<<<<<<< SETUP <<<<<<<<< additional processes are here <<<<<<<<<<<<
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
