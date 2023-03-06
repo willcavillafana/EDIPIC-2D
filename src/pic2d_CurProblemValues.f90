@@ -2793,6 +2793,7 @@ SUBROUTINE SET_COMMUNICATIONS
   USE ParallelOperationValues
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
+  USE mod_print, ONLY: print_debug
 
   IMPLICIT NONE
 
@@ -2810,6 +2811,14 @@ SUBROUTINE SET_COMMUNICATIONS
   INTEGER, ALLOCATABLE :: horizontal_rank_in_cluster_level_below(:)
 
   INTEGER ibufer(8)
+
+  INTEGER :: local_debug_level
+  CHARACTER(LEN=string_length) :: routine
+
+
+  local_debug_level = 3  
+  routine = 'SET_COMMUNICATIONS'
+  CALL print_debug(routine,local_debug_level)
 
   CALL MPI_COMM_SPLIT(MPI_COMM_WORLD, particle_master, cluster_rank_key, COMM_CLUSTER, ierr)
   CALL MPI_COMM_RANK(COMM_CLUSTER, Rank_cluster, ierr)
@@ -3049,9 +3058,11 @@ SUBROUTINE SET_COMMUNICATIONS
 !  Rank_of_master_above   ! Rank_of_master_* are used in particle advance procedure to distinguish between
 !  Rank_of_master_below   ! wall/no wall situations and properly place escaping particles 
 !                         ! even when no horizontal neighbors at the level of th eprocess are available
-  
-print '("Process ",i4," particle_master ",i4," Rank_cluster ",i4," Rank_horizontal ",i4," neighbor horizontal ranks [L/R/A/B] ",4(2x,i4))', &
+
+   IF (debug_level>=local_debug_level) THEN
+      print '("Process ",i4," particle_master ",i4," Rank_cluster ",i4," Rank_horizontal ",i4," neighbor horizontal ranks [L/R/A/B] ",4(2x,i4))', &
      & Rank_of_process, particle_master, Rank_cluster, Rank_horizontal, Rank_horizontal_left, Rank_horizontal_right, Rank_horizontal_above, Rank_horizontal_below
+   END IF
 
 END SUBROUTINE SET_COMMUNICATIONS
 

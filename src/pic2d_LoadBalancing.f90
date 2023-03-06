@@ -6,9 +6,10 @@ SUBROUTINE GLOBAL_LOAD_BALANCE
   USE LoadBalancing
   USE ElectronParticles
   USE IonParticles
-  USE CurrentProblemValues, ONLY : N_subcycles
+  USE CurrentProblemValues, ONLY : N_subcycles, string_length, T_cntr, debug_level
 
   USE ClusterAndItsBoundaries
+  USE mod_print, ONLY: print_output  
  
   IMPLICIT NONE
 
@@ -51,7 +52,11 @@ SUBROUTINE GLOBAL_LOAD_BALANCE
 
 !  INTEGER ibufer(0:N_spec)
   INTEGER sum_N_part_to_send
+  
+  INTEGER :: local_debug_level
+  CHARACTER(LEN=string_length) :: message  
 
+  local_debug_level = 2
 ! collect number of particles from all processes in a cluster
   eff_N_particles = 0
   DO s = 1, N_spec
@@ -78,6 +83,11 @@ SUBROUTINE GLOBAL_LOAD_BALANCE
   CALL MPI_BCAST(N_of_all_free_processes, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
 
   IF (N_of_all_free_processes.EQ.0) RETURN   !########### cancel balancing ###########
+
+  WRITE(message,'(A)') " "
+  CALL print_output(message)     
+  WRITE(message,'(T4,A,I8,A)') "Load balancing between and within clusters at time step ",T_cntr,achar(10)
+  CALL print_output(message)     
 
   ALLOCATE(new_particle_masters(1:N_processes_cluster-1), STAT=ALLOC_ERR)
 
@@ -241,7 +251,7 @@ SUBROUTINE GLOBAL_LOAD_BALANCE
      CALL MPI_BCAST(new_particle_masters, N_processes_cluster-1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
 ! check part of the message related to this process
 
-print '("MASTER MESSAGE :: Rank_of_process ",i4," Rank_cluster ",i4," particle_master old/new ",i4," / ",i4)', Rank_of_process, Rank_cluster, particle_master, new_particle_masters(Rank_cluster)  !#######
+     IF (debug_level>=local_debug_level) print '("MASTER MESSAGE :: Rank_of_process ",i4," Rank_cluster ",i4," particle_master old/new ",i4," / ",i4)', Rank_of_process, Rank_cluster, particle_master, new_particle_masters(Rank_cluster)  !#######
 
      IF (particle_master.NE.new_particle_masters(Rank_cluster)) THEN
 ! process will be released, send all particles to the master
@@ -329,7 +339,7 @@ print '("MASTER MESSAGE :: Rank_of_process ",i4," Rank_cluster ",i4," particle_m
   end do
   allocate(worldranks(clustergroup_size))
   call mpi_group_translate_ranks(clustergroup, clustergroup_size, clusterranks, worldgroup, worldranks, ierr)
-  print '(">>>>>>>>>>>",2x,i4,2x,i4,10(2x,i4))', Rank_of_process, clustergroup_size, worldranks
+  IF (debug_level>=local_debug_level +1 ) print '(">>>>>>>>>>>",2x,i4,2x,i4,10(2x,i4))', Rank_of_process, clustergroup_size, worldranks
   if (allocated(clusterranks)) deallocate(clusterranks)
   if (allocated(worldranks)) deallocate(worldranks)
   call mpi_group_free(clustergroup, ierr)
@@ -589,7 +599,7 @@ SUBROUTINE BALANCE_LOAD_WITHIN_CLUSTER
 
   WRITE(message,'(A)') " "
   CALL print_output(message)     
-  WRITE(message,'(T4,A,I8,A)') "Load balancing at time step ",T_cntr,achar(10)
+  WRITE(message,'(T4,A,I8,A)') "Load balancing within clusters at time step ",T_cntr,achar(10)
   CALL print_output(message)   
 
   IF (N_processes_cluster.LE.1) RETURN
