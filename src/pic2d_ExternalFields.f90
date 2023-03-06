@@ -24,7 +24,8 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
   INTEGER ALLOC_ERR
   INTEGER n
-  CHARACTER(LEN=string_length) :: message
+  CHARACTER(LEN=string_length) :: message, chaval,long_buf,line,separator
+  INTEGER :: i_found ! flag to decide if I found keyword or not.
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -195,6 +196,48 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
   END IF
 
+  ! Implement magnetic field for ECR simulation if file is present. Needs to be merged with other input files at some point
+  i_mag_profile = 0 ! by default 
+  INQUIRE (FILE = 'init_ecr_model.dat', EXIST = exists)
+  IF (exists) THEN
+      IF ( Rank_of_process==0 ) PRINT *,'init_ecr_model.dat found.'
+      OPEN (9, file='init_ecr_model.dat')
+      
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="magnetic_field_profile" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,chaval
+            
+            ! Compare requested profile with what is implemented
+            IF ( TRIM(chaval)=="gaussian_profile_x" ) THEN 
+               i_mag_profile = 1
+               ! Print message and inform user
+               IF ( Rank_of_process==0 ) PRINT *,'Magnetic profile for ECR is given by "gaussian_profile_x"'               
+            ELSE IF ( TRIM(chaval)=="double_uniform_y" ) THEN 
+               i_mag_profile = 2
+               ! Print message and inform user
+               IF ( Rank_of_process==0 ) PRINT *,'Magnetic profile for ECR is given by "double_uniform_y"'               
+            ELSE
+               IF ( Rank_of_process==0 ) PRINT *,'Cannot find an exising implementation for the magnetic profile. &
+                                                I expect "gaussian_profile_x" or "double_uniform_y". &
+                                                Received:',TRIM(long_buf) 
+               STOP              
+            END IF
+         END IF
+
+         !!! Now I can compute Bext approprietely 
+
+      END DO
+      IF ( i_found==0 ) THEN
+         IF ( Rank_of_process==0 ) PRINT*,'magnetic_field_profile no present. I assume we do not want it'
+      END IF    
+   END IF  
+
 END SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
 
@@ -253,7 +296,7 @@ END FUNCTION Bx
 REAL(8) FUNCTION By(x, y)
 
   USE ExternalFields
-  USE CurrentProblemValues, ONLY: i_cylindrical,two, zero, one, third
+  USE CurrentProblemValues, ONLY: i_cylindrical,two, zero, one, third, delta_x_m,B_scale_T
   USE carlson_elliptic_module, ONLY: drf, drd  
   USE ParallelOperationValues, ONLY: Rank_of_process
   IMPLICIT NONE
@@ -262,6 +305,7 @@ REAL(8) FUNCTION By(x, y)
   INTEGER n
   REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second
   INTEGER :: ierr
+  REAL(8) :: B0,coef_1  
 
   By = By_ext
 
@@ -290,6 +334,20 @@ REAL(8) FUNCTION By(x, y)
          By = By + C_const/(two*alpha_square*SQRT(beta_square)) * ( (a**2-rho**2-z**2)*elliptic_second + alpha_square*elliptic_first)
       END DO      
    END IF  
+
+  !! Check ECR cathode
+   IF ( i_mag_profile==1 .AND.i_cylindrical==0 ) THEN ! only for cartesian to have a divergence free field
+      B0 = 50e-4/B_scale_T
+      coef_1 = 1.76e+04 ! At Lx it is 1G
+      By = -B0*EXP(-coef_1*x**2)
+  ELSE IF ( i_mag_profile==2 ) THEN
+      IF ( y*delta_x_m > 2.5224e-2 ) THEN
+         B0 = -200e-4/B_scale_T
+      ELSE
+         B0 = -400e-4/B_scale_T
+      END IF
+      By = B0
+  END IF    
 
 END FUNCTION By
 

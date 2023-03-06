@@ -24,6 +24,9 @@ MODULE ExternalFields
   REAL(8), ALLOCATABLE :: JZwire_Y(:)    ! y-coordinate of the wire
   REAL(8), ALLOCATABLE :: JZwire_JZ(:)    ! JZ current in the wire
 
+  ! Parameter for ECR cathode
+  INTEGER :: i_mag_profile ! 0: off, 1 gaussian in x direction, 1 double direction in y direction
+
 END MODULE ExternalFields
 
 !------------------------------------
