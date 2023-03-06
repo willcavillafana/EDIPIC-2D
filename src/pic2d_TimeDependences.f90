@@ -48,6 +48,7 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
   INTEGER ALLOC_ERR
 
   INTEGER bufsize
+  INTEGER :: local_debug_level
 
   INTERFACE
      function convert_int_to_txt_string(int_number, length_of_string)
@@ -56,6 +57,8 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
        integer length_of_string
      end function convert_int_to_txt_string
   END INTERFACE
+
+  local_debug_level = 1
 
   INQUIRE (FILE = 'init_probes.dat', EXIST = exists)
 
@@ -329,7 +332,7 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
                 & Probe_position(2,npa) * delta_x_m * 1000.0_8
         END DO
         CLOSE (20, STATUS = 'KEEP')
-        PRINT '("Process ",i5," :: file ",A34," is ready")', Rank_of_process, clusterprobes_filename
+        IF (debug_level>=local_debug_level) PRINT '("Process ",i5," :: file ",A34," is ready")', Rank_of_process, clusterprobes_filename
 
      END IF
 

@@ -71,6 +71,7 @@ SUBROUTINE INITIATE_PARAMETERS
   USE Checkpoints
   USE SetupValues, ONLY : ht_grid_requested, F_grid, grid_j
   USE mod_print, ONLY: print_message, print_parser_error, print_warning
+  USE Snapshots, ONLY: work_dir_2d_map
 
   USE rng_wrapper
 
@@ -140,6 +141,9 @@ SUBROUTINE INITIATE_PARAMETERS
   end interface
   INTEGER convert_logical_to_int
 
+  INTEGER :: local_debug_level
+  local_debug_level = 2
+
   routine = "INITIATE_PARAMETERS"
 
 ! default values
@@ -155,6 +159,7 @@ SUBROUTINE INITIATE_PARAMETERS
   i_freeze_ions = 0 ! By default ions are moving
   i_cylindrical = 0 ! By default this is Cartesian
   debug_level = 0 ! By default I print nothing
+  work_dir_2d_map = './' ! Save 2D maps in current directory by default 
 
   INQUIRE (FILE = 'init_configuration.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -748,6 +753,11 @@ SUBROUTINE INITIATE_PARAMETERS
   ! Call other parameters in 'init_params.dat' file
   CALL read_flexible_parameters
 
+  ! In any case I create a folder to store all of this:
+  WRITE( message,'(A)') "2D maps will be saved in "//TRIM(work_dir_2d_map)//achar(10)
+  CALL print_message( message ) 
+  IF ( Rank_of_process==0 ) CALL system('mkdir -p '//TRIM(work_dir_2d_map))  
+
 ! save geometry of inner objects (note that we kttow delta_x_m now :)
 
   IF (Rank_of_process.EQ.0) THEN
@@ -1208,28 +1218,28 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
 
 ! initialize random numbers generators
      IF (Rank_of_process.EQ.0) THEN 
-        PRINT '(/2x,"Process ",i4," : Seed for well_random_seed: ",i12)', Rank_of_process, init_random_seed
+         IF (debug_level>=local_debug_level) PRINT '(/2x,"Process ",i4," : Seed for well_random_seed: ",i12)', Rank_of_process, init_random_seed
 
-        CALL well_random_seed(init_random_seed)
+         CALL well_random_seed(init_random_seed)
 
-        DO j = 1, 1000000
-           myran = well_random_number()
-        END DO
+         DO j = 1, 1000000
+            myran = well_random_number()
+         END DO
 
-        DO i = 1, N_of_processes - 1
-           itmp = INT(2000000000.0_8 * well_random_number())                       
-           CALL MPI_SEND(itmp, 1, MPI_INTEGER, i, 101, MPI_COMM_WORLD, ierr)
-        END DO
+         DO i = 1, N_of_processes - 1
+            itmp = INT(2000000000.0_8 * well_random_number())                       
+            CALL MPI_SEND(itmp, 1, MPI_INTEGER, i, 101, MPI_COMM_WORLD, ierr)
+         END DO
      ELSE
-        CALL MPI_RECV(init_random_seed, 1, MPI_INTEGER, 0, 101, MPI_COMM_WORLD, stattus, ierr)
+         CALL MPI_RECV(init_random_seed, 1, MPI_INTEGER, 0, 101, MPI_COMM_WORLD, stattus, ierr)
 
-        PRINT '(/2x,"Process ",i4," : Seed for well_random_seed: ",i12)', Rank_of_process, init_random_seed
+         IF (debug_level>=local_debug_level) PRINT '(/2x,"Process ",i4," : Seed for well_random_seed: ",i12)', Rank_of_process, init_random_seed
 
-        CALL well_random_seed(init_random_seed)
+         CALL well_random_seed(init_random_seed)
 
-        DO j = 1, 1000000
-           myran = well_random_number()
-        END DO
+         DO j = 1, 1000000
+            myran = well_random_number()
+         END DO
 
      END IF
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -1290,7 +1300,7 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
         WRITE (10, '(" ")')
      END DO
      CLOSE (10, STATUS = 'KEEP')
-     PRINT '("file ",A24," is ready")', BxBy_filename
+     IF (debug_level>=local_debug_level) PRINT '("file ",A24," is ready")', BxBy_filename
   END IF
 
 END SUBROUTINE INITIATE_PARAMETERS
@@ -1307,6 +1317,7 @@ SUBROUTINE read_flexible_parameters
    USE mod_print, ONLY: print_message, print_parser_error
    USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain
    USE IonParticles, ONLY: i_freeze_ions
+   USE Snapshots, ONLY: work_dir_2d_map
    
    IMPLICIT NONE
    INCLUDE 'mpif.h'
@@ -1355,7 +1366,7 @@ SUBROUTINE read_flexible_parameters
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "cylindrical_type keyword not present. I assume it is CARTESIAN"
+         WRITE( message,'(A)') "cylindrical_type keyword not present. I assume it is CARTESIAN"
          CALL print_message( message )       
       END IF    
 
@@ -1374,7 +1385,7 @@ SUBROUTINE read_flexible_parameters
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "Delta_z keyword not present. I assume we do not want it"
+         WRITE( message,'(A)') "Delta_z keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF          
 
@@ -1393,7 +1404,7 @@ SUBROUTINE read_flexible_parameters
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "Delta_r keyword not present. I assume we do not want it"
+         WRITE( message,'(A)') "Delta_r keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF          
 
@@ -1412,7 +1423,7 @@ SUBROUTINE read_flexible_parameters
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A,ES10.3,A)') "delta_x keyword not present. I assume we do not want it"
+         WRITE( message,'(A)') "delta_x keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF    
 
@@ -1432,11 +1443,7 @@ SUBROUTINE read_flexible_parameters
          END IF
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
-         CALL print_message( message,routine )         
-      END IF    
-      IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "Debug level is set to defaut value 0"//achar(10)
+         WRITE( message,'(A)') "Debug level is set to defaut value 0"
          CALL print_message( message,routine )         
       END IF 
 
@@ -1464,6 +1471,10 @@ SUBROUTINE read_flexible_parameters
             END IF
          END IF
       END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "freeze_ions keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF    
 
       i_found = 0
       REWIND(9)
@@ -1489,6 +1500,10 @@ SUBROUTINE read_flexible_parameters
             END IF
          END IF
       END DO      
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "i_no_poisson keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF          
 
       i_found = 0
       REWIND(9)
@@ -1513,12 +1528,38 @@ SUBROUTINE read_flexible_parameters
                CALL print_parser_error( message )
             END IF
          END IF
-      END DO        
+      END DO       
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "i_empty_domain keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF          
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="folder_save_2D" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            work_dir_2d_map = TRIM(caval)
+
+         END IF
+      END DO  
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "folder_save_2D keyword not present. I assume we do not want it. It will be saved in './'"
+         CALL print_message( message,routine )       
+      END IF                     
       
       CLOSE (9, STATUS = 'KEEP')
    END IF
 
- END SUBROUTINE       
+   WRITE( message,'(A)') achar(10)
+   CALL print_message( message )
+
+ END SUBROUTINE read_flexible_parameters       
 
 !--------------------------------------------------------
 INTEGER FUNCTION convert_logical_to_int(logvar)
@@ -1551,6 +1592,8 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
   
   character(20) boxproc_filename ! master_proc_NNNN.dat
   integer devid  ! id of device for writing the file
+
+  INTEGER :: local_debug_level
   interface
      function convert_int_to_txt_string(int_number, length_of_string)
        character*(length_of_string) convert_int_to_txt_string
@@ -1559,6 +1602,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
      end function convert_int_to_txt_string
   end interface
 
+  local_debug_level = 1
 ! moved to INITIATE_PARAMETERS
 !  c_row    = 1 + (block_row  - 1) / cluster_N_blocks_y
 !  c_column = 1 + (block_column-1) / cluster_N_blocks_x
@@ -1645,10 +1689,10 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
      END IF
         
      IF (WHITE_CLUSTER) THEN
-        PRINT '("Process ",i4," : WHITE master ; cluster grid : row ",i4," column ",i4," ; neighbour masters : left ",i4," right ",i4," above ",i4," below ",i4)', &
+      IF (debug_level>=local_debug_level) PRINT '("Process ",i4," : WHITE master ; cluster grid : row ",i4," column ",i4," ; neighbour masters : left ",i4," right ",i4," above ",i4," below ",i4)', &
              & Rank_of_process, c_row, c_column, Rank_of_master_left, Rank_of_master_right, Rank_of_master_above, Rank_of_master_below
      ELSE
-        PRINT '("Process ",i4," : BLACK master ; cluster grid : row ",i4," column ",i4," ; neighbour masters : left ",i4," right ",i4," above ",i4," below ",i4)', &
+      IF (debug_level>=local_debug_level) PRINT '("Process ",i4," : BLACK master ; cluster grid : row ",i4," column ",i4," ; neighbour masters : left ",i4," right ",i4," above ",i4," below ",i4)', &
              & Rank_of_process, c_row, c_column, Rank_of_master_left, Rank_of_master_right, Rank_of_master_above, Rank_of_master_below
      END IF
      
@@ -1691,7 +1735,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
         write (devid, '(" ")')
      end do
      close (devid, status = 'keep')
-     print '("Master process ",i4," : SET_CLUSTER_STRUCTURE : file ",A20," is ready")', Rank_of_process, boxproc_filename
+     IF (debug_level>=local_debug_level) print '("Master process ",i4," : SET_CLUSTER_STRUCTURE : file ",A20," is ready")', Rank_of_process, boxproc_filename
      
 !### for setup with periodicity, the initial blocks are still used to parallelize calculation of charge density and electric field
 !### in addition, they parallelize the field solver, which is why the field_calculator structure is expanded at PREPARE_FFT_X ###
@@ -1706,7 +1750,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
      write (devid, '(3(2x,i5),2(2x,e14.7))') c_indx_x_max, c_indx_y_min, Rank_of_process, c_X_area_max * delta_x_m, c_Y_area_min * delta_x_m
      write (devid, '(3(2x,i5),2(2x,e14.7))') c_indx_x_min, c_indx_y_min, Rank_of_process, c_X_area_min * delta_x_m, c_Y_area_min * delta_x_m
      close (devid, status = 'keep')
-     print '("Master process ",i4," : SET_CLUSTER_STRUCTURE : file ",A20," is ready")', Rank_of_process, boxproc_filename
+     IF (debug_level>=local_debug_level) print '("Master process ",i4," : SET_CLUSTER_STRUCTURE : file ",A20," is ready")', Rank_of_process, boxproc_filename
 
   ELSE
 ! process is inside a cluster with c_row and c_column, but is not a master of this cluster
@@ -1727,7 +1771,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
                                              ! which is not a particle master to be used outside of COMM_CLUSTER
                                              ! this value never changes
 
-     PRINT '("Process ",i4," : NOT a master ; my field master : ",i4," with grid column ",i4," row ",i4," MY grid column ",i4," row ",i4)', &
+     IF (debug_level>=local_debug_level) PRINT '("Process ",i4," : NOT a master ; my field master : ",i4," with grid column ",i4," row ",i4," MY grid column ",i4," row ",i4)', &
           & Rank_of_process, field_master, m, n, block_column, block_row
 
   END IF
@@ -1807,6 +1851,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
 
   INTEGER ibufer(4)
 
+  INTEGER :: local_debug_level
+  local_debug_level = 1    
+
   IF (cluster_rank_key.NE.0) RETURN
 
 ! if there are inner objects, allocate permanent surface charge storage for dielectric inner objects
@@ -1842,7 +1889,7 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
        (Rank_of_master_right.GE.0).AND. &
        (Rank_of_master_below.GE.0).AND. &
        (Rank_of_master_above.GE.0) ) THEN
-     PRINT '(" Master process ",i4," is not connected to any boundary object")', Rank_of_process
+         IF (debug_level>=local_debug_level) PRINT '(" Master process ",i4," is not connected to any boundary object")', Rank_of_process
      RETURN
   END IF
 
@@ -2104,6 +2151,9 @@ SUBROUTINE INCLUDE_CLUSTER_PERIODICITY
   INTEGER ALLOC_ERR
   LOGICAL pair_found
   INTEGER ibufer(1:4)
+  INTEGER :: local_debug_level
+  
+  local_debug_level = 2    
   
 ! this subroutine will be called BEFORE first call of SET_COMMUNICATIONS
 ! therefore here we create temporary horizontal communicators which will be destroyed at the end
@@ -2228,10 +2278,10 @@ SUBROUTINE INCLUDE_CLUSTER_PERIODICITY
         END DO
 
 
-print '(4(2x,i4))', 0, all_periodic_messages(13:15,0)
+        IF (debug_level>=local_debug_level) print '(4(2x,i4))', 0, all_periodic_messages(13:15,0)
 ! send  information about periodicity pairs to each process
         DO n = 1, N_processes_horizontal-1
-print '(4(2x,i4))', n, all_periodic_messages(13:15,n)
+         IF (debug_level>=local_debug_level)print '(4(2x,i4))', n, all_periodic_messages(13:15,n)
            CALL MPI_SEND(all_periodic_messages(14:15,n), 2, MPI_INTEGER, n, Rank_horizontal, COMM_HORIZONTAL, request, ierr)        
         END DO
      
@@ -2288,7 +2338,7 @@ print '(4(2x,i4))', n, all_periodic_messages(13:15,n)
 
   END IF
 
-print '("Process ",i4," :: P.B. L/R/B/A :: ",4(1x,L1))', Rank_of_process, periodic_boundary_X_left, periodic_boundary_X_right, periodic_boundary_Y_below, periodic_boundary_Y_above
+  IF (debug_level>=local_debug_level) print '("Process ",i4," :: P.B. L/R/B/A :: ",4(1x,L1))', Rank_of_process, periodic_boundary_X_left, periodic_boundary_X_right, periodic_boundary_Y_below, periodic_boundary_Y_above
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
@@ -2629,6 +2679,8 @@ SUBROUTINE ANALYZE_CORNERS
   INTEGER n, m
 !  INTEGER jstart, jend, istart, iend
   INTEGER minimal_index, maximal_index
+  INTEGER :: local_debug_level
+  local_debug_level = 1    
 
   IF (cluster_rank_key.NE.0) RETURN
 
@@ -2643,11 +2695,11 @@ SUBROUTINE ANALYZE_CORNERS
        (Rank_of_master_right.GE.0).AND. &
        (Rank_of_master_below.GE.0).AND. &
        (Rank_of_master_above.GE.0) ) THEN
-     PRINT '(" Master process ",i4," is not connected to any boundary object")', Rank_of_process
+         IF (debug_level>=local_debug_level) PRINT '(" Master process ",i4," is not connected to any boundary object")', Rank_of_process
      IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN
         Rank_of_master_left = -1
         Rank_of_master_right = -1
-        PRINT '("ANALYZE_CORNERS :: master process ",i4," is periodically [X] connected to itself, ranks of left/right neighbors set to -1")', Rank_of_process
+        IF (debug_level>=local_debug_level) PRINT '("ANALYZE_CORNERS :: master process ",i4," is periodically [X] connected to itself, ranks of left/right neighbors set to -1")', Rank_of_process
      END IF
      RETURN
   END IF
@@ -2779,10 +2831,10 @@ SUBROUTINE ANALYZE_CORNERS
 ! reasonable values of the corner types just in case 
      Rank_of_master_left = -1
      Rank_of_master_right = -1
-     PRINT '("ANALYZE_CORNERS :: master process ",i4," is periodically [X] connected to itself, ranks of left/right neighbors set to -1")', Rank_of_process
+     IF (debug_level>=local_debug_level) PRINT '("ANALYZE_CORNERS :: master process ",i4," is periodically [X] connected to itself, ranks of left/right neighbors set to -1")', Rank_of_process
   END IF
 
-print '("ANALYZE_CORNERS :: proc ",i4," corners LT/RT/LB/RB ",4(1x,i3))', Rank_of_process, c_left_top_corner_type, c_right_top_corner_type, c_left_bottom_corner_type, c_right_bottom_corner_type
+  IF (debug_level>=local_debug_level) print '("ANALYZE_CORNERS :: proc ",i4," corners LT/RT/LB/RB ",4(1x,i3))', Rank_of_process, c_left_top_corner_type, c_right_top_corner_type, c_left_bottom_corner_type, c_right_bottom_corner_type
 
 END SUBROUTINE ANALYZE_CORNERS
 

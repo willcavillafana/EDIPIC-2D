@@ -879,6 +879,8 @@ END MODULE Diagnostics
 !
 MODULE Snapshots
 
+  USE CurrentProblemValues, ONLY: string_length
+
   INTEGER N_of_all_snaps                        ! number of all snapshots  
   INTEGER, ALLOCATABLE ::     Tcntr_snapshot(:)     ! timesteps when the snapshot files are written
   INTEGER, ALLOCATABLE :: save_evdf_snapshot(:)     ! flags controlling how evdf is saved
@@ -958,6 +960,8 @@ MODULE Snapshots
   INTEGER, PARAMETER :: ONLYelectronPP = 1
   INTEGER, PARAMETER :: ONLYionPP = 2
   INTEGER, PARAMETER :: BOTHelectronANDionPP = 3
+
+  CHARACTER(LEN=string_length) :: work_dir_2d_map  ! working directory for 2D maps (instantaneous and averaged)
 
   INTEGER N_pp_boxes
 

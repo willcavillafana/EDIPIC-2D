@@ -36,6 +36,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
   REAL(8) Coeff_SEE_Inelastic
   REAL(8) Coeff_SEE_True
   REAL(8) Coeff_ii_EE_True
+  INTEGER :: local_debug_level
 
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
@@ -44,6 +45,8 @@ SUBROUTINE PREPARE_WALL_MATERIALS
        INTEGER length_of_string
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
+
+  local_debug_level = 1
 
   routine = 'PREPARE_WALL_MATERIALS'
 
@@ -299,7 +302,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
              WRITE (20, '(5(2x,f10.4))') energy * energy_factor_eV, coef1 + coef2 + coef3, coef1, coef2, coef3
           END DO
           CLOSE (20, STATUS = 'KEEP')
-          PRINT '("### file ",A54," is ready ###")', bosee_filename
+          IF (debug_level>=local_debug_level) PRINT '("### file ",A54," is ready ###")', bosee_filename
        END DO
 
        DO n = 1, N_of_boundary_and_inner_objects
@@ -321,7 +324,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
              WRITE (20, '(11(2x,f10.4))') energy * energy_factor_eV, coefion(1:N_spec)   !### assume N_spec<=10
           END DO
           CLOSE (20, STATUS = 'KEEP')
-          PRINT '("### file ",A48," is ready ###")', boiiee_filename
+          IF (debug_level>=local_debug_level) PRINT '("### file ",A48," is ready ###")', boiiee_filename
        END DO
   END IF
 

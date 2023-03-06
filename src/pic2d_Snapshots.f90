@@ -1263,7 +1263,7 @@ SUBROUTINE SAVE_GLOBAL_2D_ARRAY(arr, filename)
   recleny(N_clusters_y) = recleny(N_clusters_y) + 1   ! include the top boundary point
 
   CALL MPI_FILE_OPEN( COMM_HORIZONTAL, &
-                    & filename,  &
+                    & TRIM(work_dir_2d_map)//'/'//filename,  &
                     & MPI_MODE_WRONLY + MPI_MODE_CREATE, & 
                     & MPI_INFO_NULL, &
                     & file_handle, &

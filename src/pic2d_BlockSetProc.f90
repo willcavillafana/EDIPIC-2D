@@ -25,6 +25,9 @@ SUBROUTINE IDENTIFY_BLOCK_NEIGHBOURS
      end function convert_int_to_txt_string
   end interface
 
+  INTEGER :: local_debug_level
+  local_debug_level = 2
+
 ! moved to INITIATE_PARAMETERS
 !  block_row    = 1 + Rank_of_process / N_blocks_x
 !  block_column = 1 + Rank_of_process - N_blocks_x * (block_row - 1)
@@ -72,14 +75,16 @@ SUBROUTINE IDENTIFY_BLOCK_NEIGHBOURS
         WHITE = .FALSE.
      END IF
   END IF
-        
-  IF (WHITE) THEN
-     PRINT '("Process ",i4," : WHITE : grid column number= ",i4," row number= ",i4," ; neighbours : left ",i4," right ",i4," above ",i4," below ",i4)', &
-          & Rank_of_process, block_column, block_row, Rank_of_process_left, Rank_of_process_right, Rank_of_process_above, Rank_of_process_below
-  ELSE
-     PRINT '("Process ",i4," : BLACK : grid column number= ",i4," row number= ",i4," ; neighbours : left ",i4," right ",i4," above ",i4," below ",i4)', &
-          & Rank_of_process, block_column, block_row, Rank_of_process_left, Rank_of_process_right, Rank_of_process_above, Rank_of_process_below
-  END IF
+
+   IF (debug_level>=local_debug_level) THEN
+      IF (WHITE) THEN
+         PRINT '("Process ",i4," : WHITE : grid column number= ",i4," row number= ",i4," ; neighbours : left ",i4," right ",i4," above ",i4," below ",i4)', &
+               & Rank_of_process, block_column, block_row, Rank_of_process_left, Rank_of_process_right, Rank_of_process_above, Rank_of_process_below
+      ELSE
+         PRINT '("Process ",i4," : BLACK : grid column number= ",i4," row number= ",i4," ; neighbours : left ",i4," right ",i4," above ",i4," below ",i4)', &
+               & Rank_of_process, block_column, block_row, Rank_of_process_left, Rank_of_process_right, Rank_of_process_above, Rank_of_process_below
+      END IF
+   END IF
 
   boxproc_filename = 'box_proc_NNNN.dat'
   boxproc_filename(10:13) = convert_int_to_txt_string(Rank_of_process, 4)
@@ -94,7 +99,7 @@ SUBROUTINE IDENTIFY_BLOCK_NEIGHBOURS
   write (devid, '(3(2x,i5),2(2x,e14.7))') indx_x_min, indx_y_min, Rank_of_process, X_area_min * delta_x_m, Y_area_min * delta_x_m
   close (devid, status = 'keep')
 
-  print '("Process ",i4," : IDENTIFY_BLOCK_NEIGHBOURS : file ",A17," is ready")', Rank_of_process, boxproc_filename
+  IF (debug_level>=local_debug_level) print '("Process ",i4," : IDENTIFY_BLOCK_NEIGHBOURS : file ",A17," is ready")', Rank_of_process, boxproc_filename
 
 END SUBROUTINE IDENTIFY_BLOCK_NEIGHBOURS
 
@@ -119,6 +124,9 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
   INTEGER jstart, jend, istart, iend
   INTEGER minimal_index, maximal_index
 
+  INTEGER :: local_debug_level
+  local_debug_level = 1  
+
 ! most probable default assumption - no boundary objects
 
   N_of_local_object_parts = 0
@@ -134,7 +142,7 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
        (Rank_of_process_right.GE.0).AND. &
        (Rank_of_process_below.GE.0).AND. &
        (Rank_of_process_above.GE.0) ) THEN
-     PRINT '(" Block ",i4," is not connected to any boundary object")', Rank_of_process
+         IF (debug_level>=local_debug_level) PRINT '(" Block ",i4," is not connected to any boundary object")', Rank_of_process
      RETURN
   END IF
 
@@ -295,6 +303,9 @@ SUBROUTINE INCLUDE_BLOCK_PERIODICITY
   INTEGER ALLOC_ERR
   LOGICAL pair_found
   INTEGER ibufer(1:4)
+  INTEGER :: local_debug_level
+  
+  local_debug_level = 2  
 
   ! check the presence of periodic boundaries
 
@@ -464,7 +475,7 @@ SUBROUTINE INCLUDE_BLOCK_PERIODICITY
 
   END IF
 
-print '("Block ",i4," :: P.B. L/R/B/A :: ",4(1x,L1))', Rank_of_process, block_periodic_boundary_X_left, block_periodic_boundary_X_right, block_periodic_boundary_Y_below, block_periodic_boundary_Y_above
+  IF (debug_level>=local_debug_level) print '("Block ",i4," :: P.B. L/R/B/A :: ",4(1x,L1))', Rank_of_process, block_periodic_boundary_X_left, block_periodic_boundary_X_right, block_periodic_boundary_Y_below, block_periodic_boundary_Y_above
 
 END SUBROUTINE INCLUDE_BLOCK_PERIODICITY
 
