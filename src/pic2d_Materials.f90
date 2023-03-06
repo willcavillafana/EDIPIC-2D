@@ -89,7 +89,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
 
      READ (9, '(A1)') buf ! =======d===== ELASTIC ELECTRON REFLECTION MODEL (0/1/2 = turned off/model 1/model 2)
      READ (9, '(7x,i1)') whole_object(n)%Emitted_model(1)
-     READ (9, '(A1)') buf ! -------d----- ELASTIC ELECTRON REFLECTION TYPE (0/1 = specular/random)
+     READ (9, '(A1)') buf ! -------d----- ELASTIC ELECTRON REFLECTION TYPE (0/1/2 = specular/random/thermalize)
      READ (9, '(7x,i1)') whole_object(n)%Elast_refl_type
 
      READ (9, '(A1)') buf ! ------------- ELASTIC ELECTRON REFLECTION, MODEL 1, PARAMETERS:
@@ -241,7 +241,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      SELECT CASE (whole_object(n)%Emitted_model(1))
         CASE (1)
            whole_object(n)%lowest_energy_for_see = MIN(whole_object(n)%lowest_energy_for_see, whole_object(n)%minE_see_elastic)
-           IF ( i_cylindrical==2 ) i_reflection_cyl_electron = 1 ! I need a special treatment in cylindrical coordinates 
+           IF ( i_cylindrical==2 .AND. whole_object(n)%Elast_refl_type==0 ) i_reflection_cyl_electron = 1 ! I need a special treatment in cylindrical coordinates for purely specular
         CASE (2)
            whole_object(n)%lowest_energy_for_see = MIN(whole_object(n)%lowest_energy_for_see, whole_object(n)%E_elast_0)
      END SELECT
