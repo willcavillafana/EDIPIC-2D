@@ -164,7 +164,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      i_reflection_cyl_electron = 0
      i_reflection_cyl_ion = 0
 
-     ion_wall_interaction_flag = MAX(0,MIN(ion_wall_interaction_flag,2))
+     ion_wall_interaction_flag = MAX(0,MIN(ion_wall_interaction_flag,3))
      SELECT CASE (ion_wall_interaction_flag)
         CASE (0)
            whole_object(n)%reflects_all_ions = .FALSE.
