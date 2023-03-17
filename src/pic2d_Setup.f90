@@ -585,7 +585,8 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 
 !???  USE ParallelOperationValues, ONLY : Rank_of_process
   USE ExternalCircuit
-  USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_and_inner_objects, METAL_WALL, delta_t_s, F_scale_V, pi
+  USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_and_inner_objects, METAL_WALL, delta_t_s, F_scale_V, pi &
+                                   & ,delta_x_m, e_Cl, N_of_particles_cell, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi
   USE BlockAndItsBoundaries
 
   IMPLICIT NONE
@@ -596,20 +597,24 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   INTEGER ALLOC_ERR
 
   INTEGER nn, ntemp, n
+  REAL(8) :: weight_ptcl 
 
 ! function
   REAL(8) ECPS_Voltage
+  REAL(8) coeff_J ! convert external current into macroparticle charge count per time step
   
   N_of_object_potentials_to_solve = 0
   N_of_power_supplies = 0
   N_of_resistors = 0
   N_of_capacitors = 0
   N_of_inductors = 0
+  weight_ptcl = zero
 
   INQUIRE (FILE = 'init_ext_circuit.dat', EXIST = exists)
   IF (.NOT.exists) RETURN
 
   OPEN (11, FILE = 'init_ext_circuit.dat')
+  READ (11, *) circuit_type
 
   READ (11, '(A1)') buf   ! total number of electrodes whose potential must be solved (>0, if <=0 then no external circuit)
   READ (11, *) N_of_object_potentials_to_solve
@@ -659,6 +664,33 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
      EC_power_supply(n)%omega     = EC_power_supply(n)%omega * 2.0_8 * pi * delta_t_s
      EC_power_supply(n)%phase     = EC_power_supply(n)%phase * pi / 180.0_8
   END DO
+
+!--- external currents
+
+  READ (11, '(A1)') buf ! below, provide constant current value [A/m] for each of the objects receiving external current for circuit type 2
+  IF (circuit_type.EQ.2) THEN 
+     ALLOCATE(J_ext(1:N_of_object_potentials_to_solve), STAT=ALLOC_ERR)
+     J_ext = 0.0_8
+     
+     DO nn = 1, N_of_object_potentials_to_solve
+        READ (11, *) J_ext(nn) ! current in the units of A/m (per unit length in z direction). Equivalently this is a current assuming the off plane surface is 1m wide. I should always treat this as a current 
+     END DO
+     IF (i_cylindrical==0) THEN   
+         coeff_J = delta_t_s * DBLE(N_of_particles_cell) / (e_Cl * N_plasma_m3 * delta_x_m**2) 
+     ELSE IF (i_cylindrical==2) THEN   
+         ! Compute actual weight of particles in cylindrical coordinate 
+         ! Note that N_of_particles_cell = Nppc_input_file / (pi*R) here. This has been modified while reading the configuration file to make sure the density is correct.
+         ! The number of the particles per cell is still Nppc_input_file
+         ! The statical weight is w_cyl = pi*R*w_cart = pi*R*n_scale*dx**2/(N_ppc_cart) 
+         ! So w_cyl = pi*R*n_scale*dx**2/(N_ppc_input_file) 
+         ! So w_cyl = n_scale*dx**2/(N_ppc_input_file/(pi*R)) 
+         ! So w_cyl = n_scale*dx**2/(N_of_particles_cell) 
+         weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+         ! Deduce how many particles we should inject 
+         coeff_J = delta_t_s / ( e_Cl*weight_ptcl ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
+     END IF
+     J_ext = J_ext * coeff_J
+  END IF     
 
 !--- resistors
 

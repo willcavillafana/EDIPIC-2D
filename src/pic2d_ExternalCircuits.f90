@@ -103,9 +103,13 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
   REAL(8), ALLOCATABLE :: rbufer(:), rbufer2(:)
   INTEGER ALLOC_ERR
 
+  REAL(8) :: factor_cyl_vol, factor_cyl_surface ! Cylindrical factor to account for
+
   IF (N_of_object_potentials_to_solve.EQ.0) RETURN
 
   object_charge_coeff = 0.0_8
+  factor_cyl_vol = one
+  factor_cyl_surface = one
 
   DO nn = 1, N_of_object_potentials_to_solve
 
@@ -162,6 +166,12 @@ print *, Rank_of_process, noi
 
                  i = indx_x_min
 
+                  ! Addition cylindrical factor. external circuit is on the left 
+                 IF ( i_cylindrical==2 ) THEN
+                  factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                  factor_cyl_surface = (DBLE(i)+half)*delta_x_m*two*pi
+                 END IF                        
+
                  IF (jstart.EQ.segment_jstart) THEN
 ! block includes start end of the segment
                     pos = pos+1
@@ -172,8 +182,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted) ! i + 1/2                          !       eps_C = eps_B
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) + 0.25_8, eps_shifted_4)          ! i+1/2, j+1/4, eps_D
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -203,8 +216,10 @@ print *, Rank_of_process, noi
 
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) + 0.25_8, eps_shifted_4)          ! i+1/2, j+1/4, eps_D
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -225,7 +240,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -233,13 +248,16 @@ print *, Rank_of_process, noi
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
 
-                       CASE (CONVEX_CORNER)
+                       CASE (CONVEX_CORNER)                                        
 
                           CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted)  ! i + 1/2
                           CALL SET_EPS_JSHIFTED(i,   j, eps_jshifted)  ! j - 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol                          
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8   ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol   ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -268,8 +286,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted) ! i + 1/2                          !       eps_G = eps_H
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) - 0.25_8, eps_shifted_4)          ! i+1/2, j-1/4, eps_F
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -299,8 +320,10 @@ print *, Rank_of_process, noi
 
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) - 0.25_8, eps_shifted_4)          ! i+1/2, j-1/4, eps_F
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -321,7 +344,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -334,8 +357,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted) ! i + 1/2
                           CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol                          
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8  ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol  ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -360,8 +386,10 @@ print *, Rank_of_process, noi
 
                     pos = pos+1
 
+                    eps_ishifted = eps_ishifted*factor_cyl_surface
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -382,6 +410,12 @@ print *, Rank_of_process, noi
 
                  i = indx_x_max
 
+                  ! Addition cylindrical factor. external circuit is on the right 
+                 IF ( i_cylindrical==2 ) THEN
+                  factor_cyl_vol = (DBLE(i)-fourth)*delta_x_m*two*pi
+                  factor_cyl_surface = (DBLE(i)-half)*delta_x_m*two*pi
+                 END IF                       
+
                  IF (jstart.EQ.segment_jstart) THEN
 ! block includes start end of the segment
                     pos = pos+1
@@ -392,8 +426,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i, j, eps_ishifted)   ! i - 1/2                          !       eps_G = eps_H
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) + 0.25_8, eps_shifted_4)          ! i-1/2, j+1/4, eps_F
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol   
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -423,8 +460,10 @@ print *, Rank_of_process, noi
 
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) + 0.25_8, eps_shifted_4)          ! i-1/2, j+1/4, eps_F
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol 
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -445,7 +484,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -458,8 +497,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i, j, eps_ishifted)  ! i - 1/2
                           CALL SET_EPS_JSHIFTED(i, j, eps_jshifted)  ! j - 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol   
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8  ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol  ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -488,8 +530,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i, j, eps_ishifted)   ! i - 1/2                          !       eps_C = eps_B
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_4)          ! i-1/2, j-1/4, eps_D
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol   
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -518,8 +563,10 @@ print *, Rank_of_process, noi
                        CASE (END_CORNER_CONCAVE)
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_4)          ! i-1/2, j-1/4, eps_D
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_vol  
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -540,7 +587,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -553,8 +600,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i,   j, eps_ishifted) ! i - 1/2
                           CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol  
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8   ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol   ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -579,8 +629,10 @@ print *, Rank_of_process, noi
 
                     pos = pos+1
 
+                    eps_ishifted = eps_ishifted*factor_cyl_surface                    
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -648,14 +700,24 @@ print *, Rank_of_process, noi
 ! block includes start end of the segment
                     pos = pos+1
                     i = istart
+
+                     ! Addition cylindrical factor. external circuit is on the bottom 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                        factor_cyl_surface = two*pi*DBLE(i)*delta_x_m
+                     END IF                      
+
                     SELECT CASE (segment_start_type)
-                       CASE (END_FLAT)
+                       CASE (END_FLAT)       
 
                           CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2                          !       eps_G = eps_H
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) + 0.5_8, eps_shifted_4)          ! i+1/4, j+1/2, eps_F
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol  
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -681,12 +743,14 @@ print *, Rank_of_process, noi
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j+1
                           object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
-                       CASE (END_CORNER_CONCAVE)
+                       CASE (END_CORNER_CONCAVE)                    
 
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) + 0.5_8, eps_shifted_4)          ! i+1/4, j+1/2, eps_F
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -707,7 +771,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -715,13 +779,16 @@ print *, Rank_of_process, noi
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
 
-                       CASE (CONVEX_CORNER)
+                       CASE (CONVEX_CORNER)                         
 
                           CALL SET_EPS_ISHIFTED(i,   j, eps_ishifted)  ! i - 1/2
                           CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted)  ! j + 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol                            
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8   ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol   ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -744,14 +811,24 @@ print *, Rank_of_process, noi
 ! block includes last end of the segment
                     pos=pos+1
                     i = iend
+
+                     ! Addition cylindrical factor. external circuit is on the bottom 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = (DBLE(i)-fourth)*delta_x_m*two*pi
+                        factor_cyl_surface = DBLE(i)*delta_x_m*two*pi
+                     END IF       
+
                     SELECT CASE (segment_end_type)
                        CASE (END_FLAT)
  
                           CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2                          !       eps_C = eps_B
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) + 0.5_8, eps_shifted_4)          ! i-1/4, j+1/2, eps_D
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol                              
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol   
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -780,9 +857,11 @@ print *, Rank_of_process, noi
                        CASE (END_CORNER_CONCAVE)
 
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) + 0.5_8, eps_shifted_4)          ! i-1/4, j+1/2, eps_D
+                          
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -803,7 +882,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -816,8 +895,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted) ! i + 1/2
                           CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol                                  
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8   ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol   ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -837,13 +919,20 @@ print *, Rank_of_process, noi
                  END IF   !### IF (iend.EQ.segment_iend) THEN
 
                  DO i = istart, iend
+
+                     ! Addition cylindrical factor. external circuit is on the bottom 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = DBLE(i)*delta_x_m*two*pi
+                     END IF                       
                   
                     CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2
+
+                    eps_jshifted = eps_jshifted*factor_cyl_vol
 
                     pos = pos+1
 
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -868,14 +957,24 @@ print *, Rank_of_process, noi
 ! block includes start end of the segment
                     pos = pos+1
                     i = istart
+
+                     ! Addition cylindrical factor. external circuit is on the top 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                        factor_cyl_surface = DBLE(i)*delta_x_m*two*pi
+                     END IF  
+
                     SELECT CASE (segment_start_type)
                        CASE (END_FLAT)
 
                           CALL SET_EPS_JSHIFTED(i, j, eps_jshifted)   ! j - 1/2                          !       eps_C = eps_B
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) - 0.5_8, eps_shifted_4)          ! i+1/4, j-1/2, eps_D
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol     
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -905,8 +1004,10 @@ print *, Rank_of_process, noi
 
                           CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) - 0.5_8, eps_shifted_4)          ! i+1/4, j-1/2, eps_D
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -927,7 +1028,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -940,8 +1041,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i, j, eps_ishifted)  ! i - 1/2
                           CALL SET_EPS_JSHIFTED(i, j, eps_jshifted)  ! j - 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol     
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8   ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol   ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -964,14 +1068,24 @@ print *, Rank_of_process, noi
 ! block includes last end of the segment
                     pos=pos+1
                     i = iend
+
+                     ! Addition cylindrical factor. external circuit is on the top 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = (DBLE(i)-fourth)*delta_x_m*two*pi
+                        factor_cyl_surface = DBLE(i)*delta_x_m*two*pi
+                     END IF  
+
                     SELECT CASE (segment_end_type)
                        CASE (END_FLAT)
                     
                           CALL SET_EPS_JSHIFTED(i, j, eps_jshifted)   ! j - 1/2                          !       eps_G = eps_H
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) - 0.5_8, eps_shifted_4)          ! i-1/4, j-1/2, eps_F
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol     
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 5
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1001,8 +1115,10 @@ print *, Rank_of_process, noi
 
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) - 0.5_8, eps_shifted_4)          ! i-1/4, j-1/2, eps_F
 
+                          eps_shifted_4 = eps_shifted_4*factor_cyl_surface
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 3
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.25_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1023,7 +1139,7 @@ print *, Rank_of_process, noi
                        CASE (CONCAVE_CORNER)
 
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 0    !  node coordinates (indices) stored in the first element
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.125_8*factor_cyl_vol
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(1:1), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(1:1), STAT = ALLOC_ERR)
@@ -1036,8 +1152,11 @@ print *, Rank_of_process, noi
                           CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted) ! i + 1/2
                           CALL SET_EPS_JSHIFTED(i,   j, eps_jshifted) ! j - 1/2
 
+                          eps_ishifted = eps_ishifted*factor_cyl_surface
+                          eps_jshifted = eps_jshifted*factor_cyl_vol                           
+
                           object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8   ! the density is corrected
+                          object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.375_8*factor_cyl_vol   ! the density is corrected
 
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                           ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1057,13 +1176,20 @@ print *, Rank_of_process, noi
                  END IF   !### IF (iend.EQ.segment_iend) THEN
 
                  DO i = istart, iend
+
+                     ! Addition cylindrical factor. external circuit is on the bottom 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = DBLE(i)*delta_x_m*two*pi
+                     END IF   
                   
                     CALL SET_EPS_JSHIFTED(i, j, eps_jshifted) ! j - 1/2
+
+                    eps_jshifted = eps_jshifted*factor_cyl_vol    
 
                     pos = pos+1
 
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1120,6 +1246,12 @@ print *, Rank_of_process, noi
 
                  i = whole_object(noi)%segment(nseg)%istart
 
+                  ! Addition cylindrical factor. external circuit is on the left wall of inner object 
+                  IF ( i_cylindrical==2 ) THEN
+                     factor_cyl_vol = (DBLE(i)-fourth)*delta_x_m*two*pi
+                     factor_cyl_surface = (DBLE(i)-half)*delta_x_m*two*pi
+                  END IF                   
+
                  IF (jstart.EQ.segment_jstart) THEN
 ! block includes start end of the segment ::::::: LEFT VERTICAL EDGE, BOTTOM CORNER
                     pos = pos + 1
@@ -1128,8 +1260,11 @@ print *, Rank_of_process, noi
                     CALL SET_EPS_ISHIFTED(i, j, eps_ishifted)  ! i - 1/2
                     CALL SET_EPS_JSHIFTED(i, j, eps_jshifted)  ! j - 1/2
 
+                    eps_ishifted = eps_ishifted * factor_cyl_surface
+                    eps_jshifted = eps_jshifted * factor_cyl_vol
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2 ! 3
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 * factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1154,8 +1289,11 @@ print *, Rank_of_process, noi
                     CALL SET_EPS_ISHIFTED(i, j,   eps_ishifted)  ! i - 1/2
                     CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted)  ! j + 1/2
 
+                    eps_ishifted = eps_ishifted * factor_cyl_surface
+                    eps_jshifted = eps_jshifted * factor_cyl_vol                    
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 * factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1178,8 +1316,10 @@ print *, Rank_of_process, noi
                     pos = pos+1
                     CALL SET_EPS_ISHIFTED(i, j, eps_ishifted) ! i - 1/2
 
+                    eps_ishifted = eps_ishifted * factor_cyl_surface
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8  ! -0.5_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8 * factor_cyl_vol  ! -0.5_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1215,15 +1355,24 @@ print *, Rank_of_process, noi
                  j = whole_object(noi)%segment(nseg)%jstart
 
                  IF (istart.EQ.segment_istart) THEN
-! block includes start end of the segment ::::::::::::: TOP HORIZONTAL EDGE, LEFT CORNER
+                     ! block includes start end of the segment ::::::::::::: TOP HORIZONTAL EDGE, LEFT CORNER
                     pos = pos + 1
                     i = istart
+
+                     ! Addition cylindrical factor. external circuit is on the top wall of inner object 
+                    IF ( i_cylindrical==2 ) THEN
+                     factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                     factor_cyl_surface = (DBLE(i))*delta_x_m*two*pi
+                    END IF                               
   
                     CALL SET_EPS_ISHIFTED(i,   j, eps_ishifted)  ! i - 1/2
                     CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted)  ! j + 1/2
 
+                    eps_ishifted = eps_ishifted*factor_cyl_surface
+                    eps_jshifted = eps_jshifted*factor_cyl_vol                         
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1241,15 +1390,21 @@ print *, Rank_of_process, noi
                  END IF
 
                  IF (iend.EQ.segment_iend) THEN
-! block includes last end of the segment ::::::::::::: TOP HORIZONTAL EDGE, RIGHT CORNER
+                     ! block includes last end of the segment ::::::::::::: TOP HORIZONTAL EDGE, RIGHT CORNER
                     pos = pos + 1
                     i = iend
+
+                     ! Addition cylindrical factor. external circuit is on the top wall of inner object 
+                    IF ( i_cylindrical==2 ) THEN
+                     factor_cyl_vol = (DBLE(i)-fourth)*delta_x_m*two*pi
+                     factor_cyl_surface = (DBLE(i))*delta_x_m*two*pi
+                    END IF                           
   
                     CALL SET_EPS_ISHIFTED(i+1,   j, eps_ishifted)  ! i + 1/2
                     CALL SET_EPS_JSHIFTED(i,   j+1, eps_jshifted)  ! j + 1/2
 
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1269,11 +1424,18 @@ print *, Rank_of_process, noi
                  DO i = istart, iend
 ! inner points :::::::::::::::::: TOP HORIZONTAL EDGE
 
+                     ! Addition cylindrical factor. external circuit is on the top wall of inner object 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = DBLE(i)*delta_x_m*two*pi
+                     END IF                       
+                  
                     pos = pos+1
                     CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted) ! j + 1/2
+                    
+                    eps_jshifted = eps_jshifted*factor_cyl_vol    
 
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8  ! -0.5_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8 * factor_cyl_vol  ! -0.5_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1308,6 +1470,12 @@ print *, Rank_of_process, noi
 
                  i = whole_object(noi)%segment(nseg)%istart
 
+                  ! Addition cylindrical factor. external circuit is on the left wall of inner object 
+                  IF ( i_cylindrical==2 ) THEN
+                     factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                     factor_cyl_surface = (DBLE(i)+half)*delta_x_m*two*pi
+                  END IF                      
+
                  IF (jstart.EQ.segment_jstart) THEN
 ! block includes start end of the segment ::::::: RIGHT VERTICAL EDGE, BOTTOM CORNER
                     pos = pos + 1
@@ -1316,8 +1484,11 @@ print *, Rank_of_process, noi
                     CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted)  ! i + 1/2
                     CALL SET_EPS_JSHIFTED(i,   j, eps_jshifted)  ! j - 1/2
 
+                    eps_ishifted = eps_ishifted * factor_cyl_surface
+                    eps_jshifted = eps_jshifted * factor_cyl_vol
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 * factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1341,9 +1512,12 @@ print *, Rank_of_process, noi
            
                     CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted)  ! i + 1/2
                     CALL SET_EPS_JSHIFTED(i, j+1, eps_jshifted)  ! j + 1/2
+
+                    eps_ishifted = eps_ishifted * factor_cyl_surface
+                    eps_jshifted = eps_jshifted * factor_cyl_vol                       
                     
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 * factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1366,8 +1540,10 @@ print *, Rank_of_process, noi
                     pos = pos + 1
                     CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted) ! i + 1/2
 
+                    eps_ishifted = eps_ishifted * factor_cyl_surface
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8  ! -0.5_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8 * factor_cyl_vol ! -0.5_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1406,12 +1582,21 @@ print *, Rank_of_process, noi
 ! block includes start end of the segment ::::::::::::: BOTTOM HORIZONTAL EDGE, LEFT CORNER
                     pos = pos + 1
                     i = istart
+
+                     ! Addition cylindrical factor. external circuit is on the bottom wall of inner object 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                        factor_cyl_surface = DBLE(i)*delta_x_m*two*pi
+                     END IF                         
   
                     CALL SET_EPS_ISHIFTED(i, j, eps_ishifted)  ! i - 1/2
                     CALL SET_EPS_JSHIFTED(i, j, eps_jshifted)  ! j - 1/2
 
+                    eps_ishifted = eps_ishifted*factor_cyl_surface
+                    eps_jshifted = eps_jshifted*factor_cyl_vol                       
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1432,12 +1617,21 @@ print *, Rank_of_process, noi
 ! block includes last end of the segment ::::::::::::: BOTTOM HORIZONTAL EDGE, RIGHT CORNER
                     pos = pos + 1
                     i = iend
+
+                     ! Addition cylindrical factor. external circuit is on the bottom wall of inner object 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = (DBLE(i)+fourth)*delta_x_m*two*pi
+                        factor_cyl_surface = DBLE(i)*delta_x_m*two*pi
+                     END IF                            
   
                     CALL SET_EPS_ISHIFTED(i+1, j, eps_ishifted)  ! i + 1/2
                     CALL SET_EPS_JSHIFTED(i,   j, eps_jshifted)  ! j - 1/2
 
+                    eps_ishifted = eps_ishifted*factor_cyl_surface
+                    eps_jshifted = eps_jshifted*factor_cyl_vol                        
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8 ! -0.375_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -0.5_8*factor_cyl_vol ! -0.375_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1456,12 +1650,18 @@ print *, Rank_of_process, noi
 
                  DO i = istart, iend
 ! inner points :::::::::::::::::: BOTTOM HORIZONTAL EDGE
+                     ! Addition cylindrical factor. external circuit is on the bottom wall of inner object 
+                     IF ( i_cylindrical==2 ) THEN
+                        factor_cyl_vol = DBLE(i)*delta_x_m*two*pi
+                     END IF    
 
                     pos = pos + 1
                     CALL SET_EPS_JSHIFTED(i, j, eps_jshifted) ! j - 1/2
 
+                    eps_jshifted = eps_jshifted*factor_cyl_vol 
+
                     object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use = 2
-                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8  ! -0.5_8 if the density is corrected
+                    object_charge_calculation(nn)%control(pos)%use_alpha_rho = -1.0_8 * factor_cyl_vol  ! -0.5_8 if the density is corrected
 
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_i(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
                     ALLOCATE(object_charge_calculation(nn)%control(pos)%use_j(        1:object_charge_calculation(nn)%control(pos)%N_of_nodes_to_use), STAT = ALLOC_ERR)
@@ -1674,10 +1874,8 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
   REAL(8), ALLOCATABLE :: rhs(:)
   REAL(8), ALLOCATABLE :: dQ_full(:)
 
-  INTEGER circuit_type
-
   REAL(8) factor_C
-  REAL(8) dU_source
+  REAL(8) :: dU_source, dQ_ext
 
   REAL(8) d0, d1, d2
 
@@ -1765,7 +1963,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
      ALLOCATE(    rhs(1:N_of_object_potentials_to_solve), STAT=ALLOC_ERR)
      ALLOCATE(dQ_full(1:N_of_object_potentials_to_solve), STAT=ALLOC_ERR)
   
-     circuit_type = 1   ! or 2 or 3 etc later make this a part of an input file
+   !   circuit_type = 1   ! or 2 or 3 etc later make this a part of an input file
 
      SELECT CASE (circuit_type)
         CASE (1)
@@ -1803,8 +2001,10 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
 
 !           charge_of_object(1) + dQ_plasma_of_object(1) = object_charge_coeff(0,1) + object_charge_coeff(1,1) * potential_of_object(1)
 
+           dQ_ext = J_ext(1) ! normnalized charge count per time step due to the external source
+
            a(1,1) = object_charge_coeff(1,1)
-           rhs(1) = charge_of_object(1) + dQ_plasma_of_object(1) - object_charge_coeff(0,1)
+           rhs(1) = charge_of_object(1) + dQ_plasma_of_object(1) + dQ_ext - object_charge_coeff(0,1)
 
            IF (a(1,1).NE.0.0_8) THEN
               potential_of_object(1) = rhs(1) / a(1,1)

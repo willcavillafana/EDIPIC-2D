@@ -1030,7 +1030,10 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
    ! CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
    ! CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)  
 
-   N_of_particles_cell = INT(N_of_particles_cell/(pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m))
+   N_of_particles_cell = INT(N_of_particles_cell/(pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m)) 
+   ! I need to modify this because otherwise the number of ptcl in cylindrical will not lead to the correcrt density. V_tot_cyl = pi*Nr* V_tot_cart
+   ! In the whole domain, Nppc will be in average the number I put in the init file as Nppc_cyl = N_tot_cyl/V_tot_cyl
+   ! I implicity changen the statistical weight: w_cyl = pi*R*w_cart = pi*R*n_scale*dx**2/(N_ppc_cart)
 
   END IF
 
@@ -3649,7 +3652,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          ! Note that clusters from 0 to before last colum have a grid point difference. 
          
          ! We need to account for the change in volume and so we must update the number of electrons accordingly
-         ! Note V_tot_cyl = pi*Nx*dx*V_tot_cart
+         ! Note V_tot_cyl = pi*Nx*dx*V_tot_cart. Valid because r(0) = 0.
          ! Since we cannot play direclty with the statistical weight (which does not exist), we must adjust the number of macroparticles
          x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
          x_limit_left = MIN(x_limit_left,Rmax*c_indx_x_max_total)

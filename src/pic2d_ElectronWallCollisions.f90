@@ -535,7 +535,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
-  USE CurrentProblemValues !, ONLY : inner_object, METAL_WALL, DIELECTRIC
+  USE CurrentProblemValues !, ONLY : inner_object, METAL_WALL, DIELECTRICJ_ext
 
   IMPLICIT NONE
 

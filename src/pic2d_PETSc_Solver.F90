@@ -148,13 +148,13 @@ contains
 
     DO j = jbegin, jend
        DO i = ibegin, iend+1
-          CALL SET_EPS_ISHIFTED(i, j, eps_ishifted_j(i,j))
+          CALL SET_EPS_ISHIFTED(i, j, eps_ishifted_j(i,j), .TRUE. )
        END DO
     END DO
 
     DO j = jbegin, jend+1
        DO i = ibegin, iend
-          CALL SET_EPS_JSHIFTED(i, j, eps_i_jshifted(i,j))
+          CALL SET_EPS_JSHIFTED(i, j, eps_i_jshifted(i,j), .TRUE.)
        END DO
     END DO
 
@@ -1767,7 +1767,7 @@ END FUNCTION Get_Surface_Charge_Inner_Object
 !-----------------------------------------------
 !
 ! Precomputes all element of Poisson matrix. Returns weight for point on the left in the stencil
-SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1,j} and {i,j}
+SUBROUTINE SET_EPS_ISHIFTED(i, j, eps, petsc_use)  ! here point {i,j} is between nodes {i-1,j} and {i,j}
 
   USE CurrentProblemValues
 
@@ -1779,6 +1779,7 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
  
   INTEGER, INTENT(IN) :: i, j
   REAL(8), INTENT(OUT) :: eps
+  LOGICAL, INTENT(IN), OPTIONAL :: petsc_use ! if we build the Petsc matrix, we put gemoetrical effect right now. For the external circuit we do it later
 
   INTEGER count  ! counts dielectric objects
   LOGICAL segment_is_inside_dielectric_object
@@ -1788,8 +1789,11 @@ SUBROUTINE SET_EPS_ISHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i-1
 
   !!! Add a factor if we have cylindrical coordinates r-z. We compute the factor f_left=1-delta_r/(2rij) and f_right = 2-f_left for rij>0
   factor_cyl = one ! By default I do not have  a factor 
-  IF ( i_cylindrical==2 .AND. i>0 ) factor_cyl = one - one/(two*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
-
+  
+   ! Add geometrical coefficients only when building the Petsc matrix and only for cylindrical
+   IF (PRESENT ( petsc_use )) THEN
+      IF ( i_cylindrical==2 .AND. i>0 .AND. petsc_use ) factor_cyl = one - one/(two*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
+   END IF
 !   print*,'current i,j',i,j
 ! find all inner objects owning segment {i-1,j}-{i,j}
 ! assume that only two dielectric objects may own a common segment
@@ -1938,7 +1942,7 @@ END SUBROUTINE SET_EPS_ISHIFTED
 
 !-----------------------------------------------
 !
-SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j-1} and {i,j}
+SUBROUTINE SET_EPS_JSHIFTED(i, j, eps, petsc_use)  ! here point {i,j} is between nodes {i,j-1} and {i,j}
 
   USE CurrentProblemValues
   USE BlockAndItsBoundaries, ONLY: block_has_symmetry_plane_X_left,indx_x_min
@@ -1951,6 +1955,7 @@ SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j
  
   INTEGER, INTENT(IN) :: i, j
   REAL(8), INTENT(OUT) :: eps
+  LOGICAL, INTENT(IN), OPTIONAL :: petsc_use ! if we build the Petsc matrix, we put gemoetrical effect right now. For the external circuit we do it later
 
   INTEGER count  ! counts dielectric objects
   LOGICAL segment_is_inside_dielectric_object
@@ -1961,7 +1966,11 @@ SUBROUTINE SET_EPS_JSHIFTED(i, j, eps)  ! here point {i,j} is between nodes {i,j
   !!! Add a factor if we have cylindrical coordinates r-z. We compute the factor f_left=1-delta_r/(4rij) and f_right = 2-f_left for rij>0
   factor_cyl = one ! By default I do not have  a factor 
   factor_cyl_used = one ! By default I do not have  a factor 
-  IF ( i_cylindrical==2 .AND. i>0 ) factor_cyl = one - one/(four*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
+
+   ! Add geometrical coefficients only when building the Petsc matrix and only for cylindrical
+   IF (PRESENT ( petsc_use )) THEN  
+      IF ( i_cylindrical==2 .AND. i>0 .AND. petsc_use ) factor_cyl = one - one/(four*DBLE(i)) ! for i= 0 we are at the axis and this factor disepears in the scheme. All r-z simulations are assumed to include the axis
+   END IF
 
 ! find all inner objects owning segment {i,j-1}-{i,j}
 ! assume that only two dielectric objects may own a common segment

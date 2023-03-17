@@ -172,6 +172,7 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: zero = 0.0_8
   REAL(8), PARAMETER :: half = 1.0_8/2.0_8
   REAL(8), PARAMETER :: third = 1.0_8/3.0_8
+  REAL(8), PARAMETER :: fourth = 1.0_8/4.0_8
   REAL(8), PARAMETER :: one = 1.0_8
   REAL(8), PARAMETER :: two = 2.0_8
   REAL(8), PARAMETER :: three = 3.0_8
@@ -1217,6 +1218,7 @@ MODULE ExternalCircuit
 !  REAL(8) source_omega
 !  REAL(8) source_phase
 
+  INTEGER :: circuit_type
   INTEGER N_of_power_supplies   ! number of power supplies in the exernal circuit
 
   TYPE PSU_type
@@ -1250,6 +1252,8 @@ MODULE ExternalCircuit
   REAL(8), ALLOCATABLE :: resistor_R_Ohm(:)
   REAL(8), ALLOCATABLE :: capacitor_C_F(:)
   REAL(8), ALLOCATABLE :: inductor_L_H(:)
+
+  REAL(8), ALLOCATABLE :: J_ext(:) ! for current-driven circuit
 
 END MODULE ExternalCircuit
 
