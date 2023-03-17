@@ -115,7 +115,7 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
      noi = object_charge_calculation(nn)%noi   ! number of object of interest
 
-print *, Rank_of_process, noi
+! print *, Rank_of_process, noi
 
      object_charge_calculation(nn)%N_of_points_to_process = 0
      pos = 0

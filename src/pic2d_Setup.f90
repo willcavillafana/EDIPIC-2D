@@ -586,8 +586,9 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 !???  USE ParallelOperationValues, ONLY : Rank_of_process
   USE ExternalCircuit
   USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_and_inner_objects, METAL_WALL, delta_t_s, F_scale_V, pi &
-                                   & ,delta_x_m, e_Cl, N_of_particles_cell, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi
+                                   & ,delta_x_m, e_Cl, N_of_particles_cell, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi, string_length
   USE BlockAndItsBoundaries
+   USE mod_print, ONLY: print_message, print_parser_error
 
   IMPLICIT NONE
 
@@ -598,6 +599,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 
   INTEGER nn, ntemp, n
   REAL(8) :: weight_ptcl 
+  CHARACTER(LEN=string_length) :: message, routine
 
 ! function
   REAL(8) ECPS_Voltage
@@ -610,14 +612,38 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   N_of_inductors = 0
   weight_ptcl = zero
 
+  routine = 'PREPARE_EXTERNAL_CIRCUIT'
+
   INQUIRE (FILE = 'init_ext_circuit.dat', EXIST = exists)
   IF (.NOT.exists) RETURN
 
+  WRITE( message, '(A)'), "init_ext_circuit.dat found."//achar(10)
+  CALL print_message(message,routine)  
+
   OPEN (11, FILE = 'init_ext_circuit.dat')
+  READ (11, '(A1)') buf   ! circuit type key: 1 for capacitively coupled voltage source, 2 for a floating conductor or a conductor with ext. current, 3 for two floating conductors
   READ (11, *) circuit_type
+
+   SELECT CASE (circuit_type)
+      CASE (1)
+         WRITE( message, '(A)'), "Selected circuit: capacitively coupled voltage source."//achar(10)
+         CALL print_message(message)  
+      CASE (2)
+         WRITE( message, '(A)'), "Selected circuit: floating conductor or a conductor with ext. current."//achar(10)
+         CALL print_message(message)  
+      CASE (3)
+         WRITE( message, '(A)'), "Selected circuit: two floating conductors."//achar(10)
+         CALL print_message(message)  
+      CASE DEFAULT
+         WRITE( message, '(A,I0)'), "Nonexistent circuit selected: I expect 1, 2, 3. Received: .",circuit_type
+         CALL print_parser_error(message)           
+   END SELECT         
 
   READ (11, '(A1)') buf   ! total number of electrodes whose potential must be solved (>0, if <=0 then no external circuit)
   READ (11, *) N_of_object_potentials_to_solve
+
+  WRITE( message, '(A,I0)'), "Number of potentials to solve: ",N_of_object_potentials_to_solve
+  CALL print_message(message)  
 
   IF (N_of_object_potentials_to_solve.LE.0) THEN
      N_of_object_potentials_to_solve = 0
@@ -644,26 +670,39 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
      END IF
      whole_object(ntemp)%potential_must_be_solved = .TRUE.
      object_charge_calculation(nn)%noi = ntemp
+     WRITE( message, '(A,I0)'), "Object number to solve: ",ntemp
+     CALL print_message(message)       
   END DO
-
+  
 !--- power supplies
+  WRITE( message, '(A)'), ""
+  CALL print_message(message)   
 
   READ (11, '(A1)') buf   ! number of power supplies in the external circuit (0 if there is no power supply)
   READ (11, *) N_of_power_supplies
 ! just in case
   N_of_power_supplies = MAX(0, N_of_power_supplies)
+  WRITE( message, '(A,I0)'), "Number of power supplies (tension source): ",N_of_power_supplies
+  CALL print_message(message)     
 
   IF (N_of_power_supplies.GT.0) ALLOCATE(EC_power_supply(1:N_of_power_supplies), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each power supply, provide constant voltage [V], amplitude [V], frequency [Hz], and phase [deg] of harmonic sin(omega*t+phase) voltage oscillations 
 
   DO n = 1, N_of_power_supplies
+      WRITE( message, '(A,I0)'), "Tension source #: ",n
+      CALL print_message(message)        
      READ (11, *) EC_power_supply(n)%phi_const, EC_power_supply(n)%phi_var, EC_power_supply(n)%omega, EC_power_supply(n)%phase
      EC_power_supply(n)%phi_const = EC_power_supply(n)%phi_const / F_scale_V
      EC_power_supply(n)%phi_var   = EC_power_supply(n)%phi_var / F_scale_V
      EC_power_supply(n)%omega     = EC_power_supply(n)%omega * 2.0_8 * pi * delta_t_s
      EC_power_supply(n)%phase     = EC_power_supply(n)%phase * pi / 180.0_8
+     WRITE( message, '(A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)'), "phi_const = ",EC_power_supply(n)%phi_const,"[V], phi_var = ",EC_power_supply(n)%phi_var,"[V], omega = ",EC_power_supply(n)%omega," [Hz], phase = ",EC_power_supply(n)%phase," [deg]."
+     CALL print_message(message)
   END DO
+
+  WRITE( message, '(A)'), ""
+  CALL print_message(message)   
 
 !--- external currents
 
@@ -673,8 +712,12 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
      J_ext = 0.0_8
      
      DO nn = 1, N_of_object_potentials_to_solve
+         WRITE( message, '(A,I0)'), "Current source #: ",nn
+         CALL print_message(message)
         READ (11, *) J_ext(nn) ! current in the units of A/m (per unit length in z direction). Equivalently this is a current assuming the off plane surface is 1m wide. I should always treat this as a current 
-     END DO
+        WRITE( message, '(A,ES10.3,A)'), "Current source = ",J_ext(nn)," [A]"
+        CALL print_message(message)
+      END DO
      IF (i_cylindrical==0) THEN   
          coeff_J = delta_t_s * DBLE(N_of_particles_cell) / (e_Cl * N_plasma_m3 * delta_x_m**2) 
      ELSE IF (i_cylindrical==2) THEN   
@@ -690,43 +733,73 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
          coeff_J = delta_t_s / ( e_Cl*weight_ptcl ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
      END IF
      J_ext = J_ext * coeff_J
+
+     WRITE( message, '(A)'), ""
+     CALL print_message(message)        
   END IF     
 
 !--- resistors
 
   READ (11, '(A1)') buf   ! number of resistors (0 if there are no resistors)
   READ (11, *) N_of_resistors
+  WRITE( message, '(A,I0)'), "Number of resistors: ",N_of_resistors
+  CALL print_message(message)       
 
   IF (N_of_resistors.GT.0) ALLOCATE(resistor_R_Ohm(1:N_of_resistors), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each resistor, provide its resistance [Ohm]
   DO n = 1, N_of_resistors
+      WRITE( message, '(A,I0)'), "Resistor #: ",n
+      CALL print_message(message)   
      READ (11, *) resistor_R_Ohm(n)
+      WRITE( message, '(A,ES10.3,A)'), "R = ",resistor_R_Ohm," [Ohm]"
+      CALL print_message(message)     
   END DO
+
+  WRITE( message, '(A)'), ""
+  CALL print_message(message)     
 
 !--- capacitors
 
   READ (11, '(A1)') buf   ! number of capacitors (0 if there are no capacitors)
   READ (11, *) N_of_capacitors
+  WRITE( message, '(A,I0)'), "Number of capacitors: ",N_of_capacitors
+  CALL print_message(message)     
 
   IF (N_of_capacitors.GT.0) ALLOCATE(capacitor_C_F(1:N_of_capacitors), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each capacitor, provide its capacitance [Farade]
   DO n = 1, N_of_capacitors
+      WRITE( message, '(A,I0)'), "Capacitor #: ",n
+      CALL print_message(message)      
      READ (11, *) capacitor_C_F(n)
+     WRITE( message, '(A,ES10.3,A)'), "C = ",capacitor_C_F," [F]"
+     CALL print_message(message)         
   END DO
+
+  WRITE( message, '(A)'), ""
+  CALL print_message(message)    
 
 !--- inductors
 
   READ (11, '(A1)') buf   ! number of inductors (0 if there are no inductors)
   READ (11, *) N_of_inductors
+  WRITE( message, '(A,I0)'), "Number of inductors: ",N_of_inductors
+  CALL print_message(message)   
 
   IF (N_of_inductors.GT.0) ALLOCATE(inductor_L_H(1:N_of_inductors), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each inductor, provide its inductance [Henry]
   DO n = 1, N_of_inductors
+      WRITE( message, '(A,I0)'), "Inductor #: ",n
+      CALL print_message(message)    
      READ (11, *) inductor_L_H(n)
+     WRITE( message, '(A,ES10.3,A)'), "L = ",inductor_L_H," [H]"
+     CALL print_message(message)        
   END DO
+
+  WRITE( message, '(A)'), ""
+  CALL print_message(message)     
 
   CLOSE (11, STATUS = 'KEEP')
 
