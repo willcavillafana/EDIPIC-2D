@@ -948,7 +948,7 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                  END DO   !### DO i = istart, iend
 
-              ELSE IF (whole_object(noi)%segment(nseg)%istart.EQ.indx_x_max) THEN  !-------------------------------------------
+              ELSE IF (whole_object(noi)%segment(nseg)%istart.EQ.indx_y_max) THEN  !-------------------------------------------
 ! wall above
 
                  j = indx_y_max
