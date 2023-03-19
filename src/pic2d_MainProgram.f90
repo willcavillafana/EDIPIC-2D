@@ -204,7 +204,9 @@ PROGRAM MainProg
         CALL start_timer( calculate_electric_field_timer )    
         !t6 = MPI_WTIME()
 
+        CALL start_timer( externa_circuit_timer )    
         CALL SOLVE_EXTERNAL_CONTOUR
+        CALL end_timer( externa_circuit_timer )    
 
         CALL CALCULATE_ELECTRIC_FIELD               ! n
 

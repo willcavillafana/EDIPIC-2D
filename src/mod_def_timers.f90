@@ -16,6 +16,7 @@ MODULE mod_def_timers
     TYPE(T_TIMER) :: gather_ion_charge_density_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: gather_electron_charge_density_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: poisson_solver_timer = t_timer( start=zero,end=zero,total=zero )
+    TYPE(T_TIMER) :: externa_circuit_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: calculate_electric_field_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: compute_averaged_snapshot_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: create_instantaneous_snapshot_timer = t_timer( start=zero,end=zero,total=zero )
@@ -59,6 +60,8 @@ MODULE mod_def_timers
         CALL print_timer( gather_electron_charge_density_timer,message )
         message = "Solve Poisson equation"
         CALL print_timer( poisson_solver_timer,message )
+        message = "Adjust potential accounting for external circuit"
+        CALL print_timer( externa_circuit_timer,message )        
         message = "Calculate electric field"
         CALL print_timer( calculate_electric_field_timer,message )
         message = "Compute averaged snapshot"
