@@ -3361,6 +3361,19 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
          END DO
       END DO
 
+      ! Communicate volunic ionization parameters for ECR project
+      IF ( i_ionize_source_ecr==1 ) THEN
+
+         ! Dimensions of cluster ionization zone
+         CALL MPI_BCAST(c_i_ion_source_start_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)        
+         CALL MPI_BCAST(c_i_ion_source_end_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)        
+         CALL MPI_BCAST(c_j_ion_source_start_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)        
+         CALL MPI_BCAST(c_j_ion_source_end_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)                 
+
+         ! y positions
+         CALL MPI_BCAST(yi_ecr(0:c_R_max), c_R_max+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
+      END IF
+
   ELSE
 
      CALL MPI_BCAST(bufer_length, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
@@ -3510,6 +3523,19 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
      IF (ht_use_ionization_source) THEN
         CALL MPI_BCAST(yi(0:c_R_max), c_R_max+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr)        
      END IF
+
+      ! Communicate volunic ionization parameters for ECR project
+      IF ( i_ionize_source_ecr==1 ) THEN
+
+         ! Dimensions of cluster ionization zone
+         CALL MPI_BCAST(c_i_ion_source_start_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)        
+         CALL MPI_BCAST(c_i_ion_source_end_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)        
+         CALL MPI_BCAST(c_j_ion_source_start_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)        
+         CALL MPI_BCAST(c_j_ion_source_end_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)                 
+
+         ! y positions
+         CALL MPI_BCAST(yi_ecr(0:c_R_max), c_R_max+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
+      END IF     
 
      IF (ALLOCATED(factor_cyl_vol)) DEALLOCATE(factor_cyl_vol,STAT=ALLOC_ERR )
      ALLOCATE(factor_cyl_vol(c_indx_x_min:c_indx_x_max), STAT=ALLOC_ERR)

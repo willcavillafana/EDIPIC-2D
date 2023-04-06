@@ -224,7 +224,9 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
  
    use_ecr_injection = 0
    total_cathode_N_e_to_inject = 0
- 
+
+   CALL LOAD_OTHER_SPECIFIC_PARAMETERS
+   
    INQUIRE (FILE = 'init_setup_ecr.dat', EXIST = exists)
  
    IF (exists) THEN
@@ -279,14 +281,247 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
  ! prepare velocity conversion factors
    factor_convert_vinj = SQRT(T_inj_eV / T_e_eV) / N_max_vel
    factor_convert_vinj_i = SQRT(T_inj_i_eV / T_e_eV) / (N_max_vel*SQRT(Ms(1))) ! One species for now. 
- 
+
  END SUBROUTINE PREPARE_ECR_SETUP_VALUES
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE LOAD_OTHER_SPECIFIC_PARAMETERS
+!>    @details Load other inputs for specific feature for ECR: magnetic field, neutrla profile, ionization zone
+!!    @authors W. Villafana
+!!    @date    Apr-05-2022
+!-------------------------------------------------------------------------------------------------- 
+
+ SUBROUTINE LOAD_OTHER_SPECIFIC_PARAMETERS
+
+   USE ClusterAndItsBoundaries, ONLY: c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
+   USE SetupValues, ONLY: j_ion_source_start_ecr, j_ion_source_end_ecr, i_ion_source_start_ecr, i_ion_source_end_ecr, c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, &
+                          c_i_ion_source_start_ecr, c_i_ion_source_end_ecr, i_neutral_profile, i_ionize_source_ecr, xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz, &
+                          ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr   
+   USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell, delta_t_s, e_Cl, zero, N_subcycles
+   USE mod_print, ONLY: print_parser_error, print_message
+   USE ParallelOperationValues!, ONLY: Rank_of_process, cluster_rank_key
+   
+   CHARACTER(LEN=string_length) :: message, chaval,long_buf,line,separator, routine
+   INTEGER :: i_found ! flag to decide if I found keyword or not.
+   REAL(8) :: weight_ptcl ! stat of weight of macroparticles
+   REAL(8) :: coeff_J
+   REAL(8) :: rval   
+   LOGICAL exists
+   INTEGER ALLOC_ERR
+   INTEGER ierr
+
+   routine = 'LOAD_OTHER_SPECIFIC_PARAMETERS'
+
+   ! Implement magnetic field for ECR simulation if file is present. Needs to be merged with other input files at some point
+   i_mag_profile = 0 ! by default 
+   i_neutral_profile = 0 ! by default 
+   i_ionize_source_ecr = 0 ! by default 
+   ioniz_ecr_vol_I_injected = zero
+   INQUIRE (FILE = 'init_ecr_model.dat', EXIST = exists)
+   IF (exists) THEN
+      IF ( Rank_of_process==0 ) PRINT *,'init_ecr_model.dat found.'
+      OPEN (9, file='init_ecr_model.dat')
+      
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="magnetic_field_profile" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,chaval
+            
+            ! Compare requested profile with what is implemented
+            IF ( TRIM(chaval)=="gaussian_profile_x" ) THEN 
+               i_mag_profile = 1
+               ! Print message and inform user
+               IF ( Rank_of_process==0 ) PRINT *,'Magnetic profile for ECR is given by "gaussian_profile_x"'               
+            ELSE IF ( TRIM(chaval)=="double_uniform_y" ) THEN 
+               i_mag_profile = 2
+               ! Print message and inform user
+               IF ( Rank_of_process==0 ) PRINT *,'Magnetic profile for ECR is given by "double_uniform_y"'               
+            ELSE
+               IF ( Rank_of_process==0 ) PRINT *,'Cannot find an exising implementation for the magnetic profile. &
+                                                I expect "gaussian_profile_x" or "double_uniform_y". &
+                                                Received:',TRIM(chaval) 
+               STOP              
+            END IF
+            EXIT
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         IF ( Rank_of_process==0 ) PRINT*,'magnetic_field_profile no present. I assume we do not want it'//achar(10)
+      END IF    
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="neutral_profile" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,chaval
+            
+            ! Compare requested profile with what is implemented
+            IF ( TRIM(chaval)=="gradient_aperture_1" ) THEN 
+               i_neutral_profile = 1
+               ! Print message and inform user
+               WRITE( message, '(A)'), "ECR project: neutral profile is gradient_aperture_1"//achar(10)
+            ELSE
+               WRITE( message, '(A,A,A)'), "ECR project: selected neutral profile is incorrect. Expected: 'gradient_aperture_1'. Received: ",TRIM(chaval),ACHAR(10)
+               CALL print_parser_error(message)            
+            END IF
+            CALL print_message( message )
+            EXIT
+         END IF
+
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "neutral_profile keyword not present. I assume it is uniform"//achar(10)
+         CALL print_message( message )    
+      END IF      
+
+      ! Input for artificial ionization source term       
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="ionization_source_term" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,chaval
+            
+            ! Compare requested profile with what is implemented
+            IF ( TRIM(chaval)=="yes" ) THEN 
+               i_ionize_source_ecr = 1
+               ! Print message and inform user
+               WRITE( message, '(A)'), "ECR project: activate volumic ionization source term"//achar(10)
+               CALL print_message( message )
+            ELSE IF ( TRIM(chaval)=="no" ) THEN
+               WRITE( message, '(A)'), "ECR project: volumic ionization source term is NOT activated"//achar(10)
+            ELSE   
+               WRITE( message, '(A,A,A)'), "ECR project: for 'ionization_source_term' I expected: 'yes' or 'no' (case sensitive). Received: ",TRIM(chaval),ACHAR(10)
+               CALL print_parser_error(message)            
+            END IF
+            EXIT
+         END IF
+
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "ionization_source_term keyword not present. I assume it is turned off"
+         CALL print_message( message )    
+      END IF        
+
+      IF ( i_ionize_source_ecr==1 ) THEN
+
+         ! Now I need the input parameters x1, x2, y1, y2 and I_inj following https://doi.org/10.1088/1361-6595/ab46c5 model
+         ! Injected current 
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="ioniz_ecr_vol_I_injected" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,rval
+               ioniz_ecr_vol_I_injected = rval ! in A
+               WRITE( message,'(A,ES10.3,A)') "Ionization volumic source current = ",ioniz_ecr_vol_I_injected," [A]"
+               CALL print_message( message,routine ) 
+               
+               ! Normalize current 
+               weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+               ! Deduce how many particles we should inject 
+               coeff_J = delta_t_s*N_subcycles / ( e_Cl*weight_ptcl ) 
+               ioniz_ecr_vol_I_injected = ioniz_ecr_vol_I_injected*coeff_J ! This a number of macroparticles
+
+               WRITE( message,'(A,ES10.3)') "Number of macroparticles to inject =  ",ioniz_ecr_vol_I_injected
+               CALL print_message( message ) 
+
+               EXIT
+            END IF
+         END DO   
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "ioniz_ecr_vol_I_injected keyword not present. I need it in A"
+            CALL print_parser_error(message)
+         END IF             
+         
+         ! positions x_start, x_end, y_start, y_end in m 
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="ioniz_ecr_vol_position_xs_xe_ys_ye" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz
+               WRITE( message,'(A,ES10.3,ES10.3,ES10.3,ES10.3,A)') "Ionization volumic xs,xe,yx,ye = ",xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz," [m]"//achar(10)
+               CALL print_message( message )  
+               
+               ! Normalize length
+               xs_ioniz = xs_ioniz/delta_x_m
+               xe_ioniz = xe_ioniz/delta_x_m
+               ys_ioniz = ys_ioniz/delta_x_m
+               ye_ioniz = ye_ioniz/delta_x_m
+
+               EXIT
+            END IF
+         END DO   
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "ioniz_ecr_vol_position_xs_xe_ys_ye keyword not present. I need four doubles in m"
+            CALL print_parser_error(message)
+         END IF      
+         
+         !!! Now I prepare the injection integral 
+
+         ! calculate node index boundaries for the ionization source
+         IF (cluster_rank_key==0) THEN
+            j_ion_source_start_ecr = INT(ys_ioniz)
+            j_ion_source_end_ecr   = INT(ye_ioniz)
+            i_ion_source_start_ecr = INT(xs_ioniz)
+            i_ion_source_end_ecr   = INT(xe_ioniz)
+         
+
+            ! Calculation of limits of ionization source per cluster
+            c_j_ion_source_start_ecr = MAX(j_ion_source_start_ecr, c_indx_y_min)
+            IF (c_indx_y_max.LT.global_maximal_j) THEN
+               c_j_ion_source_end_ecr = MIN(j_ion_source_end_ecr, c_indx_y_max-1)
+            ELSE
+               c_j_ion_source_end_ecr = MIN(j_ion_source_end_ecr, global_maximal_j)
+            END IF            
+            
+            c_i_ion_source_start_ecr = MAX(i_ion_source_start_ecr, c_indx_x_min)
+            IF (c_indx_x_max.LT.global_maximal_i) THEN
+               c_i_ion_source_end_ecr = MIN(i_ion_source_end_ecr, c_indx_x_max-1)
+            ELSE
+               c_i_ion_source_end_ecr = MIN(i_ion_source_end_ecr, global_maximal_i)
+            END IF                              
+
+            ! For now assume only one type of ions
+            ! ALLOCATE(N_to_ionize_total_ecr(1:N_spec), STAT = ALLOC_ERR)
+            ! ALLOCATE(N_to_ionize_cluster_ecr(1:N_spec), STAT = ALLOC_ERR)           
+            N_to_ionize_total_ecr = ioniz_ecr_vol_I_injected!0
+            N_to_ionize_cluster_ecr = 0       
+            ! N_to_ionize_total_ecr(1) = ioniz_ecr_vol_I_injected
+            CALL PrepareYIonizRateDistribIntegral_ECR_setup
+
+         END IF
+      END IF
+
+      CLOSE (9, STATUS = 'KEEP')    
+   END IF  
+
+   END SUBROUTINE LOAD_OTHER_SPECIFIC_PARAMETERS
 
 !-------------------------------------------------------------------------------------------
 ! Prepares the tabulated values of integral of the ionization rate distribution function
 ! is called only by cluster masters
 !  
-SUBROUTINE PrepareYIonizRateDistribIntegral
+SUBROUTINE  PrepareYIonizRateDistribIntegral
 
   USE ParallelOperationValues, ONLY : Rank_of_process
   USE SetupValues
@@ -418,6 +653,267 @@ SUBROUTINE PrepareYIonizRateDistribIntegral
 
 END SUBROUTINE PrepareYIonizRateDistribIntegral
 
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE PrepareYIonizRateDistribIntegral_ECR_setup
+!>    @details Prepare ionization profile for ECR setup. Ionization takes place in a specified volume has a constant injection. It is inspired from https://doi.org/10.1088/1361-6595/ab46c5 
+!!    @authors W. Villafana
+!!    @date    Apr-04-2022
+!-------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE PrepareYIonizRateDistribIntegral_ECR_setup
+
+   USE ParallelOperationValues, ONLY : Rank_of_process
+   USE SetupValues
+   USE ClusterAndItsBoundaries
+   USE CurrentProblemValues, ONLY : zero, string_length, debug_level, i_cylindrical
+   USE IonParticles, ONLY : N_spec
+   USE mod_print, ONLY: print_message_cluster
+ 
+   IMPLICIT NONE
+ 
+   INTEGER N_pnts
+   REAL(8) y_min, y_max, dy
+   REAL(8) ::  x_min, x_max, x_min_cluster, x_max_cluster ! x limits of ionization zone and cluster
+ 
+   INTEGER i, s
+   REAL(8) int_all, int_cluster
+ 
+   LOGICAL IncreaseNpnts
+   INTEGER count
+   REAL(8), ALLOCATABLE :: F(:)
+   INTEGER ALLOC_ERR
+   REAL(8) temp
+   REAL(8) :: factor_geom
+   CHARACTER(LEN=string_length) :: message
+ 
+ ! function
+   REAL(8) RateDistrFun_ecr
+ 
+ ! exclude clusters which do not have the ionization area
+   IF (c_j_ion_source_start_ecr.GE.c_j_ion_source_end_ecr) THEN
+      ! print*,'c_j_ion_source_start_ecr,c_j_ion_source_end_ecr,rank',c_j_ion_source_start_ecr,c_j_ion_source_end_ecr,Rank_of_process
+      N_to_ionize_cluster_ecr = 0
+      yi_ecr = zero
+      RETURN
+   END IF
+ 
+   IF (c_i_ion_source_start_ecr.GE.c_i_ion_source_end_ecr) THEN
+      ! print*,'c_i_ion_source_start_ecr,c_i_ion_source_end_ecr,rank',c_i_ion_source_start_ecr,c_i_ion_source_end_ecr,Rank_of_process
+      N_to_ionize_cluster_ecr = 0
+      yi_ecr = zero
+      RETURN
+   END IF   
+
+
+ ! ------- integrate the whole ionization area and the part which belongs to this cluster
+ !
+   N_pnts = 20000
+   y_min  = DBLE(j_ion_source_start_ecr)
+   y_max  = DBLE(j_ion_source_end_ecr)
+   x_min  = DBLE(i_ion_source_start_ecr)
+   x_max  = DBLE(i_ion_source_end_ecr)   
+   dy = (y_max - y_min) / N_pnts
+ 
+   int_all = 0.0_8
+   DO i = 1, N_pnts-1
+      int_all = int_all + RateDistrFun_ecr(y_min + (DBLE(i)-0.5_8) * dy)
+   END DO
+   int_all = dy * (int_all + RateDistrFun_ecr(y_max - 0.5_8 * dy))
+ 
+ ! ------- integrate part of the ionization area which belongs to this cluster
+ 
+   y_min = DBLE(c_j_ion_source_start_ecr)
+   y_max = DBLE(c_j_ion_source_end_ecr)
+   x_min_cluster = DBLE(c_i_ion_source_start_ecr)
+   x_max_cluster = DBLE(c_i_ion_source_end_ecr)   
+   N_pnts = (y_max - y_min) / dy
+   dy = (y_max - y_min) / N_pnts
+ 
+   int_cluster = 0.0_8
+   DO i = 1, N_pnts-1
+      int_cluster = int_cluster + RateDistrFun_ecr(y_min + (DBLE(i)-0.5_8) * dy)
+   END DO
+   int_cluster = dy * (int_cluster + RateDistrFun_ecr(y_max - 0.5_8 * dy))
+ 
+ ! calculate number of e-i(s) pairs to be produced by this cluster
+ 
+   ! DO s = 1, N_spec
+      ! N_to_ionize_cluster_ecr(s) = INT(N_to_ionize_total_ecr(s) * (int_cluster / int_all) * (x_max_cluster-x_min_cluster)/(x_max-x_min)) !(DBLE(c_indx_x_max-1 - c_indx_x_min) * DBLE(whole_object(2)%L) )
+   ! END DO
+   factor_geom = (x_max_cluster-x_min_cluster)/(x_max-x_min)
+   IF ( i_cylindrical==2 ) factor_geom = (x_max_cluster**2-x_min_cluster**2)/(x_max**2-x_min**2)
+   N_to_ionize_cluster_ecr = INT(N_to_ionize_total_ecr * (int_cluster / int_all) * factor_geom) !(DBLE(c_indx_x_max-1 - c_indx_x_min) * DBLE(whole_object(2)%L) )      
+   ! print*,'rank,N_to_ionize_total_ecr(s),int_cluster,x_max_cluster,x_min_cluster',Rank_of_process,N_to_ionize_total_ecr(s),int_cluster,x_max_cluster,x_min_cluster
+   ! print*,'rank,N_to_ionize_cluster_ecr(1),N_to_ionize_total_ecr(1),s, Nspec',Rank_of_process,N_to_ionize_cluster_ecr(1),N_to_ionize_total_ecr(1),s,N_spec
+   ! PRINT '("Cluster ",i5," each ion time step will produce ion(s)-electron pairs :: ",5(2x,i7,"(",i1,")"))', Rank_of_process, N_to_ionize_cluster_ecr(1), 1
+   WRITE( message,'(A,I10,A)') "At each ion time step",N_to_ionize_cluster_ecr," ion(s)-electron pairs will be produced"
+   ! CALL print_message_cluster( message,1 )  
+   CALL print_message_cluster( message,debug_level )  
+   
+
+ ! ----- prepare the tabulated integral for the part of the ionization area belonging to this cluster
+ 
+   y_min = DBLE(c_j_ion_source_start_ecr)
+   y_max = DBLE(c_j_ion_source_end_ecr)
+ 
+   IncreaseNpnts = .TRUE.
+   N_pnts = 20000
+   count = 0
+   DO WHILE (IncreaseNpnts)
+ 
+      ALLOCATE(F(0:N_pnts), STAT = ALLOC_ERR)
+ 
+      dy = (y_max - y_min) / N_pnts
+ 
+      F(0) = 0.0_8
+      DO i = 1, N_pnts-1
+         F(i) = F(i-1) + RateDistrFun_ecr(y_min + (DBLE(i)-0.5_8) * dy)
+      END DO
+      F(N_pnts) = F(N_pnts-1) + RateDistrFun_ecr(y_max - 0.5_8 * dy)
+ 
+      temp = F(N_pnts)
+      F = F * c_R_max / temp   ! normalize integral such that F(N_pnts) = c_R_max
+      F(N_pnts) = c_R_max
+ 
+ ! check that in the normalized integral the difference between values in neighbor points does not exceed 1
+ 
+      IncreaseNpnts = .FALSE.
+ 
+      DO i = 1, N_pnts
+         IF ((INT(F(i))-INT(F(i-1))).GT.1) THEN
+            IncreaseNpnts = .TRUE.
+            N_pnts = N_pnts * 2
+            count = count + 1
+            DEALLOCATE(F, STAT = ALLOC_ERR)
+ 
+            IF (count.GT.4) THEN
+               PRINT '(2x,"Process ",i3," : ERROR-1 in PrepareYIonizRateDistribIntegral_ECR_setup !!!")', Rank_of_process
+               STOP
+            END IF
+ 
+            EXIT
+         END IF
+      END DO
+ 
+   END DO
+ 
+   yi_ecr(0) = y_min
+   count = 0
+   DO i = 1, N_pnts-1
+      IF ((INT(F(i))-count).EQ.1) THEN
+         count = count + 1
+         yi_ecr(count) = y_min + i * dy
+      END IF
+   END DO
+ 
+   IF (count.NE.c_R_max-1) THEN
+      PRINT '(2x,"Process ",i3," : ERROR-2 in PrepareYIonizRateDistribIntegral_ECR_setup !!!")', Rank_of_process
+      STOP
+   END IF
+ 
+   yi_ecr(c_R_max) = y_max
+ 
+   DEALLOCATE(F, STAT = ALLOC_ERR)
+ 
+ END SUBROUTINE PrepareYIonizRateDistribIntegral_ECR_setup
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE PERFORM_IONIZATION_ECR_SETUP
+!>    @details Perform ionization for ECR setup. Ionization takes place in a specified volume has a constant injection. It is inspired from https://doi.org/10.1088/1361-6595/ab46c5 
+!!    @authors W. Villafana
+!!    @date    Apr-05-2022
+!-------------------------------------------------------------------------------------------------- 
+
+ SUBROUTINE PERFORM_IONIZATION_ECR_SETUP
+
+   USE ParallelOperationValues
+   USE ClusterAndItsBoundaries
+   USE SetupValues
+   USE IonParticles, ONLY : N_spec
+   USe CurrentProblemValues, ONLY: init_Te_eV, T_e_eV, N_max_vel, i_cylindrical
+   USE IonParticles, ONLY: Ms, init_Ti_eV
+ 
+   USE rng_wrapper
+ 
+   IMPLICIT NONE
+ 
+   INCLUDE 'mpif.h'
+ 
+   INTEGER ierr
+ 
+   INTEGER add_N_i_ionize!(1:N_spec)
+   INTEGER s, n
+   INTEGER tag
+   REAL(8) x, y, vx, vy, vz
+   REAL(8) :: x_min_cluster, x_max_cluster
+   REAL(8) :: factor_ion, factor_electron
+
+   IF ( i_ionize_source_ecr/=1 ) RETURN
+ 
+   ! By default the particles are sampled from a Maxwellian whose temperature is the one chosen at initilization
+   s = 1 ! one species for now
+   factor_ion      = SQRT(init_Ti_eV(s) / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
+   factor_electron = SQRT(init_Te_eV / T_e_eV) / N_max_vel
+
+ ! let the master process of each cluster notify its members (particle calculators) about the amount of e-i pairs to be produced
+ ! this allows to easily include time-varying intensity of ionization source
+ 
+   add_N_i_ionize = 0
+ 
+ !  ibufer(1:N_spec) = N_to_ionize_cluster(1:N_spec)
+   ! print*,'rank,N_to_ionize_cluster_ecr',Rank_of_process, N_to_ionize_cluster_ecr
+   ! CALL MPI_BCAST(N_to_ionize_cluster_ecr(1:N_spec), N_spec, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
+   CALL MPI_BCAST(N_to_ionize_cluster_ecr, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
+ 
+ 
+   ! DO s = 1, N_spec
+ ! identify number of e-i pairs to be produced in each process  for each ion species
+   add_N_i_ionize = N_to_ionize_cluster_ecr / N_processes_cluster
+   IF (Rank_cluster.EQ.(N_processes_cluster-1)) THEN
+      add_N_i_ionize = N_to_ionize_cluster_ecr - (N_processes_cluster-1) * (N_to_ionize_cluster_ecr / N_processes_cluster)
+   END IF
+
+   DO n = 1, add_N_i_ionize
+
+      tag = 0
+      x_min_cluster = DBLE(c_i_ion_source_start_ecr)
+      x_max_cluster = DBLE(c_i_ion_source_end_ecr) 
+
+      IF (i_cylindrical==0) THEN
+         x = x_min_cluster + well_random_number() * (x_max_cluster-x_min_cluster)
+      ELSE IF (i_cylindrical==2) THEN
+         x = SQRT(x_min_cluster**2 + well_random_number() * (x_max_cluster**2-x_min_cluster**2))
+      END IF
+      ! x = DBLE(c_indx_x_min) + well_random_number() * DBLE(c_indx_x_max-1-c_indx_x_min)
+      ! x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+
+      CALL GetYCoordIoniz_ecr(y)
+
+      CALL GetMaxwellVelocity(vx)
+      CALL GetMaxwellVelocity(vy)
+      CALL GetMaxwellVelocity(vz)
+   
+      vx = vx * factor_electron
+      vy = vy * factor_electron
+      vz = vz * factor_electron
+
+      CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+
+      CALL GetMaxwellVelocity(vx)
+      CALL GetMaxwellVelocity(vy)
+      CALL GetMaxwellVelocity(vz)
+   
+      vx = vx * factor_ion
+      vy = vy * factor_ion
+      vz = vz * factor_ion
+
+      CALL ADD_ION_TO_ADD_LIST(s, x, y, vx, vy, vz, tag)
+   END DO
+   ! END DO
+ 
+ END SUBROUTINE PERFORM_IONIZATION_ECR_SETUP
+
+
 !--------------------------------------------
 !
 SUBROUTINE PERFORM_IONIZATION_HT_SETUP
@@ -522,6 +1018,35 @@ SUBROUTINE GetYCoordIoniz(y)
   
 END SUBROUTINE GetYCoordIoniz
 
+SUBROUTINE GetYCoordIoniz_ecr(y)
+
+   USE SetupValues
+ 
+   USE rng_wrapper
+ 
+   IMPLICIT NONE
+ 
+   REAL(8) y
+ 
+   REAL(8) R
+   INTEGER indx
+   
+   R = c_R_max * well_random_number()
+ 
+   indx = INT(R)
+ 
+   IF (indx.LT.c_R_max) THEN
+      y = yi_ecr(indx) + DBLE(R - indx) * (yi_ecr(indx+1) - yi_ecr(indx))
+   ELSE
+      y = yi_ecr(c_R_max)
+   END IF
+ 
+   y = MIN(MAX(y, DBLE(c_j_ion_source_start_ecr)), DBLE(c_j_ion_source_end_ecr))
+ 
+   RETURN
+   
+ END SUBROUTINE GetYCoordIoniz_ecr
+
 !---------------------------------------
 !
 REAL(8) FUNCTION RateDistrFun(y)
@@ -547,6 +1072,30 @@ REAL(8) FUNCTION RateDistrFun(y)
   RateDistrFun = COS(pi * (y - ymax) / (y2 - y1))
 
 END FUNCTION RateDistrFun
+
+REAL(8) FUNCTION RateDistrFun_ecr(y)
+
+  USE SetupValues, ONLY : j_ion_source_start_ecr, j_ion_source_end_ecr
+  
+
+  IMPLICIT NONE
+
+  REAL(8), PARAMETER :: pi = 3.141592653589793_8
+
+  REAL(8) y, y1, y2, ymax
+
+  y1 = DBLE(j_ion_source_start_ecr)
+  y2 = DBLE(j_ion_source_end_ecr)
+  ymax = 0.5_8 * (y1 + y2)
+
+  RateDistrFun_ecr = 0.0_8
+
+  IF ((y.LE.y1).OR.(y.GE.y2)) RETURN
+
+!  RateDistrFun = 0.25_8 * (y - y1) * (y2 - y) / (y2 - y1)**2
+  RateDistrFun_ecr = COS(pi * (y - ymax) / (y2 - y1))
+
+END FUNCTION RateDistrFun_ecr
 
 !--------------------------------------------
 !

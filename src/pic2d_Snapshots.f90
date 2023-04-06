@@ -191,7 +191,7 @@ SUBROUTINE INITIATE_SNAPSHOTS
 !  current_snap = 1   ! default value
 
 ! overrite if the system is initialized using a checkpoint
-  IF (use_checkpoint.EQ.1) current_snap = current_snap_check
+  IF (use_checkpoint.EQ.1) current_snap = current_snap_check !1 !current_snap_check ! Temporary fix 
 
 ! report about the general status of snapshot creation
   IF (N_of_all_snaps.EQ.0) THEN

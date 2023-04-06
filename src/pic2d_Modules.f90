@@ -1036,15 +1036,29 @@ MODULE SetupValues
 
   INTEGER, ALLOCATABLE :: N_to_ionize_total(:)      !#########(1:N_spec)
   INTEGER, ALLOCATABLE :: N_to_ionize_cluster(:)    !#########(1:N_spec)
+  INTEGER :: N_to_ionize_total_ecr      !#########(1:N_spec). For ECR setup 
+  INTEGER :: N_to_ionize_cluster_ecr    !#########(1:N_spec). For ECR setup 
 
   INTEGER, PARAMETER :: c_R_max = 1000              ! maximal value of integral of ionization rate distribution within the range allocated to a cluster
   REAL(8) yi(0:c_R_max)
+  REAL(8) yi_ecr(0:c_R_max)                         ! y position of particles that are injected with the ionization thoughts for ECR. 
+                                                    !As a reminder, in the ECR setup you can control the size in the x direction (doesn't have to be the whole width of the domain)
 
   REAL(8) factor_convert_vinj                       ! velocity conversion factors, injected electrons
   REAL(8) :: factor_convert_vinj_i                       ! velocity conversion factors, injected ions. One species for now
   REAL(8) factor_convert_vion_e                     ! ionization electrons
   REAL(8), ALLOCATABLE ::  factor_convert_vion_i(:) !########(1:N_spec)  ! ionization ions
   INTEGER :: use_ecr_injection ! 0=off, 1=ON (e-i injection pair)
+
+
+  ! ECR ionization moduel
+  INTEGER :: j_ion_source_start_ecr, j_ion_source_end_ecr, i_ion_source_start_ecr, i_ion_source_end_ecr
+  INTEGER :: c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, c_i_ion_source_start_ecr, c_i_ion_source_end_ecr ! boundaries for cluster
+
+  INTEGER :: i_neutral_profile ! For ECR project. Selects predefined neutral profiles
+  INTEGER :: i_ionize_source_ecr ! For Ecr, volumic ionization source term 
+  REAL(8) :: ioniz_ecr_vol_I_injected ! For ECR volumic ionization source: injected current in A
+  REAL(8) :: xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz ! For ECR volumic ionization source: position of ionization volumic source
 
 END MODULE SetupValues
 
@@ -1076,7 +1090,6 @@ MODULE MCCollisions
 
   INTEGER N_neutral_spec
 
-  INTEGER :: i_neutral_profile ! For ECR project. Selects predefined neutral profiles
 
   TYPE collision_type
      LOGICAL activated
@@ -1367,7 +1380,7 @@ MODULE mod_print
       CHARACTER(LEN=string_length), INTENT(IN) :: message
       INTEGER, INTENT(IN) :: debug_level
 
-      IF ( debug_level>0) WRITE(*,'(T8,A,I3,A)') "Cluster master",Rank_of_process,": "//TRIM(message) 
+      IF ( debug_level>0) WRITE(*,'(T8,A,I3,A)') "Cluster master ",Rank_of_process,": "//TRIM(message) 
 
   END SUBROUTINE    
   

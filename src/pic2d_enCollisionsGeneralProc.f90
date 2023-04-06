@@ -852,7 +852,7 @@ END SUBROUTINE SAVE_en_COLLISIONS
 REAL(8) FUNCTION neutral_density_normalized(n, x, y)
 
 !  USE CurrentProblemValues, ONLY : N_cells, delta_x_m
-   USE MCCollisions, ONLY: i_neutral_profile
+   USE SetupValues, ONLY: i_neutral_profile
 
    IMPLICIT NONE
 
