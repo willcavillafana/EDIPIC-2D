@@ -265,6 +265,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
  
    END IF
   
+   IF (use_ecr_injection>0) THEN
 ! place grid in such a way that it is not exactly on any boundary
    grid_j = MAX(1, MIN(INT(injection_y_ecr * 0.001_8 / delta_x_m), global_maximal_j-1))
 
@@ -281,6 +282,8 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
  ! prepare velocity conversion factors
    factor_convert_vinj = SQRT(T_inj_eV / T_e_eV) / N_max_vel
    factor_convert_vinj_i = SQRT(T_inj_i_eV / T_e_eV) / (N_max_vel*SQRT(Ms(1))) ! One species for now. 
+
+   END IF
 
  END SUBROUTINE PREPARE_ECR_SETUP_VALUES
 

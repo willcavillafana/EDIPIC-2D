@@ -191,7 +191,7 @@ SUBROUTINE INITIATE_SNAPSHOTS
 !  current_snap = 1   ! default value
 
 ! overrite if the system is initialized using a checkpoint
-  IF (use_checkpoint.EQ.1) current_snap = current_snap_check !1 !current_snap_check ! Temporary fix 
+  IF (use_checkpoint.EQ.1) current_snap = 1 !current_snap_check ! Temporary fix 
 
 ! report about the general status of snapshot creation
   IF (N_of_all_snaps.EQ.0) THEN
@@ -363,7 +363,8 @@ SUBROUTINE CREATE_SNAPSHOT
   END INTERFACE
 
 ! quit if all snapshots were created or if due to any reasons the snapshot counter is 
-! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
+! larger than the declared number of snapshots (e.g., when no snapshots are requested) \
+!   IF (Rank_of_process==0) print*,'current_snap,N_of_all_snaps,T_cntr,Tcntr_snapshot(current_snap)',current_snap,N_of_all_snaps,T_cntr,Tcntr_snapshot(current_snap)
   IF (current_snap.GT.N_of_all_snaps) RETURN
 
 ! quit if the current moment of time is not the moment when it is necessary to create the snapshot
