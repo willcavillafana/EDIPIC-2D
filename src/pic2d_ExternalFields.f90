@@ -176,7 +176,7 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
         READ (9, '(A1)') buf !"---ddddd.ddd---ddddd.ddd---ddddd.ddd---")')
 
         DO n = 1, N_JZ_wires
-           READ (9, '(3(3x,f9.3))') JZwire_X(n), JZwire_Y(n), JZwire_JZ(n) 
+           READ (9, '(3(3x,f9.3))') JZwire_X(n), JZwire_Y(n), JZwire_JZ(n)
 ! make values dimensionless
            JZwire_X(n) = JZwire_X(n) * 0.001_8 / delta_x_m
            JZwire_Y(n) = JZwire_Y(n) * 0.001_8 / delta_x_m
@@ -209,7 +209,7 @@ REAL(8) FUNCTION Bx(x, y)
 
   REAL(8) x, y
   INTEGER n
-  REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second
+  REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second, z_new
   INTEGER :: ierr
 
   Bx = Bx_ext
@@ -224,9 +224,9 @@ REAL(8) FUNCTION Bx(x, y)
       IF ( rho/=zero ) THEN
          DO n = 1, N_JZ_wires ! JZwire_JZ = muI/(2*pi*delta_x*B_scale)
             a = JZwire_X(n) ! radius of loop
-            z = z-JZwire_Y(n) ! distance from loop
-            alpha_square = a**2+rho**2+z**2-two*a*rho
-            beta_square = a**2+rho**2+z**2+two*a*rho
+            z_new = z-JZwire_Y(n) ! distance from loop
+            alpha_square = a**2+rho**2+z_new**2-two*a*rho
+            beta_square = a**2+rho**2+z_new**2+two*a*rho
             k_square = one-alpha_square/beta_square
             C_const = JZwire_JZ(n)*two 
             elliptic_first = drf(zero,one-k_square,one,ierr)
@@ -234,7 +234,7 @@ REAL(8) FUNCTION Bx(x, y)
             ! IF ( k_square==one ) print*,'Bx,a,rho,alpha,beta,k_square,rank',a,rho,alpha,beta,k_square,Rank_of_process
             ! use superposition and https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.ellipk.html#rb8dc91d0a263-2
             ! If rho is 0, Br =0
-            Bx = Bx + C_const *z/(two*alpha_square*SQRT(beta_square)*rho) * ( (a**2+rho**2+z**2)*elliptic_second - alpha_square*elliptic_first)
+            Bx = Bx + C_const *z_new/(two*alpha_square*SQRT(beta_square)*rho) * ( (a**2+rho**2+z_new**2)*elliptic_second - alpha_square*elliptic_first)
          END DO      
       ELSE 
          Bx = zero
@@ -258,7 +258,7 @@ REAL(8) FUNCTION By(x, y)
 
   REAL(8) x, y
   INTEGER n
-  REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second
+  REAL(8) :: a,rho,z,beta_square,alpha_square,k_square,C_const,elliptic_first,elliptic_second, z_new
   INTEGER :: ierr
   REAL(8) :: B0,coef_1  
 
@@ -277,16 +277,16 @@ REAL(8) FUNCTION By(x, y)
       z = y ! axial position of ptcl
       DO n = 1, N_JZ_wires ! JZwire_JZ = muI/(2*pi*delta_x*B_scale)
          a = JZwire_X(n) ! radius of loop
-         z = z-JZwire_Y(n) ! distance from loop
-         alpha_square = a**2+rho**2+z**2-two*a*rho
-         beta_square = a**2+rho**2+z**2+two*a*rho
+         z_new = z-JZwire_Y(n) ! distance from loop
+         alpha_square = a**2+rho**2+z_new**2-two*a*rho
+         beta_square = a**2+rho**2+z_new**2+two*a*rho
          k_square = one-alpha_square/beta_square
          C_const = JZwire_JZ(n)*two 
          elliptic_first = drf(zero,one-k_square,one,ierr)
          elliptic_second = drf(zero,one-k_square,one,ierr)-third*k_square*drd(zero,one-k_square,one,ierr)         
          ! IF (k_square==one ) print*,'By,a,rho,alpha,beta,k_square,rank',a,rho,alpha,beta,k_square,Rank_of_process
          ! use superposition and https://docs.scipy.org/doc/scipy/reference/generated/scipy.special.ellipk.html#rb8dc91d0a263-2
-         By = By + C_const/(two*alpha_square*SQRT(beta_square)) * ( (a**2-rho**2-z**2)*elliptic_second + alpha_square*elliptic_first)
+         By = By + C_const/(two*alpha_square*SQRT(beta_square)) * ( (a**2-rho**2-z_new**2)*elliptic_second + alpha_square*elliptic_first)
       END DO      
    END IF  
 
