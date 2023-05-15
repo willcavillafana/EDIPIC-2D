@@ -935,7 +935,7 @@ SUBROUTINE INITIATE_PARAMETERS
   F_scale_V  = e_Cl * N_plasma_m3 * delta_x_m**2 / eps_0_Fm
 
   temperature_factor_eV = m_e_kg * V_scale_ms**2 / e_Cl
-  heat_flow_factor_Wm2 = 0.5_8 * m_e_kg * V_scale_ms**2 * N_scale_part_m3
+  heat_flow_factor_Wm2 = 0.5_8 * m_e_kg * V_scale_ms**3 * N_scale_part_m3 
 
   given_F_double_period_sys = given_F_double_period_sys / F_scale_V
 
