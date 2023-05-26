@@ -180,9 +180,9 @@ MODULE CurrentProblemValues
 
   INTEGER, PARAMETER :: string_length = 300
 
-  CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="GIT_BRANCH"
-  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="GIT_HASH"
-  CHARACTER(len=string_length), PARAMETER :: GIT_DATE="GIT_DATE"
+  CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="WIP/Implement_cylindrical_coordinates"
+  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="35aa9f6a4c4fbd3d8ed3019efba6a14b2ee69e19"
+  CHARACTER(len=string_length), PARAMETER :: GIT_DATE="Wed May 24 17:51:00 2023 -0400"
 
   INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
                             ! For the z_theta plane we can take a Cartesian geometry for now
@@ -193,6 +193,11 @@ MODULE CurrentProblemValues
   INTEGER :: i_empty_domain                                  ! Initialize domain with no particles (=1, 0 otherwise by default)
 
   REAL(8) eps_0_Fm
+
+  ! Coulomb collisions stuff
+  REAL(8) L_ee_0 ! base argument of Coulomb logarithm
+  REAL(8) base_Coulomb_probab
+  REAL(8) base_plasma_param
 
   INTEGER i_given_F_double_period_sys    ! in a system which is periodic in both X and Y directions, if there is no metal objects with given potential
   INTEGER j_given_F_double_period_sys    ! it is necessary to specify a point with some given potential, otherwise the field solver converges only if no dielectric objects are inside (pure plasma)
@@ -249,6 +254,8 @@ MODULE CurrentProblemValues
   INTEGER Start_T_cntr
   INTEGER Max_T_cntr
   INTEGER N_subcycles              ! number of electron cycles per ion cycle (must be odd)
+
+  LOGICAL :: Coulomb_flag
 
   TYPE segment_of_object
      INTEGER istart
@@ -446,6 +453,9 @@ MODULE CurrentProblemValues
   REAL(8), ALLOCATABLE :: c_rho_i(:,:)   ! they are used in [semi]-periodic systems
   REAL(8), ALLOCATABLE :: c_phi(:,:)     !
 
+  REAL(8), ALLOCATABLE :: acc_rho_e(:,:,:) ! to accumulate higher moments with Coulomb scattering enabled 
+  REAL(8), ALLOCATABLE :: c_rho_ext(:,:,:) ! to accumulate higher moments with Coulomb scattering enabled 
+
   REAL(8), ALLOCATABLE :: phi(:,:)       !
   REAL(8), ALLOCATABLE :: rho_i(:,:)     ! these arrays cover a single field-calculating block, they are used when SOR is involved
   REAL(8), ALLOCATABLE :: rho_e(:,:)     ! 
@@ -479,6 +489,9 @@ MODULE ElectronParticles
 
   INTEGER     N_e_to_add  ! number of electron macroparticles to be added
   INTEGER max_N_e_to_add  ! current size (number of particles) of array electron_to_add
+
+  REAL(8) :: kin_energy_e_global
+  REAL(8) :: moments_global(0:4) ! for forcing energy and momentum conservation in Coulomb collisions  
 
   TYPE(particle), ALLOCATABLE :: electron(:)
   TYPE(particle), ALLOCATABLE :: electron_to_add(:)

@@ -1623,16 +1623,17 @@ SUBROUTINE GATHER_ELECTRON_CHARGE_DENSITY
   INTEGER n2  !
   INTEGER n3  ! number of nodes in the x-direction
 
-  REAL(8), ALLOCATABLE :: rbufer(:)
+  REAL(8), ALLOCATABLE :: rbufer2(:,:), rbufer(:)
   INTEGER ALLOC_ERR
   INTEGER bufsize
 
 !  INTEGER npc   ! number of probe in a cluster list of probes
 !  INTEGER npa   ! number of probe in the global list of probes
 
-  INTEGER i, j, k
+  INTEGER i, j, k, m ,nm
   INTEGER pos_i_j, pos_ip1_j, pos_i_jp1, pos_ip1_jp1
   REAL(8) ax_ip1, ax_i, ay_jp1, ay_j
+  REAL(8) vx, vy, vz, vsq
   REAL(8) vij, vip1j, vijp1
 
   INTEGER pos
@@ -1640,6 +1641,11 @@ SUBROUTINE GATHER_ELECTRON_CHARGE_DENSITY
   INTEGER nio, position_flag
 ! function
   REAL(8) Get_Surface_Charge_Inner_Object
+
+  nm = 0 ! index 0 is for density (always used), 1 through 3 hold the velocity and 4 is for energy
+  IF (Coulomb_flag) nm = 4   
+  IF (cluster_rank_key==0) ALLOCATE(c_rho_ext(0:nm, c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR) ! temporary array on cluster masters
+
 
   IF ( (cluster_rank_key.NE.0) &                     ! this array is needed only temporarily for non-master processes
      & .OR. &
@@ -1657,10 +1663,12 @@ SUBROUTINE GATHER_ELECTRON_CHARGE_DENSITY
   n3 = c_indx_x_max - c_indx_x_min + 1
   n2 = -c_indx_x_min + 1 - c_indx_y_min * n3
 
-  bufsize = n1 * n3
-  ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
+!   bufsize = n1 * n3
+!   ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
 
-  rbufer = 0.0_8
+  bufsize = n1 * n3
+  ALLOCATE(rbufer2(0:nm, bufsize), STAT=ALLOC_ERR)
+  rbufer2 = zero
 
   DO k = 1, N_electrons
      
@@ -1698,15 +1706,49 @@ if ((pos_i_j.gt.bufsize)) then
    print '(2x,8(2x,i10))', Rank_of_process, bufsize, pos_i_j, i, j, k, n1, n2
 end if
 
-     rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij*factor_cyl_vol(i)                         !ax_i   * ay_j
-     rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)                       !ax_ip1 * ay_j
-     rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1*factor_cyl_vol(i)                       !ax_i   * ay_jp1
-     rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1)*factor_cyl_vol(i+1) !ax_ip1 * ay_jp1
+      rbufer2(0, pos_i_j)     = rbufer2(0, pos_i_j)     + vij*factor_cyl_vol(i)                         !ax_i   * ay_j
+      rbufer2(0, pos_ip1_j)   = rbufer2(0, pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)                       !ax_ip1 * ay_j
+      rbufer2(0, pos_i_jp1)   = rbufer2(0, pos_i_jp1)   + vijp1*factor_cyl_vol(i)                       !ax_i   * ay_jp1
+      rbufer2(0, pos_ip1_jp1) = rbufer2(0, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1)*factor_cyl_vol(i+1) !ax_ip1 * ay_jp1
+
+   !   rbufer(pos_i_j)     = rbufer(pos_i_j)     + vij*factor_cyl_vol(i)                         !ax_i   * ay_j
+   !   rbufer(pos_ip1_j)   = rbufer(pos_ip1_j)   + vip1j*factor_cyl_vol(i+1)                       !ax_ip1 * ay_j
+   !   rbufer(pos_i_jp1)   = rbufer(pos_i_jp1)   + vijp1*factor_cyl_vol(i)                       !ax_i   * ay_jp1
+   !   rbufer(pos_ip1_jp1) = rbufer(pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1)*factor_cyl_vol(i+1) !ax_ip1 * ay_jp1
+
+     IF (Coulomb_flag) THEN
+      vx = electron(k)%VX      
+      vy = electron(k)%VY
+      vz = electron(k)%VZ
+      vsq = vx*vx + vy*vy + vz*vz
+
+      rbufer2(1, pos_i_j)     = rbufer2(1, pos_i_j)     + vij   * vx                        
+      rbufer2(1, pos_ip1_j)   = rbufer2(1, pos_ip1_j)   + vip1j * vx                        
+      rbufer2(1, pos_i_jp1)   = rbufer2(1, pos_i_jp1)   + vijp1 * vx                         
+      rbufer2(1, pos_ip1_jp1) = rbufer2(1, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vx 
+
+      rbufer2(2, pos_i_j)     = rbufer2(2, pos_i_j)     + vij   * vy
+      rbufer2(2, pos_ip1_j)   = rbufer2(2, pos_ip1_j)   + vip1j * vy
+      rbufer2(2, pos_i_jp1)   = rbufer2(2, pos_i_jp1)   + vijp1 * vy
+      rbufer2(2, pos_ip1_jp1) = rbufer2(2, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vy
+         
+      rbufer2(3, pos_i_j)     = rbufer2(3, pos_i_j)     + vij   * vz
+      rbufer2(3, pos_ip1_j)   = rbufer2(3, pos_ip1_j)   + vip1j * vz
+      rbufer2(3, pos_i_jp1)   = rbufer2(3, pos_i_jp1)   + vijp1 * vz
+      rbufer2(3, pos_ip1_jp1) = rbufer2(3, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vz
+
+      rbufer2(4, pos_i_j)     = rbufer2(4, pos_i_j)     + vij   * vsq
+      rbufer2(4, pos_ip1_j)   = rbufer2(4, pos_ip1_j)   + vip1j * vsq
+      rbufer2(4, pos_i_jp1)   = rbufer2(4, pos_i_jp1)   + vijp1 * vsq
+      rbufer2(4, pos_ip1_jp1) = rbufer2(4, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vsq
+   
+     END IF   
 
   END DO
 
 ! collect densities from all processes in a cluster
-  CALL MPI_REDUCE(rbufer, c_rho, bufsize, MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_CLUSTER, ierr)
+  CALL MPI_REDUCE(rbufer2, c_rho_ext, bufsize * (1 + nm), MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_CLUSTER, ierr)
+!   CALL MPI_REDUCE(rbufer, c_rho, bufsize, MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_CLUSTER, ierr)
   
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
@@ -1726,318 +1768,340 @@ end if
 !     END IF
 
      IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN
-! special case of self-connected X-periodic cluster
-        DO j = c_indx_y_min, c_indx_y_max
-           c_rho(c_indx_x_min+1, j) = c_rho(c_indx_x_min+1, j) + c_rho(c_indx_x_max, j) 
-           c_rho(c_indx_x_max-1, j) = c_rho(c_indx_x_max-1, j) + c_rho(c_indx_x_min, j)
-           c_rho(c_indx_x_min, j) = c_rho(c_indx_x_max-1, j)
-           c_rho(c_indx_x_max, j) = c_rho(c_indx_x_min+1, j)
-        END DO
+      DO m = 0, nm        
+         ! special case of self-connected X-periodic cluster
+         DO j = c_indx_y_min, c_indx_y_max
+            c_rho_ext(m, c_indx_x_min+1, j) = c_rho_ext(m, c_indx_x_min+1, j) + c_rho_ext(m, c_indx_x_max, j) 
+            c_rho_ext(m, c_indx_x_max-1, j) = c_rho_ext(m, c_indx_x_max-1, j) + c_rho_ext(m, c_indx_x_min, j)
+            c_rho_ext(m, c_indx_x_min, j)   = c_rho_ext(m, c_indx_x_max-1, j)
+            c_rho_ext(m, c_indx_x_max, j)   = c_rho_ext(m, c_indx_x_min+1, j)
+         END DO
+      END DO   
      END IF
 
-     IF (WHITE_CLUSTER) THEN  
-! "white processes"
+     DO m = 0, nm
+      IF (WHITE_CLUSTER) THEN  
+!    "white processes"
 
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:n1), STAT=ALLOC_ERR)
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:n1), STAT=ALLOC_ERR)
+         rbufer = zero
 
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 1 ## send right densities in the right edge
-           rbufer(1:n1) = c_rho(c_indx_x_max, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_right.GE.0) THEN
+!    ## 1 ## send right densities in the right edge
+            rbufer(1:n1) = c_rho_ext(m, c_indx_x_max, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 2 ## send left densities in the left edge
-           rbufer(1:n1) = c_rho(c_indx_x_min, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_left.GE.0) THEN
+!    ## 2 ## send left densities in the left edge
+            rbufer(1:n1) = c_rho_ext(m, c_indx_x_min, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 3 ## receive from left densities in the vertical line next to the left edge
-           CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
-           DO j = c_indx_y_min, c_indx_y_max
-              c_rho(c_indx_x_min+1, j) = c_rho(c_indx_x_min+1, j) + rbufer(j-c_indx_y_min+1)
-           END DO
-        END IF
+         IF (Rank_horizontal_left.GE.0) THEN
+!    ## 3 ## receive from left densities in the vertical line next to the left edge
+            CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
+            DO j = c_indx_y_min, c_indx_y_max
+               c_rho_ext(m, c_indx_x_min+1, j) = c_rho_ext(m, c_indx_x_min+1, j) + rbufer(j-c_indx_y_min+1)
+            END DO
+         END IF
 
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 4 ## receive from right densities in the vertical line next to the right edge
-           CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
-           DO j = c_indx_y_min, c_indx_y_max
-              c_rho(c_indx_x_max-1, j) = c_rho(c_indx_x_max-1, j) + rbufer(j-c_indx_y_min+1)
-           END DO           
-        END IF
+         IF (Rank_horizontal_right.GE.0) THEN
+!    ## 4 ## receive from right densities in the vertical line next to the right edge
+            CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
+            DO j = c_indx_y_min, c_indx_y_max
+               c_rho_ext(m, c_indx_x_max-1, j) = c_rho_ext(m, c_indx_x_max-1, j) + rbufer(j-c_indx_y_min+1)
+            END DO           
+         END IF
 
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:n3), STAT=ALLOC_ERR)
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:n3), STAT=ALLOC_ERR)
 
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 5 ## send up densities in the top edge
-           rbufer(1:n3) = c_rho(c_indx_x_min:c_indx_x_max, c_indx_y_max)
-           CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_above.GE.0) THEN
+!    ## 5 ## send up densities in the top edge
+            rbufer(1:n3) = c_rho_ext(m, c_indx_x_min:c_indx_x_max, c_indx_y_max)
+            CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 6 ## send down densities in the bottom edge
-           rbufer(1:n3) = c_rho(c_indx_x_min:c_indx_x_max, c_indx_y_min)
-           CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_below.GE.0) THEN
+!    ## 6 ## send down densities in the bottom edge
+            rbufer(1:n3) = c_rho_ext(m, c_indx_x_min:c_indx_x_max, c_indx_y_min)
+            CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 7 ## receive from below densities in the vertical line above the bottom line
-           CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
-           DO i = c_indx_x_min, c_indx_x_max
-              c_rho(i, c_indx_y_min+1) = c_rho(i, c_indx_y_min+1) + rbufer(i-c_indx_x_min+1)
-           END DO
-        END IF
+         IF (Rank_horizontal_below.GE.0) THEN
+!    ## 7 ## receive from below densities in the vertical line above the bottom line
+            CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
+            DO i = c_indx_x_min, c_indx_x_max
+               c_rho_ext(m, i, c_indx_y_min+1) = c_rho_ext(m, i, c_indx_y_min+1) + rbufer(i-c_indx_x_min+1)
+            END DO
+         END IF
 
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 8 ## receive from above densities in the vertical line under the top line
-           CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
-           DO i = c_indx_x_min, c_indx_x_max
-              c_rho(i, c_indx_y_max-1) = c_rho(i, c_indx_y_max-1) + rbufer(i-c_indx_x_min+1)
-           END DO
-        END IF
+         IF (Rank_horizontal_above.GE.0) THEN
+!    ## 8 ## receive from above densities in the vertical line under the top line
+            CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
+            DO i = c_indx_x_min, c_indx_x_max
+               c_rho_ext(m, i, c_indx_y_max-1) = c_rho_ext(m, i, c_indx_y_max-1) + rbufer(i-c_indx_x_min+1)
+            END DO
+         END IF
 
-     ELSE
-! "black" processes
+      ELSE
+!    "black" processes
 
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:n1), STAT=ALLOC_ERR)
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:n1), STAT=ALLOC_ERR)
 
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 1 ## receive from left densities in the vertical line next to the left edge
-           CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
-           DO j = c_indx_y_min, c_indx_y_max
-              c_rho(c_indx_x_min+1, j) = c_rho(c_indx_x_min+1, j) + rbufer(j-c_indx_y_min+1)
-           END DO
-        END IF
+         IF (Rank_horizontal_left.GE.0) THEN
+!    ## 1 ## receive from left densities in the vertical line next to the left edge
+            CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
+            DO j = c_indx_y_min, c_indx_y_max
+               c_rho_ext(m, c_indx_x_min+1, j) = c_rho_ext(m, c_indx_x_min+1, j) + rbufer(j-c_indx_y_min+1)
+            END DO
+         END IF
 
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 2 ## receive from right densities in the vertical line next to the right edge
-           CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
-           DO j = c_indx_y_min, c_indx_y_max
-              c_rho(c_indx_x_max-1, j) = c_rho(c_indx_x_max-1, j) + rbufer(j-c_indx_y_min+1)
-           END DO           
-        END IF
+         IF (Rank_horizontal_right.GE.0) THEN
+!    ## 2 ## receive from right densities in the vertical line next to the right edge
+            CALL MPI_RECV(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
+            DO j = c_indx_y_min, c_indx_y_max
+               c_rho_ext(m, c_indx_x_max-1, j) = c_rho_ext(m, c_indx_x_max-1, j) + rbufer(j-c_indx_y_min+1)
+            END DO           
+         END IF
 
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 3 ## send right densities in the right edge
-           rbufer(1:n1) = c_rho(c_indx_x_max, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_right.GE.0) THEN
+!    ## 3 ## send right densities in the right edge
+            rbufer(1:n1) = c_rho_ext(m, c_indx_x_max, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 4 ## send left densities in the left edge
-           rbufer(1:n1) = c_rho(c_indx_x_min, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_left.GE.0) THEN
+!    ## 4 ## send left densities in the left edge
+            rbufer(1:n1) = c_rho_ext(m, c_indx_x_min, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:n3), STAT=ALLOC_ERR)
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:n3), STAT=ALLOC_ERR)
 
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 5 ## receive from below densities in the vertical line above the bottom line
-           CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
-           DO i = c_indx_x_min, c_indx_x_max
-              c_rho(i, c_indx_y_min+1) = c_rho(i, c_indx_y_min+1) + rbufer(i-c_indx_x_min+1)
-           END DO
-        END IF
+         IF (Rank_horizontal_below.GE.0) THEN
+!    ## 5 ## receive from below densities in the vertical line above the bottom line
+            CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
+            DO i = c_indx_x_min, c_indx_x_max
+               c_rho_ext(m, i, c_indx_y_min+1) = c_rho_ext(m, i, c_indx_y_min+1) + rbufer(i-c_indx_x_min+1)
+            END DO
+         END IF
 
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 6 ## receive from above densities in the vertical line under the top line
-           CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
-           DO i = c_indx_x_min, c_indx_x_max
-              c_rho(i, c_indx_y_max-1) = c_rho(i, c_indx_y_max-1) + rbufer(i-c_indx_x_min+1)
-           END DO
-        END IF
+         IF (Rank_horizontal_above.GE.0) THEN
+!    ## 6 ## receive from above densities in the vertical line under the top line
+            CALL MPI_RECV(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
+            DO i = c_indx_x_min, c_indx_x_max
+               c_rho_ext(m, i, c_indx_y_max-1) = c_rho_ext(m, i, c_indx_y_max-1) + rbufer(i-c_indx_x_min+1)
+            END DO
+         END IF
 
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 7 ## send up densities in the top edge
-           rbufer(1:n3) = c_rho(c_indx_x_min:c_indx_x_max, c_indx_y_max)
-           CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_above.GE.0) THEN
+!    ## 7 ## send up densities in the top edge
+            rbufer(1:n3) = c_rho_ext(m, c_indx_x_min:c_indx_x_max, c_indx_y_max)
+            CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 8 ## send down densities in the bottom edge
-           rbufer(1:n3) = c_rho(c_indx_x_min:c_indx_x_max, c_indx_y_min)
-           CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
+         IF (Rank_horizontal_below.GE.0) THEN
+!    ## 8 ## send down densities in the bottom edge
+            rbufer(1:n3) = c_rho_ext(m, c_indx_x_min:c_indx_x_max, c_indx_y_min)
+            CALL MPI_SEND(rbufer, n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
 
-     END IF
+      END IF
+
+      ! CALL MPI_BARRIER(COMM_HORIZONTAL, ierr)
+
+   END DO ! cycle over velocity moments
 
 ! adjust densities at the boundaries with material walls
+   DO m = 0, nm
+      IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN
+!    special case of self-connected X-periodic cluster
+         IF (Rank_of_master_above.LT.0) THEN
+            DO i = c_indx_x_min, c_indx_x_max
+               c_rho_ext(m, i, c_indx_y_max) = 2.0_8 * c_rho_ext(m, i, c_indx_y_max)
+            END DO
+         END IF
+   
+         IF (Rank_of_master_below.LT.0) THEN
+            DO i = c_indx_x_min, c_indx_x_max
+               c_rho_ext(m, i, c_indx_y_min) = 2.0_8 * c_rho_ext(m, i, c_indx_y_min)
+            END DO
+         END IF
 
-     IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN
-! special case of self-connected X-periodic cluster
-        IF (Rank_of_master_above.LT.0) THEN
-           DO i = c_indx_x_min, c_indx_x_max
-              c_rho(i, c_indx_y_max) = 2.0_8 * c_rho(i, c_indx_y_max)
-           END DO
-        END IF
+      ELSE
   
-        IF (Rank_of_master_below.LT.0) THEN
-           DO i = c_indx_x_min, c_indx_x_max
-              c_rho(i, c_indx_y_min) = 2.0_8 * c_rho(i, c_indx_y_min)
-           END DO
-        END IF
+         IF (Rank_of_master_left.LT.0) THEN
+            DO j = c_indx_y_min+1, c_indx_y_max-1
+               c_rho_ext(m, c_indx_x_min, j) = 2.0_8 * c_rho_ext(m, c_indx_x_min, j)
+            END DO
+         END IF
 
-     ELSE
- 
-        IF (Rank_of_master_left.LT.0) THEN
-           DO j = c_indx_y_min+1, c_indx_y_max-1
-              c_rho(c_indx_x_min, j) = 2.0_8 * c_rho(c_indx_x_min, j)
-           END DO
-        END IF
+         IF (Rank_of_master_right.LT.0) THEN
+            DO j = c_indx_y_min+1, c_indx_y_max-1
+               c_rho_ext(m, c_indx_x_max, j) = 2.0_8 * c_rho_ext(m, c_indx_x_max, j)
+            END DO
+         END IF
+   
+         IF (Rank_of_master_above.LT.0) THEN
+            DO i = c_indx_x_min+1, c_indx_x_max-1
+               c_rho_ext(m, i, c_indx_y_max) = 2.0_8 * c_rho_ext(m, i, c_indx_y_max)
+            END DO
+         END IF
+   
+         IF (Rank_of_master_below.LT.0) THEN
+            DO i = c_indx_x_min+1, c_indx_x_max-1
+               c_rho_ext(m, i, c_indx_y_min) = 2.0_8 * c_rho_ext(m, i, c_indx_y_min)
+            END DO
+         END IF
 
-        IF (Rank_of_master_right.LT.0) THEN
-           DO j = c_indx_y_min+1, c_indx_y_max-1
-              c_rho(c_indx_x_max, j) = 2.0_8 * c_rho(c_indx_x_max, j)
-           END DO
-        END IF
-  
-        IF (Rank_of_master_above.LT.0) THEN
-           DO i = c_indx_x_min+1, c_indx_x_max-1
-              c_rho(i, c_indx_y_max) = 2.0_8 * c_rho(i, c_indx_y_max)
-           END DO
-        END IF
-  
-        IF (Rank_of_master_below.LT.0) THEN
-           DO i = c_indx_x_min+1, c_indx_x_max-1
-              c_rho(i, c_indx_y_min) = 2.0_8 * c_rho(i, c_indx_y_min)
-           END DO
-        END IF
+         SELECT CASE (c_left_bottom_corner_type)
+            CASE (SURROUNDED_BY_WALL)
+               c_rho_ext(m, c_indx_x_min, c_indx_y_min) = 4.0_8 * c_rho_ext(m, c_indx_x_min, c_indx_y_min) 
+            CASE (EMPTY_CORNER_WALL_LEFT)
+               c_rho_ext(m, c_indx_x_min, c_indx_y_min+1) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_min, c_indx_y_min+1)    ! 2*2/3=4/3=1/(3/4)
+            CASE (EMPTY_CORNER_WALL_BELOW)
+               c_rho_ext(m, c_indx_x_min+1, c_indx_y_min) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_min+1, c_indx_y_min)    ! 2*2/3=4/3=1/(3/4)
+         END SELECT
+      
+         SELECT CASE (c_left_top_corner_type)
+            CASE (SURROUNDED_BY_WALL)
+               c_rho_ext(m, c_indx_x_min, c_indx_y_max) = 4.0_8 * c_rho_ext(m, c_indx_x_min, c_indx_y_max) 
+            CASE (EMPTY_CORNER_WALL_LEFT)
+               c_rho_ext(m, c_indx_x_min, c_indx_y_max-1) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_min, c_indx_y_max-1)    ! 2*2/3=4/3=1/(3/4)
+            CASE (EMPTY_CORNER_WALL_ABOVE)
+               c_rho_ext(m, c_indx_x_min+1, c_indx_y_max) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_min+1, c_indx_y_max)    ! 2*2/3=4/3=1/(3/4)
+         END SELECT
 
-        SELECT CASE (c_left_bottom_corner_type)
-           CASE (SURROUNDED_BY_WALL)
-              c_rho(c_indx_x_min, c_indx_y_min) = 4.0_8 * c_rho(c_indx_x_min, c_indx_y_min) 
-           CASE (EMPTY_CORNER_WALL_LEFT)
-              c_rho(c_indx_x_min, c_indx_y_min+1) = 0.66666666666666_8 * c_rho(c_indx_x_min, c_indx_y_min+1)    ! 2*2/3=4/3=1/(3/4)
-           CASE (EMPTY_CORNER_WALL_BELOW)
-              c_rho(c_indx_x_min+1, c_indx_y_min) = 0.66666666666666_8 * c_rho(c_indx_x_min+1, c_indx_y_min)    ! 2*2/3=4/3=1/(3/4)
-        END SELECT
-     
-        SELECT CASE (c_left_top_corner_type)
-           CASE (SURROUNDED_BY_WALL)
-              c_rho(c_indx_x_min, c_indx_y_max) = 4.0_8 * c_rho(c_indx_x_min, c_indx_y_max) 
-           CASE (EMPTY_CORNER_WALL_LEFT)
-              c_rho(c_indx_x_min, c_indx_y_max-1) = 0.66666666666666_8 * c_rho(c_indx_x_min, c_indx_y_max-1)    ! 2*2/3=4/3=1/(3/4)
-           CASE (EMPTY_CORNER_WALL_ABOVE)
-              c_rho(c_indx_x_min+1, c_indx_y_max) = 0.66666666666666_8 * c_rho(c_indx_x_min+1, c_indx_y_max)    ! 2*2/3=4/3=1/(3/4)
-        END SELECT
+         SELECT CASE (c_right_bottom_corner_type)
+            CASE (SURROUNDED_BY_WALL)
+               c_rho_ext(m, c_indx_x_max, c_indx_y_min) = 4.0_8 * c_rho_ext(m, c_indx_x_max, c_indx_y_min) 
+            CASE (EMPTY_CORNER_WALL_RIGHT)
+               c_rho_ext(m, c_indx_x_max, c_indx_y_min+1) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_max, c_indx_y_min+1)    ! 2*2/3=4/3=1/(3/4)
+            CASE (EMPTY_CORNER_WALL_BELOW)
+               c_rho_ext(m, c_indx_x_max-1, c_indx_y_min) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_max-1, c_indx_y_min)    ! 2*2/3=4/3=1/(3/4)
+         END SELECT
+      
+         SELECT CASE (c_right_top_corner_type)
+            CASE (SURROUNDED_BY_WALL)
+               c_rho_ext(m, c_indx_x_max, c_indx_y_max) = 4.0_8 * c_rho_ext(m, c_indx_x_max, c_indx_y_max) 
+            CASE (EMPTY_CORNER_WALL_RIGHT)
+               c_rho_ext(m, c_indx_x_max, c_indx_y_max-1) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_max, c_indx_y_max-1)    ! 2*2/3=4/3=1/(3/4)
+            CASE (EMPTY_CORNER_WALL_ABOVE)
+               c_rho_ext(m, c_indx_x_max-1, c_indx_y_max) = 0.66666666666666_8 * c_rho_ext(m, c_indx_x_max-1, c_indx_y_max)    ! 2*2/3=4/3=1/(3/4)
+         END SELECT
 
-        SELECT CASE (c_right_bottom_corner_type)
-           CASE (SURROUNDED_BY_WALL)
-              c_rho(c_indx_x_max, c_indx_y_min) = 4.0_8 * c_rho(c_indx_x_max, c_indx_y_min) 
-           CASE (EMPTY_CORNER_WALL_RIGHT)
-              c_rho(c_indx_x_max, c_indx_y_min+1) = 0.66666666666666_8 * c_rho(c_indx_x_max, c_indx_y_min+1)    ! 2*2/3=4/3=1/(3/4)
-           CASE (EMPTY_CORNER_WALL_BELOW)
-              c_rho(c_indx_x_max-1, c_indx_y_min) = 0.66666666666666_8 * c_rho(c_indx_x_max-1, c_indx_y_min)    ! 2*2/3=4/3=1/(3/4)
-        END SELECT
-     
-        SELECT CASE (c_right_top_corner_type)
-           CASE (SURROUNDED_BY_WALL)
-              c_rho(c_indx_x_max, c_indx_y_max) = 4.0_8 * c_rho(c_indx_x_max, c_indx_y_max) 
-           CASE (EMPTY_CORNER_WALL_RIGHT)
-              c_rho(c_indx_x_max, c_indx_y_max-1) = 0.66666666666666_8 * c_rho(c_indx_x_max, c_indx_y_max-1)    ! 2*2/3=4/3=1/(3/4)
-           CASE (EMPTY_CORNER_WALL_ABOVE)
-              c_rho(c_indx_x_max-1, c_indx_y_max) = 0.66666666666666_8 * c_rho(c_indx_x_max-1, c_indx_y_max)    ! 2*2/3=4/3=1/(3/4)
-        END SELECT
+      END IF ! periodicity check
+   END DO ! velocity moments
 
-     END IF
+   IF (Coulomb_flag) THEN ! accumulate electron moments on cluster masters, will be broadcast when Coulomb scattering is processed at the ion step
+      DO m = 0, 4
+         DO j = c_indx_y_min, c_indx_y_max
+            acc_rho_e(m, c_indx_x_min:c_indx_x_max, j) = acc_rho_e(m, c_indx_x_min:c_indx_x_max, j) + c_rho_ext(m, c_indx_x_min:c_indx_x_max, j)
+         END DO
+      END DO   
+   ! ELSE
+   END IF        
+    
+END IF ! cluster_rank_key selection
 
-  END IF
+   IF ((periodicity_flag.EQ.PERIODICITY_NONE).OR.(periodicity_flag.EQ.PERIODICITY_X_PETSC).OR.(periodicity_flag.EQ.PERIODICITY_X_Y)) THEN
 
-  IF ((periodicity_flag.EQ.PERIODICITY_NONE).OR.(periodicity_flag.EQ.PERIODICITY_X_PETSC).OR.(periodicity_flag.EQ.PERIODICITY_X_Y)) THEN
+      IF (cluster_rank_key.EQ.0) THEN
 
-     IF (cluster_rank_key.EQ.0) THEN
+         ! prepare and send the charge density c_rho_ext(0,...) to field calculators
+         DO k = 2, cluster_N_blocks
+            bufsize = (field_calculator(k)%indx_x_max - field_calculator(k)%indx_x_min + 1) * &
+                  & (field_calculator(k)%indx_y_max - field_calculator(k)%indx_y_min + 1)
+            IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+            ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
+            pos=0
+            DO j = field_calculator(k)%indx_y_min, field_calculator(k)%indx_y_max
+               DO i = field_calculator(k)%indx_x_min, field_calculator(k)%indx_x_max
+                  pos = pos+1
+                  rbufer(pos) = c_rho_ext(0, i, j)
 
-! prepare and send charge density to field calculators
-        DO k = 2, cluster_N_blocks
-           bufsize = (field_calculator(k)%indx_x_max - field_calculator(k)%indx_x_min + 1) * &
-                   & (field_calculator(k)%indx_y_max - field_calculator(k)%indx_y_min + 1)
-           IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-           ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
-           pos=0
-           DO j = field_calculator(k)%indx_y_min, field_calculator(k)%indx_y_max
-              DO i = field_calculator(k)%indx_x_min, field_calculator(k)%indx_x_max
-                 pos = pos+1
-                 rbufer(pos) = c_rho(i,j)
+                  DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
+                     CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)
+                     rbufer(pos) = rbufer(pos) - Get_Surface_Charge_Inner_Object(i, j, position_flag, whole_object(nio))
+                  END DO
 
-                 DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
-                    CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)
-                    rbufer(pos) = rbufer(pos) - Get_Surface_Charge_Inner_Object(i, j, position_flag, whole_object(nio))
-                 END DO
+                  !                 CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,nio,position_flag)
+                  !                 SELECT CASE (position_flag)
+                  !! for points on surface of dielectric objects, combine surface charge density and volume charge density
+                  !                    CASE (1,3,5,7)
+                  !! point at the corner of a dielectric object
+                  !                       rbufer(pos) = (1.0_8) * c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))
+                  !                    CASE (2,4,6,8)
+                  !! point on the surface of a dielectric object
+                  !! the factor used here allows to use common factor -1/4*N_of_particles_cell in SOLVE_POTENTIAL_WITH_PETSC
+                  !! it also allows to use uncorrected values of volume charge density in nodes on the flat material surface
+                  !                       rbufer(pos) = 2.0_8 * (c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))) / (1.0_8 + whole_object(nio)%eps_diel)
+                  !                 END SELECT
 
-!                 CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,nio,position_flag)
-!                 SELECT CASE (position_flag)
-!! for points on surface of dielectric objects, combine surface charge density and volume charge density
-!                    CASE (1,3,5,7)
-!! point at the corner of a dielectric object
-!                       rbufer(pos) = (1.0_8) * c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))
-!                    CASE (2,4,6,8)
-!! point on the surface of a dielectric object
-!! the factor used here allows to use common factor -1/4*N_of_particles_cell in SOLVE_POTENTIAL_WITH_PETSC
-!! it also allows to use uncorrected values of volume charge density in nodes on the flat material surface
-!                       rbufer(pos) = 2.0_8 * (c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))) / (1.0_8 + whole_object(nio)%eps_diel)
-!                 END SELECT
+               END DO
+            END DO
+            CALL MPI_SEND(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_calculator(k)%rank, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
+         END DO
 
-              END DO
-           END DO
-           CALL MPI_SEND(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_calculator(k)%rank, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-        END DO
+         ! cluster master is a field calaculator too, prepare its own charge density
+         DO j = indx_y_min, indx_y_max
+            DO i = indx_x_min, indx_x_max
+            rho_e(i, j) = c_rho_ext(0, i, j)
 
-! cluster master is a field calaculator too, prepare its own charge density
-        DO j = indx_y_min, indx_y_max
-           DO i = indx_x_min, indx_x_max
-              rho_e(i, j) = c_rho(i, j)
+               DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
+                  CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)
+                  rho_e(i, j) = rho_e(i, j) - Get_Surface_Charge_Inner_Object(i, j, position_flag, whole_object(nio))
+               END DO
 
-              DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
-                 CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)
-                 rho_e(i, j) = rho_e(i, j) - Get_Surface_Charge_Inner_Object(i, j, position_flag, whole_object(nio))
-              END DO
+               !              CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,nio,position_flag)
+               !              SELECT CASE (position_flag)
+               !! for points on surface of dielectric objects, combine surface charge density and volume charge density
+               !                 CASE (1,3,5,7)
+               !! point at the corner of a dielectric object
+               !                    rho_e(i, j) = (1.0_8) * c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))
+               !                 CASE (2,4,6,8)
+               !! point on the surface of a dielectric object
+               !! the factor used here allows to use common factor -1/4*N_of_particles_cell in SOLVE_POTENTIAL_WITH_PETSC
+               !! it also allows to use uncorrected values of volume charge density in nodes on the flat material surface
+               !                    rho_e(i, j) = 2.0_8 * (c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))) / (1.0_8 + whole_object(nio)%eps_diel)
+               !              END SELECT
 
-!              CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,nio,position_flag)
-!              SELECT CASE (position_flag)
-!! for points on surface of dielectric objects, combine surface charge density and volume charge density
-!                 CASE (1,3,5,7)
-!! point at the corner of a dielectric object
-!                    rho_e(i, j) = (1.0_8) * c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))
-!                 CASE (2,4,6,8)
-!! point on the surface of a dielectric object
-!! the factor used here allows to use common factor -1/4*N_of_particles_cell in SOLVE_POTENTIAL_WITH_PETSC
-!! it also allows to use uncorrected values of volume charge density in nodes on the flat material surface
-!                    rho_e(i, j) = 2.0_8 * (c_rho(i,j) - Get_Surface_Charge_Inner_Object(i,j,position_flag,whole_object(nio))) / (1.0_8 + whole_object(nio)%eps_diel)
-!              END SELECT
+            END DO
+         END DO
 
-           END DO
-        END DO
+      ELSE
 
-     ELSE
+         bufsize = (indx_x_max - indx_x_min + 1) * (indx_y_max - indx_y_min + 1)
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
+         
+         CALL MPI_RECV(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_master, field_master, MPI_COMM_WORLD, stattus, ierr)
+         
+         pos = 0
+         DO j = indx_y_min, indx_y_max
+            DO i = indx_x_min, indx_x_max
+               pos = pos+1
+               rho_e(i,j) = rbufer(pos)
+            END DO
+         END DO
 
-        bufsize = (indx_x_max - indx_x_min + 1) * (indx_y_max - indx_y_min + 1)
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
-        
-        CALL MPI_RECV(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_master, field_master, MPI_COMM_WORLD, stattus, ierr)
-        
-        pos = 0
-        DO j = indx_y_min, indx_y_max
-           DO i = indx_x_min, indx_x_max
-              pos = pos+1
-              rho_e(i,j) = rbufer(pos)
-           END DO
-        END DO
-
-     END IF
-     
-  END IF
+      END IF
+      ELSE   ! periodic case solved with Fourier transform, array kept on the cluster. ADDED WITH COULOMB collisions implementation. Not sure if this is necessary. 
+         DO j = c_indx_y_min, c_indx_y_max
+            c_rho(c_indx_x_min:c_indx_x_max, j) = c_rho_ext(0, c_indx_x_min:c_indx_x_max, j)
+         END DO          
+   END IF
   
   IF (ALLOCATED(rbufer))  DEALLOCATE(rbufer,  STAT=ALLOC_ERR)
+  IF (ALLOCATED(rbufer2)) DEALLOCATE(rbufer2,  STAT=ALLOC_ERR)
 
   IF ((cluster_rank_key.NE.0).OR.(periodicity_flag.EQ.PERIODICITY_NONE).OR.(periodicity_flag.EQ.PERIODICITY_X_PETSC).OR.(periodicity_flag.EQ.PERIODICITY_X_Y)) THEN
      IF (ALLOCATED(c_rho)) DEALLOCATE(c_rho, STAT=ALLOC_ERR)
   END IF
-
+  IF (ALLOCATED(c_rho_ext)) DEALLOCATE(c_rho_ext, STAT=ALLOC_ERR) ! not needed after charge density and accumulated moments are obtained
 END SUBROUTINE GATHER_ELECTRON_CHARGE_DENSITY

@@ -126,6 +126,7 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER bufsize
   REAL(8), ALLOCATABLE :: rbufer(:)
   INTEGER pos1, pos2
+  INTEGER flag_scatter
   CHARACTER(LEN=string_length) :: message, routine
   INTEGER :: c_indx_x_max_total,c_indx_x_min_total
 
@@ -160,6 +161,21 @@ SUBROUTINE INITIATE_PARAMETERS
   i_cylindrical = 0 ! By default this is Cartesian
   debug_level = 0 ! By default I print nothing
   work_dir_2d_map = './' ! Save 2D maps in current directory by default 
+
+  Coulomb_flag = .FALSE.
+  INQUIRE (FILE = 'init_CoulombScattering.dat', EXIST = exists)
+  CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+  IF (.NOT.exists) THEN
+     IF (Rank_of_process.EQ.0) PRINT '("### file init_CoulombScattering.dat not found, Coulomb collisions are turned off ###")'
+  ELSE
+! read the Coulomb scattering control file, e-i collisions can also be initiated in the future
+     OPEN (9, FILE = 'init_CoulombScattering.dat')
+     READ (9, '(A1)') buf
+     READ (9, '(4x, I2)') flag_scatter
+     IF (flag_scatter.GT.0) Coulomb_flag = .TRUE.
+     IF (Rank_of_process.EQ.0) write (*,*) "Coulomb_flag=", Coulomb_flag
+     CLOSE (9, STATUS = 'KEEP')
+  END IF
 
   INQUIRE (FILE = 'init_configuration.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -1635,6 +1651,13 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
 
      acc_EX=0.0_8
      acc_EY=0.0_8
+
+! electron moments arrays for handling Coulomb scattering, accumulated over ion time step on the cluster master:
+      IF (Coulomb_flag) THEN   
+         ALLOCATE (acc_rho_e(0:4, c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR) ! n, <vx>, <vy>, <vz>, <v^2>
+         acc_rho_e = 0.0_8
+      END IF             
+
 
      IF (periodicity_flag.EQ.PERIODICITY_X) THEN
         ALLOCATE(c_rho(  c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
@@ -3396,7 +3419,12 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
      ALLOCATE(EY(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
      ALLOCATE(acc_EX(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
      ALLOCATE(acc_EY(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
-     
+
+      IF (Coulomb_flag) THEN ! for non-master process the array is broadcast to process the collisions    
+         IF (ALLOCATED(acc_rho_e)) DEALLOCATE(acc_rho_e, STAT=ALLOC_ERR) ! allocate on cluster masters
+         ALLOCATE(acc_rho_e(0:4, c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
+         acc_rho_e = 0.0_8
+      END IF         
 !#########
 !     EX=0.0_8 !-36.491_8 / E_scale_Vm !0.0_8
 !     EY=0.0_8 !-1.0_8 / E_scale_Vm
