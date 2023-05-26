@@ -180,9 +180,9 @@ MODULE CurrentProblemValues
 
   INTEGER, PARAMETER :: string_length = 300
 
-  CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="WIP/Implement_cylindrical_coordinates"
-  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="35aa9f6a4c4fbd3d8ed3019efba6a14b2ee69e19"
-  CHARACTER(len=string_length), PARAMETER :: GIT_DATE="Wed May 24 17:51:00 2023 -0400"
+  CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="GIT_BRANCH"
+  CHARACTER(len=string_length), PARAMETER :: GIT_HASH="GIT_HASH"
+  CHARACTER(len=string_length), PARAMETER :: GIT_DATE="GIT_DATE"
 
   INTEGER ::  i_cylindrical ! Choose if this is a Cartesian (=0) or a Cylindrical (>0) case. r_theta plane=> 1,  r_z plane=>2, 
                             ! For the z_theta plane we can take a Cartesian geometry for now
