@@ -173,9 +173,15 @@ SUBROUTINE INITIATE_PARAMETERS
      READ (9, '(A1)') buf
      READ (9, '(4x, I2)') flag_scatter
      IF (flag_scatter.GT.0) Coulomb_flag = .TRUE.
-     IF (Rank_of_process.EQ.0) write (*,*) "Coulomb_flag=", Coulomb_flag
      CLOSE (9, STATUS = 'KEEP')
   END IF
+
+   IF (Coulomb_flag) THEN
+      WRITE( message,'(A)') "Coulomb collisions e-e are activated "//achar(10)
+   ELSE
+      WRITE( message,'(A)') "Coulomb collisions e-e are NOT activated "//achar(10)
+   END IF
+   CALL print_message( message )   
 
   INQUIRE (FILE = 'init_configuration.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -1076,11 +1082,20 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
   OPEN (9, FILE = 'init_particles.dat')
 
   READ (9, '(A1)') buf !"---dddd.ddd----- initial electron temperature [eV]")')
-  READ (9, '(3x,f8.3)') init_Te_eV
+  READ (9, '(3(3x,f8.3))') init_TXe_eV, init_TYe_eV, init_TZe_eV
   READ (9, '(A1)') buf !"---+d.dddE+dd--- initial electron density [m^-3]")')
   READ (9, '(3x,e10.3)') init_Ne_m3
   READ (9, '(A1)') buf !"------d--------- number of ion species")')
   READ (9, '(6x,i1)') N_spec
+
+  IF ( init_TYe_eV==zero ) init_TYe_eV = init_TXe_eV ! for backward compatibility
+  IF ( init_TZe_eV==zero ) init_TZe_eV = init_TXe_eV  
+
+  init_Te_eV = init_TXe_eV
+  WRITE( message,'(A,ES10.3,A,ES10.3,A,ES10.3,A)') "Initial temperature TXe = ",init_TXe_eV," [eV], TYe = ", init_TYe_eV," [eV], TZe = ",init_TZe_eV," [eV]"
+  CALL print_message(message)  
+  WRITE( message,'(A,ES10.3,A)') "Injection temperature for electrons is assumed to be equal to TXe, ie Te = ",init_Te_eV," [eV]"
+  CALL print_message(message)  
 
   ALLOCATE(Qs(1:N_spec), STAT = ALLOC_ERR)
   ALLOCATE(M_i_amu(1:N_spec), STAT = ALLOC_ERR)
@@ -3615,7 +3630,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   REAL(8) myBx_T, myBy_T, myBz_T, myB2
 
   INTEGER ALLOC_ERR
-  REAL(8) factor_convert
+  REAL(8) :: factor_convert, factor_convert_X, factor_convert_Y, factor_convert_Z
   REAL(8) vx_drift, vy_drift, vz_drift, v
 
   INTEGER k, n, s, pos
@@ -3794,7 +3809,9 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      ALLOCATE(electron(1:max_N_electrons), STAT=ALLOC_ERR)
 
-     factor_convert = SQRT(init_Te_eV / T_e_eV) / N_max_vel
+     factor_convert_X = SQRT(init_TXe_eV / T_e_eV) / N_max_vel
+     factor_convert_Y = SQRT(init_TYe_eV / T_e_eV) / N_max_vel
+     factor_convert_Z = SQRT(init_TZe_eV / T_e_eV) / N_max_vel
 
      DO k = 1, N_electrons
 
@@ -3846,13 +3863,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
         END IF
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VX =  v * factor_convert + vx_drift
+        electron(k)%VX =  v * factor_convert_X + vx_drift
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VY = v * factor_convert + vy_drift
+        electron(k)%VY = v * factor_convert_Y + vy_drift
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VZ = v * factor_convert + vz_drift
+        electron(k)%VZ = v * factor_convert_Z + vz_drift
         electron(k)%tag = 0
 
      END DO

@@ -229,7 +229,8 @@ MODULE CurrentProblemValues
   INTEGER N_clusters_x        ! for rectangular domains, number of clusters along X
   INTEGER N_clusters_y        ! for rectangular domains, number of clusters along Y
 
-  REAL(8) init_Te_eV   ! initial electron temperature [eV]
+  REAL(8) init_Te_eV   ! initial electron temperature [eV]. Assumed to be equal to init_TXe_eV in case of anisotropy 
+  REAL(8) :: init_TXe_eV, init_TYe_eV, init_TZe_eV ! Possible anisotropy now
   REAL(8) init_Ne_m3   ! initial electron density [m^-3]
 
   REAL(8) v_Te_ms
