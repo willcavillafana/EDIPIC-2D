@@ -108,7 +108,7 @@ end if
      a10 = 0.25_8
      a11 = 0.25_8
 ! these moments have already been time-averaged over the ion time step:
-     n_loc = acc_rho_e(0,i,j) * a00 + acc_rho_e(0,i+1,j) * a10 + acc_rho_e(0,i,j+1) * a01 + acc_rho_e(0,i+1,j+1) * a11
+     n_loc = acc_rho_e(0,i,j) * a00 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j) * a10 / factor_cyl_vol(i+1) + acc_rho_e(0,i,j+1) * a01 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j+1) * a11 / factor_cyl_vol(i+1)
      vx_loc= acc_rho_e(1,i,j) * a00 + acc_rho_e(1,i+1,j) * a10 + acc_rho_e(1,i,j+1) * a01 + acc_rho_e(1,i+1,j+1) * a11
      vy_loc= acc_rho_e(2,i,j) * a00 + acc_rho_e(2,i+1,j) * a10 + acc_rho_e(2,i,j+1) * a01 + acc_rho_e(2,i+1,j+1) * a11
      vz_loc= acc_rho_e(3,i,j) * a00 + acc_rho_e(3,i+1,j) * a10 + acc_rho_e(3,i,j+1) * a01 + acc_rho_e(3,i+1,j+1) * a11

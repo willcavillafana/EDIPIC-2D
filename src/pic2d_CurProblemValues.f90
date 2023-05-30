@@ -775,6 +775,11 @@ SUBROUTINE INITIATE_PARAMETERS
   ! Call other parameters in 'init_params.dat' file
   CALL read_flexible_parameters
 
+   IF ( Coulomb_flag .AND. i_cylindrical>0 ) THEN
+      WRITE( message,'(A)') "Cylindrical with Coulomb collisions does not work for now."
+      CALL print_parser_error( message ) 
+   END IF 
+
   ! In any case I create a folder to store all of this:
   WRITE( message,'(A)') "2D maps will be saved in "//TRIM(work_dir_2d_map)//achar(10)
   CALL print_message( message ) 

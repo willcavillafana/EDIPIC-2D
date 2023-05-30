@@ -1722,25 +1722,25 @@ end if
       vz = electron(k)%VZ
       vsq = vx*vx + vy*vy + vz*vz
 
-      rbufer2(1, pos_i_j)     = rbufer2(1, pos_i_j)     + vij   * vx                        
-      rbufer2(1, pos_ip1_j)   = rbufer2(1, pos_ip1_j)   + vip1j * vx                        
-      rbufer2(1, pos_i_jp1)   = rbufer2(1, pos_i_jp1)   + vijp1 * vx                         
-      rbufer2(1, pos_ip1_jp1) = rbufer2(1, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vx 
+      rbufer2(1, pos_i_j)     = rbufer2(1, pos_i_j)     + vij   * vx !* factor_cyl_vol(i)
+      rbufer2(1, pos_ip1_j)   = rbufer2(1, pos_ip1_j)   + vip1j * vx !* factor_cyl_vol(i+1)                       
+      rbufer2(1, pos_i_jp1)   = rbufer2(1, pos_i_jp1)   + vijp1 * vx !* factor_cyl_vol(i)                        
+      rbufer2(1, pos_ip1_jp1) = rbufer2(1, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vx !* factor_cyl_vol(i+1)
 
-      rbufer2(2, pos_i_j)     = rbufer2(2, pos_i_j)     + vij   * vy
-      rbufer2(2, pos_ip1_j)   = rbufer2(2, pos_ip1_j)   + vip1j * vy
-      rbufer2(2, pos_i_jp1)   = rbufer2(2, pos_i_jp1)   + vijp1 * vy
-      rbufer2(2, pos_ip1_jp1) = rbufer2(2, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vy
+      rbufer2(2, pos_i_j)     = rbufer2(2, pos_i_j)     + vij   * vy !* factor_cyl_vol(i)
+      rbufer2(2, pos_ip1_j)   = rbufer2(2, pos_ip1_j)   + vip1j * vy !* factor_cyl_vol(i+1)  
+      rbufer2(2, pos_i_jp1)   = rbufer2(2, pos_i_jp1)   + vijp1 * vy !* factor_cyl_vol(i)
+      rbufer2(2, pos_ip1_jp1) = rbufer2(2, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vy !* factor_cyl_vol(i+1)
          
-      rbufer2(3, pos_i_j)     = rbufer2(3, pos_i_j)     + vij   * vz
-      rbufer2(3, pos_ip1_j)   = rbufer2(3, pos_ip1_j)   + vip1j * vz
-      rbufer2(3, pos_i_jp1)   = rbufer2(3, pos_i_jp1)   + vijp1 * vz
-      rbufer2(3, pos_ip1_jp1) = rbufer2(3, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vz
+      rbufer2(3, pos_i_j)     = rbufer2(3, pos_i_j)     + vij   * vz !* factor_cyl_vol(i)
+      rbufer2(3, pos_ip1_j)   = rbufer2(3, pos_ip1_j)   + vip1j * vz !* factor_cyl_vol(i+1)  
+      rbufer2(3, pos_i_jp1)   = rbufer2(3, pos_i_jp1)   + vijp1 * vz !* factor_cyl_vol(i)
+      rbufer2(3, pos_ip1_jp1) = rbufer2(3, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vz !* factor_cyl_vol(i+1)
 
-      rbufer2(4, pos_i_j)     = rbufer2(4, pos_i_j)     + vij   * vsq
-      rbufer2(4, pos_ip1_j)   = rbufer2(4, pos_ip1_j)   + vip1j * vsq
-      rbufer2(4, pos_i_jp1)   = rbufer2(4, pos_i_jp1)   + vijp1 * vsq
-      rbufer2(4, pos_ip1_jp1) = rbufer2(4, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vsq
+      rbufer2(4, pos_i_j)     = rbufer2(4, pos_i_j)     + vij   * vsq !* factor_cyl_vol(i)
+      rbufer2(4, pos_ip1_j)   = rbufer2(4, pos_ip1_j)   + vip1j * vsq !* factor_cyl_vol(i+1)  
+      rbufer2(4, pos_i_jp1)   = rbufer2(4, pos_i_jp1)   + vijp1 * vsq !* factor_cyl_vol(i)
+      rbufer2(4, pos_ip1_jp1) = rbufer2(4, pos_ip1_jp1) + (1.0_8 - vij - vip1j - vijp1) * vsq !* factor_cyl_vol(i+1)
    
      END IF   
 
@@ -2051,7 +2051,7 @@ END IF ! cluster_rank_key selection
          ! cluster master is a field calaculator too, prepare its own charge density
          DO j = indx_y_min, indx_y_max
             DO i = indx_x_min, indx_x_max
-            rho_e(i, j) = c_rho_ext(0, i, j)
+               rho_e(i, j) = c_rho_ext(0, i, j)
 
                DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
                   CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)
@@ -2091,10 +2091,10 @@ END IF ! cluster_rank_key selection
          END DO
 
       END IF
-      ELSE   ! periodic case solved with Fourier transform, array kept on the cluster. ADDED WITH COULOMB collisions implementation. Not sure if this is necessary. 
-         DO j = c_indx_y_min, c_indx_y_max
-            c_rho(c_indx_x_min:c_indx_x_max, j) = c_rho_ext(0, c_indx_x_min:c_indx_x_max, j)
-         END DO          
+   ELSE   ! periodic case solved with Fourier transform, array kept on the cluster. ADDED WITH COULOMB collisions implementation. Necessary for Fourier transform solve.
+      DO j = c_indx_y_min, c_indx_y_max
+         c_rho(c_indx_x_min:c_indx_x_max, j) = c_rho_ext(0, c_indx_x_min:c_indx_x_max, j)
+      END DO          
    END IF
   
   IF (ALLOCATED(rbufer))  DEALLOCATE(rbufer,  STAT=ALLOC_ERR)
