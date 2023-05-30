@@ -1138,7 +1138,7 @@ END SUBROUTINE ADD_ELECTRON_TO_BO_COLLS_LIST
 !!    @date    Dec-19-2022
 !-------------------------------------------------------------------------------------------------- 
 
-SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_j)
+SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_j,n_subcycles)
    
    USE mod_print, ONLY: print_debug
    USE CurrentProblemValues, ONLY: string_length,two,four,one
@@ -1149,6 +1149,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    REAL(8), INTENT(IN) :: vx ! radial normalized velocity before collision. It is the increment in radial direction
    REAL(8), INTENT(IN) :: vy ! azimuthal normalized before collision> It is the increment in azimuthal direction
    REAL(8), INTENT(IN) :: R_max ! normalized radius at which we have a reflection
+   INTEGER, INTENT(IN), OPTIONAL :: n_subcycles ! subcycle frequency (for ions only)
    REAL(8), INTENT(OUT) :: dot_prod_i,dot_prod_j,xf,yf ! final position in local Cartesian frame  
 
    !LOCAL
@@ -1158,6 +1159,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    REAL(8) :: beta,v_perp,v_par ! polar angle at intersection point and velocity at intersection point
    REAL(8) :: v_perp_new ! new velocity after collision
    REAL(8) :: module_velocity,dt_remaining ! velocity module and remaining time 
+   REAL(8) :: n_sub ! subcycle frequency for ions (will be one for electrons)
    
 
    CHARACTER(LEN=string_length) :: routine
@@ -1168,6 +1170,10 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
 
    CALL print_debug( routine,local_debug_level)
    
+   ! Subcycle freq if needed
+   n_sub = one ! for electrons is the default value
+   IF (PRESENT(n_subcycles)) n_sub = REAL(n_subcycles) ! this is for ions normally 
+
    ! Step 1: compute coefficients of straight line if I had no refelction, y= ax+b
    ! Compute initial trajectory
    a = vy/vx
@@ -1180,7 +1186,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
 
    ! Step 3: compute remaining distance after collision
    d_star = SQRT((x_star-x_start)**2+y_star**2)
-   d_remaining = SQRT((vx)**2+vy**2) - d_star  
+   d_remaining = SQRT((vx*n_sub)**2+(vy*n_sub)**2) - d_star  
    
    ! Step 4: compute orthogonal and parallel velocity at intersection point, with respect to tangent  
    beta = DATAN2(y_star,x_star) ! polar angle at intersection point

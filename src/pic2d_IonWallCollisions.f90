@@ -91,7 +91,7 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
   USE IonParticles, ONLY : Qs
-  USE CurrentProblemValues, ONLY : whole_object, VACUUM_GAP, METAL_WALL, DIELECTRIC,i_reflection_cyl_ion,string_length
+  USE CurrentProblemValues, ONLY : whole_object, VACUUM_GAP, METAL_WALL, DIELECTRIC,i_reflection_cyl_ion,string_length, N_subcycles
   USE mod_print, ONLY: print_error
 
   IMPLICIT NONE
@@ -180,7 +180,7 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,
                CALL print_error(message,routine)
             END IF
 
-            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected )
+            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected,N_subcycles )
 
             ! Adjust position in local Cartesian frame after collision
             x_cart = x_reflected
