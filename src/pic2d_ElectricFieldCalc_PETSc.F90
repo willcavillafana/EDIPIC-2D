@@ -60,6 +60,9 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
   queue = 0.0_8
   phi = 0.0_8
  
+  ! If poisson is not required, then let everything to be zero
+  IF ( i_no_poisson==1 ) RETURN
+
 !  factor_rho = -0.25_8 / DBLE(N_of_particles_cell)
   factor_rho = -1.0_8 / DBLE(N_of_particles_cell)
 

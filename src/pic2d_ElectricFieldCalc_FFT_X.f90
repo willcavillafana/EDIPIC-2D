@@ -65,7 +65,9 @@ character(18) proc_filename     ! abcdefghi_NNNN.dat
   end interface
 
 character(10) myfilename ! A_NNNN.dat
-
+   
+   ! If poisson is not required, then let everything to be zero
+   IF ( i_no_poisson==1 ) RETURN
   ALLOCATE(rbufer(1:maxbufsize), STAT = ALLOC_ERR)
 
 !  factor_rho = 1.0_8 !### RESTORE ### 0.25_8 / DBLE(N_of_particles_cell)
