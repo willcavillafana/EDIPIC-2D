@@ -16,7 +16,7 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
   INTEGER k
   INTEGER i, j
   REAL(8) ax_ip1, ax_i, ay_jp1, ay_j, a00, a01, a10, a11
-  REAL(8) n_loc, vx_loc, vy_loc, vz_loc, v2_loc, T_loc_eV
+  REAL(8) n_loc, vx_loc, vy_loc, vz_loc, v2_loc, T_loc_eV, nb_ptcl_loc
   REAL(8) vel_factor, dens_ratio, temp_ratio
   REAL(8) Vx, Vy, Vz, Vx_sample, Vy_sample, Vz_sample, Vframe_x, Vframe_y, Vframe_z
   REAL(8) Ux, Uy, Uz, Usq, Usq_scaled, U_scaled ! relative velocity
@@ -99,16 +99,18 @@ end if
      ay_jp1 = electron(k)%Y - DBLE(j)
      ay_j = 1.0_8 - ay_jp1
 
-!     a00 =   ax_i * ay_j
-!     a01 =   ax_i * ay_jp1
-!     a10 = ax_ip1 * ay_j
-!     a11 = ax_ip1 * ay_jp1
-     a00 = 0.25_8
-     a01 = 0.25_8
-     a10 = 0.25_8
-     a11 = 0.25_8
+    a00 =   ax_i * ay_j
+    a01 =   ax_i * ay_jp1
+    a10 = ax_ip1 * ay_j
+    a11 = ax_ip1 * ay_jp1
+    ! These 0.25 coefs could also be used. It just means that we interpolate at the cell center instead of the particle position. The error should be small. s
+    !  a00 = 0.25_8 
+    !  a01 = 0.25_8
+    !  a10 = 0.25_8
+    !  a11 = 0.25_8
 ! these moments have already been time-averaged over the ion time step:
-     n_loc = acc_rho_e(0,i,j) * a00 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j) * a10 / factor_cyl_vol(i+1) + acc_rho_e(0,i,j+1) * a01 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j+1) * a11 / factor_cyl_vol(i+1)
+     n_loc = acc_rho_e(0,i,j) * a00 + acc_rho_e(0,i+1,j) * a10 + acc_rho_e(0,i,j+1) * a01 + acc_rho_e(0,i+1,j+1) * a11 
+     nb_ptcl_loc = acc_rho_e(0,i,j) * a00 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j) * a10 / factor_cyl_vol(i+1) + acc_rho_e(0,i,j+1) * a01 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j+1) * a11 / factor_cyl_vol(i+1)
      vx_loc= acc_rho_e(1,i,j) * a00 + acc_rho_e(1,i+1,j) * a10 + acc_rho_e(1,i,j+1) * a01 + acc_rho_e(1,i+1,j+1) * a11
      vy_loc= acc_rho_e(2,i,j) * a00 + acc_rho_e(2,i+1,j) * a10 + acc_rho_e(2,i,j+1) * a01 + acc_rho_e(2,i+1,j+1) * a11
      vz_loc= acc_rho_e(3,i,j) * a00 + acc_rho_e(3,i+1,j) * a10 + acc_rho_e(3,i,j+1) * a01 + acc_rho_e(3,i+1,j+1) * a11
@@ -116,11 +118,11 @@ end if
       
      IF (n_loc .EQ. 0.0_8) CYCLE !no scattering occurs
 
-        vx_loc = vx_loc / n_loc
-        vy_loc = vy_loc / n_loc
-        vz_loc = vz_loc / n_loc     
+        vx_loc = vx_loc / nb_ptcl_loc
+        vy_loc = vy_loc / nb_ptcl_loc
+        vz_loc = vz_loc / nb_ptcl_loc     
 
-        v2_loc = v2_loc / n_loc - (vx_loc**2 + vy_loc**2 + vz_loc**2)      
+        v2_loc = v2_loc / nb_ptcl_loc - (vx_loc**2 + vy_loc**2 + vz_loc**2)      
         T_loc_eV  = 0.6666666667_8 * v2_loc * (N_max_vel ** 2) * T_e_eV 
 ! normalized density and temperature:
         dens_ratio = n_loc / DBLE(N_of_particles_cell)
@@ -280,7 +282,7 @@ SUBROUTINE INITIATE_COULOMB_SCATTERING
   IF (.NOT.Coulomb_flag) RETURN
 
 !   L_debye_0 = L_debye_m / sqrt(2.0_8)
-  base_plasma_param = N_plasma_m3 * L_debye_m**3 ! L_debye_m is correct (no off by a factor sqrt(2))
+  base_plasma_param = N_plasma_m3 * L_debye_m**3 ! L_debye_m is correct (not off by a factor sqrt(2))
   base_Coulomb_probab = W_plasma_s1 * delta_t_s / base_plasma_param * DBLE(N_subcycles)
   L_ee_0 = pi * base_plasma_param   
   
