@@ -282,6 +282,7 @@ SUBROUTINE INITIATE_PARAMETERS
      READ (9, '(A1)') buf !"===dd===dd=== object type, number of segments")')
      READ (9, '(3x,i2,3x,i2)') whole_object(n)%object_type, &
                              & whole_object(n)%number_of_segments
+     CALL print_info_object_type( n,whole_object(n)%object_type )
      READ (9, '(A1)') buf !"---dddddd---dddddd---dddddd---dddddd---segment start X/Y end X/Y [global node index]")')
      ALLOCATE(whole_object(n)%segment(1:whole_object(n)%number_of_segments), STAT=ALLOC_ERR)
      DO m = 1, whole_object(n)%number_of_segments
@@ -1340,6 +1341,51 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
 
 END SUBROUTINE INITIATE_PARAMETERS
 
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE print_info_object_type
+!>    @details Indicates which object we have defined 
+!!    @authors W. Villafana
+!!    @date    Jun-05-2023
+!-------------------------------------------------------------------------------------------------- 
+SUBROUTINE print_info_object_type(n,obj_type)
+
+   USE CurrentProblemValues, ONLY: string_length, VACUUM_GAP, PERIODIC_PIPELINE_X, PERIODIC_PIPELINE_Y, METAL_WALL, DIELECTRIC, SYMMETRY_PLANE, NEUMANN
+   USE mod_print, ONLY: print_message
+
+   IMPLICIT NONE
+   INCLUDE 'mpif.h'
+
+   ! IN/OUT
+   INTEGER, INTENT(IN) :: n, obj_type
+
+   ! LOCAL 
+   CHARACTER(LEN=string_length) :: message
+   CHARACTER(LEN=string_length) :: type_name 
+
+   SELECT CASE ( obj_type )
+      CASE (NEUMANN)
+         type_name = 'NEUMANN: E_ortho = 0'
+      CASE (VACUUM_GAP)
+         type_name = 'VACUUM_GAP: phi is a linear interpolation'
+      CASE (PERIODIC_PIPELINE_X)
+         type_name = 'PERIODIC_PIPELINE_X: periodicity along X'
+      CASE (PERIODIC_PIPELINE_Y)
+         type_name = 'PERIODIC_PIPELINE_Y: periodicity along Y'
+      CASE (METAL_WALL)
+         type_name = 'METAL_WALL: phi is imposed'         
+      CASE (DIELECTRIC)
+         type_name = 'DIELECTRIC: electric field obtained from jump condition'                  
+      CASE (SYMMETRY_PLANE)
+         type_name = 'SYMMETRY_PLANE: reflective plane (left only). EX(axis) = 0'
+      CASE DEFAULT
+         type_name = 'a priori unknow BC. Results might be wrong'
+   END SELECT
+   
+   WRITE( message, '(A,I2,A)'), "Object # ",n," ",TRIM(type_name)
+   CALL print_message(message)
+
+
+END SUBROUTINE
 !--------------------------------------------------------------------------------------------------
 !     SUBROUTINE read_flexible_parameters
 !>    @details Read additional parameters that are called with a keyword that is human friendly. Alos allows for back compatiblity.

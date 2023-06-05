@@ -2091,10 +2091,12 @@ END IF ! cluster_rank_key selection
          END DO
 
       END IF
-   ELSE   ! periodic case solved with Fourier transform, array kept on the cluster. ADDED WITH COULOMB collisions implementation. Necessary for Fourier transform solve.
-      DO j = c_indx_y_min, c_indx_y_max
-         c_rho(c_indx_x_min:c_indx_x_max, j) = c_rho_ext(0, c_indx_x_min:c_indx_x_max, j)
-      END DO          
+   ELSE   
+      IF ( cluster_rank_key==0 ) THEN! periodic case solved with Fourier transform, array kept on the cluster. ADDED WITH COULOMB collisions implementation. Necessary for Fourier transform solve.
+         DO j = c_indx_y_min, c_indx_y_max
+            c_rho(c_indx_x_min:c_indx_x_max, j) = c_rho_ext(0, c_indx_x_min:c_indx_x_max, j)
+         END DO          
+      END IF
    END IF
   
   IF (ALLOCATED(rbufer))  DEALLOCATE(rbufer,  STAT=ALLOC_ERR)
