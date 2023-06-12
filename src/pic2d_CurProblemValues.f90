@@ -1381,7 +1381,7 @@ SUBROUTINE print_info_object_type(n,obj_type)
          type_name = 'a priori unknow BC. Results might be wrong'
    END SELECT
    
-   WRITE( message, '(A,I2,A)'), "Object # ",n," ",TRIM(type_name)
+   WRITE( message, '(A,I2,A)'), "Object # ",n," "//TRIM(type_name)
    CALL print_message(message)
 
 
@@ -1921,6 +1921,7 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   USE ParallelOperationValues
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
+  USE mod_print, ONLY: print_parser_error
 
   IMPLICIT NONE
 
@@ -1940,6 +1941,7 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   INTEGER ibufer(4)
 
   INTEGER :: local_debug_level
+  CHARACTER(LEN=string_length) :: message
   local_debug_level = 1    
 
   IF (cluster_rank_key.NE.0) RETURN
@@ -1960,6 +1962,11 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   connect_below = .FALSE.
 
   symmetry_plane_X_left = .FALSE.
+
+  neumann_X_cluster_left = .FALSE.
+  neumann_X_cluster_right = .FALSE.
+  neumann_Y_cluster_bottom = .FALSE.
+  neumann_Y_cluster_top = .FALSE.
 
   n_left = 0
   n_right = 0
@@ -2013,6 +2020,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
 
                  IF (whole_object(n)%object_type.EQ.SYMMETRY_PLANE) symmetry_plane_X_left = .TRUE.
 
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_X_cluster_left = .TRUE.
+
                  c_N_of_local_object_parts_left = c_N_of_local_object_parts_left+1
                  c_index_of_local_object_part_left(c_N_of_local_object_parts_left) = c_N_of_local_object_parts
               END IF
@@ -2025,6 +2035,11 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   IF (symmetry_plane_X_left) THEN
      PRINT '("Proc ",i4," (cluster master) has a symmetry plane on its left edge" )', Rank_of_process
   END IF
+
+   IF ( .NOT.symmetry_plane_X_left .AND. i_cylindrical>0 ) THEN
+      WRITE( message ,'(A)') "When using cylindrical coorindates, you must have the left boundary defined as a symmetry axis (flag=5)"
+      CALL print_parser_error ( message )
+   END IF
 
 ! check the top edge of the cluster
   IF (Rank_of_master_above.EQ.-1) THEN
@@ -2053,6 +2068,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
                     ALLOCATE(c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend), STAT = ALLOC_ERR)
                     c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend) = 0.0_8
                  END IF
+
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_Y_cluster_top = .TRUE.                 
 
                  c_N_of_local_object_parts_above = c_N_of_local_object_parts_above+1
                  c_index_of_local_object_part_above(c_N_of_local_object_parts_above) = c_N_of_local_object_parts
@@ -2091,6 +2109,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
                     c_local_object_part(c_N_of_local_object_parts)%surface_charge(jstart:jend) = 0.0_8
                  END IF
 
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_X_cluster_right = .TRUE.                 
+
                  c_N_of_local_object_parts_right = c_N_of_local_object_parts_right+1
                  c_index_of_local_object_part_right(c_N_of_local_object_parts_right) = c_N_of_local_object_parts
               END IF
@@ -2127,6 +2148,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
                     ALLOCATE(c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend), STAT = ALLOC_ERR)
                     c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend) = 0.0_8
                  END IF
+
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_Y_cluster_bottom = .TRUE.                 
 
                  c_N_of_local_object_parts_below = c_N_of_local_object_parts_below+1
                  c_index_of_local_object_part_below(c_N_of_local_object_parts_below) = c_N_of_local_object_parts
