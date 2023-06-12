@@ -650,6 +650,12 @@ MODULE ClusterAndItsBoundaries
 
   LOGICAL symmetry_plane_X_left
 
+  ! Neumann boundary imposed. Cluster variable
+  LOGICAL neumann_X_cluster_left
+  LOGICAL neumann_X_cluster_right
+  LOGICAL neumann_Y_cluster_bottom
+  LOGICAL neumann_Y_cluster_top
+
   INTEGER n_left(1:2)       ! contain indices of objects in array c_local_object_part
   INTEGER n_right(1:2)      ! which endpoints will participate in surface charge exchange
   INTEGER n_below(1:2)      ! with left/right/below/above neighbor cluster
@@ -768,6 +774,11 @@ MODULE BlockAndItsBoundaries
   TYPE(object_link) local_object_part(1:max_N_of_local_object_parts)
 
   LOGICAL block_has_symmetry_plane_X_left
+
+  LOGICAL block_has_neumann_bc_X_left
+  LOGICAL block_has_neumann_bc_X_right
+  LOGICAL block_has_neumann_bc_Y_bottom
+  LOGICAL block_has_neumann_bc_Y_top
 
   INTEGER N_of_local_object_parts_left
   INTEGER N_of_local_object_parts_right
