@@ -1486,7 +1486,7 @@ contains
                   CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter_2) !left
                   ! print*,'eps_shifted_quarter,eps_shifted_quarter_2',eps_shifted_quarter,eps_shifted_quarter_2
    
-                  value_at_jcol(1) =   (eps_i_jshifted(i,j) + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl + eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl )
+                  value_at_jcol(1) =   (eps_i_jshifted(i,j) - eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl - eps_shifted_quarter_2*1.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl )
                   ! value_at_jcol(1) =   (eps_i_jshifted(i,j) + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right + eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left )
                   value_at_jcol(2) =   eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl
                   value_at_jcol(4) =   eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl
@@ -1549,7 +1549,7 @@ contains
                   CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter_2) !left
                   ! print*,'eps_shifted_quarter,eps_shifted_quarter_2',eps_shifted_quarter,eps_shifted_quarter_2
    
-                  value_at_jcol(1) =   (eps_i_jshifted(i,j) + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl + eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl )
+                  value_at_jcol(1) =   (eps_i_jshifted(i,j) - eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl - eps_shifted_quarter_2*1.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl )
                   value_at_jcol(2) =   eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl
                   value_at_jcol(4) =   eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl
                   value_at_jcol(5) =   eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl
@@ -1632,7 +1632,7 @@ contains
                CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter_2) !left
                ! print*,'eps_shifted_quarter,eps_shifted_quarter_2',eps_shifted_quarter,eps_shifted_quarter_2
 
-               value_at_jcol(1) =   (eps_i_jshifted(i,j) + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl + eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl )
+               value_at_jcol(1) =   (eps_i_jshifted(i,j) - eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl - eps_shifted_quarter_2*1.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl )
                value_at_jcol(2) =   eps_shifted_quarter_2*3.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl
                value_at_jcol(4) =   eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl
                value_at_jcol(5) =   eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl
