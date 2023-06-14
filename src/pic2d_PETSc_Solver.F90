@@ -1424,9 +1424,9 @@ contains
                CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter)   !right
                CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j)- 0.50_8, eps_shifted_quarter_2) !below                  
 
-               value_at_jcol(1) =   (eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8*factor_axis_geom_cyl)!*factor_axis_geom_cyl
-               value_at_jcol(3) = (- eps_shifted_quarter*1.0_8/8.0_8*factor_axis_geom_cyl + eps_shifted_quarter_2*3.0_8/8.0_8)!*factor_axis_geom_cyl!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-               value_at_jcol(4) =   (eps_shifted_quarter*1.0_8/8.0_8*factor_axis_geom_cyl + eps_shifted_quarter_2*1.0_8/8.0_8)!*factor_axis_geom_cyl
+               value_at_jcol(1) =   (eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8*factor_axis_geom_cyl)*factor_axis_geom_cyl
+               value_at_jcol(3) = (- eps_shifted_quarter*1.0_8/8.0_8*factor_axis_geom_cyl + eps_shifted_quarter_2*3.0_8/8.0_8)*factor_axis_geom_cyl!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+               value_at_jcol(4) =   (eps_shifted_quarter*1.0_8/8.0_8*factor_axis_geom_cyl + eps_shifted_quarter_2*1.0_8/8.0_8)*factor_axis_geom_cyl
                value_at_jcol(2) =   -(value_at_jcol(1)+value_at_jcol(3)+value_at_jcol(4))
 
                call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
@@ -1576,6 +1576,7 @@ contains
                   jcolumn_global(4) = irow_global - (iend-ibegin+1) - 1! BOTTOM LEFT                     
 
                   IF ( i_cylindrical==2 ) THEN
+                     factor_geom_cyl = 2.0_8 ! I need this because1/8 in cartesian comes from 1/4*1/2
                      factor_geom_cyl_left = 1.0_8 - 1.0_8/(4.0_8*DBLE(i)-1.0_8)
                   END IF
 
@@ -1583,9 +1584,9 @@ contains
                   CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter)   !left
                   CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) - 0.5_8, eps_shifted_quarter_2) !below       
 
-                  value_at_jcol(1) =   eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_left
-                  value_at_jcol(2) = - eps_shifted_quarter_2*1.0_8/8.0_8 + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_left!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-                  value_at_jcol(4) =   eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_left + eps_shifted_quarter_2*1.0_8/8.0_8
+                  value_at_jcol(1) =   (eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_left)*factor_geom_cyl**2
+                  value_at_jcol(2) = (- eps_shifted_quarter_2*1.0_8/8.0_8 + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_left)*factor_geom_cyl**2!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
+                  value_at_jcol(4) =   (eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_left + eps_shifted_quarter_2*1.0_8/8.0_8)*factor_geom_cyl**2
                   value_at_jcol(3) =   -(value_at_jcol(1)+value_at_jcol(2)+value_at_jcol(4))
                   ! value_at_jcol(1) =   eps_i_jshifted(i,j)
                   ! value_at_jcol(2) =   eps_ishifted_j(i,j)
