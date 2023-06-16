@@ -65,6 +65,7 @@ contains
     REAL(8) :: factor_geom_cyl  ! additional factor for node on the right in the stencil
     REAL(8) :: factor_axis_geom_cyl  ! additional factor for node at the top and bottom in the stencil for axis.
     REAL(8) :: factor_geom_cyl_left, factor_geom_cyl_right
+    REAL(8) :: dS1_dx, dS2_dx, dS3_dx, dS4_dx, rhs_coef, r_i ! geometrical coefs for Neuman boundary 
 
     ! By default we have no additional factors
     factor_geom_cyl = 1.0_8
@@ -167,15 +168,204 @@ contains
 
 !    j = indx_y_min !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>.
     IF (jbegin.EQ.indx_y_min) THEN
+      j = indx_y_min
 ! boundary object along bottom border
-       DO i = ibegin, iend
-         ! print*,'value_bottom_is_1,i,j',i,j
-          irow_global = irow_global + 1
+      DO i = ibegin, iend
+      ! print*,'value_bottom_is_1,i,j',i,j
+         irow_global = irow_global + 1
 !          number_of_columns = 1
-          jcolumn_global(1) = irow_global
-          value_at_jcol(1) = 1.0_8
-          call MatSetValues(Amat, one, irow_global, one, jcolumn_global(1:1), value_at_jcol(1:1), INSERT_VALUES, ierr) 
-       END DO
+         jcolumn_global(1) = irow_global
+         value_at_jcol(1) = 1.0_8
+         call MatSetValues(Amat, one, irow_global, one, jcolumn_global(1:1), value_at_jcol(1:1), INSERT_VALUES, ierr) 
+         ! If I have Neumann BCs, I need to compute coefficients 
+         IF (block_has_neumann_bc_Y_bottom) THEN
+            ! Left corner
+            jcolumn_global(1) = irow_global + (iend-ibegin+1)    ! TOP
+            ! this is at the left of the domain, along the BC
+            IF ( i==indx_x_min .AND. ibegin==indx_x_min ) THEN
+
+               jcolumn_global(2) = irow_global                      ! CENTER         
+               jcolumn_global(3) = irow_global + 1                  ! RIGHT               
+               jcolumn_global(4) = irow_global + (iend-ibegin+1) + 1! TOP RIGHT    
+               
+               !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+               ! Cartesian
+               dS1_dx = half
+               dS2_dx = half
+               rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS        
+               ! Cylindrical     
+               IF ( i_cylindrical==2 ) THEN
+                  dS1_dx = pi*delta_x_m/4.0_8
+                  dS2_dx = pi*delta_x_m/2.0_8
+                  rhs_coef = pi*delta_x_m/4.0_8
+               END IF
+               CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter)   !right
+               CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j)+ 0.50_8, eps_shifted_quarter_2) !top                  
+
+               value_at_jcol(1) =    (eps_shifted_quarter_2*3.0_8/4.0_8*dS1_dx - eps_shifted_quarter*1.0_8/4.0_8*dS2_dx)/rhs_coef ! TOP
+               value_at_jcol(3) =  (- eps_shifted_quarter*1.0_8/4.0_8*dS2_dx + eps_shifted_quarter_2*3.0_8/4.0_8*dS1_dx)/rhs_coef ! RIGHT
+               value_at_jcol(4) =    (eps_shifted_quarter*1.0_8/4.0_8*dS2_dx + eps_shifted_quarter_2*1.0_8/4.0_8*dS1_dx)/rhs_coef ! TOP RIGHT
+               value_at_jcol(2) =  - (value_at_jcol(1)+value_at_jcol(3)+value_at_jcol(4))                                      ! CENTER
+
+               call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
+
+            ! Left of the block. I might need to communicate with my left neighbor if it exists. 
+            ELSE IF ( i==indx_x_min+1 ) THEN
+
+               ! No neighbor on the left, I can use my own node     ! LEFT
+               IF (indx_x_min==ibegin) THEN 
+                  jcolumn_global(2) = irow_global - 1
+                  jcolumn_global(6) = irow_global + (iend-ibegin+1) - 1! TOP LEFT
+               ELSE 
+                  jcolumn_global(2) = process_left_bottom_right_inner_node + (j-indx_y_min-1) * process_left_solved_nodes_row_length  ! LEFT
+                  jcolumn_global(6) = process_left_bottom_right_inner_node + (j-indx_y_min-1+1) * process_left_solved_nodes_row_length! TOP LEFT
+               END IF
+               jcolumn_global(3) = irow_global                      ! CENTER         
+               jcolumn_global(4) = irow_global + 1                  ! RIGHT
+               jcolumn_global(5) = irow_global + (iend-ibegin+1) + 1! TOP RIGHT
+                                 
+
+               !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+               ! Cartesian
+               dS1_dx = 1.0_8
+               dS2_dx = half
+               dS4_dx = half
+               rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS        
+               ! Cylindrical     
+               IF ( i_cylindrical==2 ) THEN
+                  r_i = DBLE(i)*delta_x_m ! radius
+                  dS1_dx = 2.0_8*pi*r_i*delta_x_m
+                  dS2_dx = 2.0_8*pi*(r_i+delta_x_m)/2.0_8
+                  dS4_dx = 2.0_8*pi*(r_i-delta_x_m)/2.0_8
+                  rhs_coef = 2.0_8*pi*r_i
+               END IF
+               CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter)   !right
+               CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter_2) !left
+
+               value_at_jcol(1) =   eps_i_jshifted(i,j+1) - eps_shifted_quarter*1.0_8/4.0_8*dS2_dx/rhs_coef - eps_shifted_quarter_2*1.0_8/4.0_8*dS4_dx/ rhs_coef ! TOP
+               value_at_jcol(2) =   eps_shifted_quarter_2*3.0_8/4.0_8*dS4_dx/rhs_coef ! LEFT
+               value_at_jcol(4) =   eps_shifted_quarter*3.0_8/4.0_8*dS2_dx/rhs_coef ! RIGHT
+               value_at_jcol(5) =   eps_shifted_quarter*1.0_8/4.0_8*dS2_dx/rhs_coef ! TOP RIGHT
+               value_at_jcol(6) =   eps_shifted_quarter_2*1.0_8/4.0_8*dS4_dx/rhs_coef ! TOP LEFT
+               value_at_jcol(3) = -(value_at_jcol(1) + value_at_jcol(2) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6))                  
+
+               call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr)                   
+
+            ! Right of the block. I might need to communicate with my right neighbor if it exists. 
+            ELSE IF ( i==indx_x_max-1 ) THEN           
+               
+               jcolumn_global(2) = irow_global - 1                     ! LEFT
+               jcolumn_global(3) = irow_global                         ! CENTER         
+               ! No neighbor on the right, I can use my own node
+               IF ( indx_x_max==iend ) THEN
+                  jcolumn_global(4) = irow_global + 1                  ! RIGHT  
+                  jcolumn_global(5) = irow_global - (iend-ibegin+1) + 1! BOTTOM RIGHT
+               ! Neighbor on the right, I need to communicate
+               ELSE
+                  jcolumn_global(4) = process_right_bottom_left_inner_node + (j-indx_y_min-1) * process_right_solved_nodes_row_length                 ! RIGHT
+                  jcolumn_global(5) = process_right_bottom_left_inner_node + (j-indx_y_min-1+1) * process_right_solved_nodes_row_length! TOP RIGHT
+               END IF
+               jcolumn_global(6) = irow_global + (iend-ibegin+1) - 1! TOP LEFT                            
+
+               !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+               ! Cartesian
+               dS1_dx = 1.0_8
+               dS2_dx = half
+               dS4_dx = half
+               rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS        
+               ! Cylindrical     
+               IF ( i_cylindrical==2 ) THEN
+                  r_i = DBLE(i)*delta_x_m ! radius
+                  dS1_dx = 2.0_8*pi*r_i
+                  dS2_dx = 2.0_8*pi*(r_i+delta_x_m)/2.0_8
+                  dS4_dx = 2.0_8*pi*(r_i-delta_x_m)/2.0_8
+                  rhs_coef = 2.0_8*pi*r_i
+               END IF                  
+               CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter)   !right
+               CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter_2) !left
+               ! print*,'eps_shifted_quarter,eps_shifted_quarter_2',eps_shifted_quarter,eps_shifted_quarter_2
+
+               value_at_jcol(1) =   eps_i_jshifted(i,j+1) - eps_shifted_quarter*1.0_8/4.0_8*dS2_dx/rhs_coef - eps_shifted_quarter_2*1.0_8/4.0_8*dS4_dx/rhs_coef  ! TOP
+               value_at_jcol(2) =   eps_shifted_quarter_2*3.0_8/4.0_8*dS4_dx/rhs_coef ! LEFT
+               value_at_jcol(4) =   eps_shifted_quarter*3.0_8/4.0_8*dS2_dx/rhs_coef ! RIGHT
+               value_at_jcol(5) =   eps_shifted_quarter*1.0_8/4.0_8*dS2_dx/rhs_coef ! TOP RIGHT
+               value_at_jcol(6) =   eps_shifted_quarter_2*1.0_8/4.0_8*dS4_dx/rhs_coef ! TOP LEFT
+               value_at_jcol(3) = -(value_at_jcol(1) + value_at_jcol(2) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6))                  
+
+               call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr)                           
+
+               ! this is at the right of the domain, along the BC
+            ELSE IF ( i==indx_x_max .AND. iend==indx_x_max ) THEN
+
+               jcolumn_global(2) = irow_global - 1               ! LEFT
+               jcolumn_global(3) = irow_global                   ! CENTER
+               jcolumn_global(4) = irow_global + (iend-ibegin+1) - 1! TOP LEFT                     
+
+               !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+               ! Cartesian
+               dS1_dx = half
+               dS4_dx = half
+               rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS        
+               ! Cylindrical     
+               IF ( i_cylindrical==2 ) THEN
+                  r_i = DBLE(i)*delta_x_m ! radius
+                  dS1_dx = pi*(r_i-delta_x_m/4.0_8)
+                  dS4_dx = pi*(r_i-delta_x_m/2.0_8)
+                  rhs_coef = 2.0_8*pi*r_i
+               END IF             
+
+               ! Filling matrix
+               CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j)  + 0.25_8, eps_shifted_quarter)   !left
+               CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) + 0.5_8, eps_shifted_quarter_2)  !top       
+
+               value_at_jcol(1) =   (eps_shifted_quarter_2*3.0_8/4.0_8*dS1_dx - eps_shifted_quarter*1.0_8/4.0_8*dS4_dx)/rhs_coef ! TOP
+               value_at_jcol(2) =  (- eps_shifted_quarter_2*1.0_8/4.0_8*dS1_dx + eps_shifted_quarter*3.0_8/4.0_8*dS4_dx)/rhs_coef !LEFT
+               value_at_jcol(4) =   (eps_shifted_quarter*1.0_8/4.0_8*dS4_dx + eps_shifted_quarter_2*1.0_8/4.0_8*dS1_dx)/rhs_coef ! TOP LEFT
+               value_at_jcol(3) =   -(value_at_jcol(1)+value_at_jcol(2)+value_at_jcol(4)) ! CENTER
+
+
+               call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)                       
+
+            ! This is a regular node at the top BC. Far from block boundaries and wall materials 
+            ELSE
+
+               !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+               ! Cartesian
+               dS1_dx = 1.0_8
+               dS2_dx = half
+               dS4_dx = half
+               rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS        
+               ! Cylindrical     
+               IF ( i_cylindrical==2 ) THEN
+                  r_i = DBLE(i)*delta_x_m ! radius
+                  dS1_dx = 2.0_8*pi*r_i
+                  dS2_dx = 2.0_8*pi*(r_i+delta_x_m)/2.0_8
+                  dS4_dx = 2.0_8*pi*(r_i-delta_x_m)/2.0_8
+                  rhs_coef = 2.0_8*pi*r_i
+               END IF
+
+               jcolumn_global(2) = irow_global - 1                  ! LEFT
+               jcolumn_global(3) = irow_global                      ! CENTER         
+               jcolumn_global(4) = irow_global + 1                  ! RIGHT
+               jcolumn_global(5) = irow_global + (iend-ibegin+1) + 1! TOP RIGHT
+               jcolumn_global(6) = irow_global + (iend-ibegin+1) - 1! TOP LEFT
+      
+               ! IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
+               CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter)   !right
+               CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) + 0.25_8, eps_shifted_quarter_2) !left
+
+               value_at_jcol(1) =   eps_i_jshifted(i,j+1) - eps_shifted_quarter*1.0_8/4.0_8*dS2_dx/rhs_coef - eps_shifted_quarter_2*1.0_8/4.0_8*dS4_dx/ rhs_coef ! TOP
+               value_at_jcol(2) =   eps_shifted_quarter_2*3.0_8/4.0_8*dS4_dx/rhs_coef ! LEFT
+               value_at_jcol(4) =   eps_shifted_quarter*3.0_8/4.0_8*dS2_dx/rhs_coef ! RIGHT
+               value_at_jcol(5) =   eps_shifted_quarter*1.0_8/4.0_8*dS2_dx/rhs_coef ! TOP RIGHT
+               value_at_jcol(6) =   eps_shifted_quarter_2*1.0_8/4.0_8*dS4_dx/rhs_coef ! TOP LEFT
+
+               value_at_jcol(3) = -(value_at_jcol(1) + value_at_jcol(2) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6))   
+               call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr) 
+            END IF ! IF loop over i index
+         END IF !IF (block_has_neumann_bc_Y_bottom) THEN     
+
+         END DO
     END IF
 
 !    j = indx_y_min+1 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -1408,8 +1598,6 @@ contains
 
        ! If I have Neumann BCs, I need to compute coefficients 
           IF (block_has_neumann_bc_Y_top) THEN
-            ! IF ( i==indx_x_min .AND. i==ibegin ) CYCLE ! For now I discard 
-            ! IF ( i==indx_x_max .AND. i==iend ) CYCLE
             ! Left corner
             jcolumn_global(1) = irow_global - (iend-ibegin+1)    ! BELOW
             ! this is at the left of the domain, along the BC
@@ -1433,29 +1621,7 @@ contains
 
             ! Left of the block. I might need to communicate with my left neighbor if it exists. 
             ELSE IF ( i==indx_x_min+1 ) THEN
-               ! ! this is at the left of the domain, along the BC. My neighbor does NOT exist. I do my regular thing. 
-               ! IF (indx_x_min==ibegin) THEN          
-               !    ! print*,'i_min',i,j     
-               !    jcolumn_global(2) = irow_global                      ! CENTER         
-               !    jcolumn_global(3) = irow_global + 1                  ! RIGHT               
-               !    jcolumn_global(4) = irow_global - (iend-ibegin+1) + 1! BOTTOM RIGHT    
-                  
-               !    ! I will fill matrix values now
-               !    IF ( i_cylindrical==2 ) factor_geom_cyl = two 
-               !    CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter)   !right
-               !    CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j)- 0.50_8, eps_shifted_quarter_2) !below                  
 
-               !    value_at_jcol(1) =   eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8
-               !    value_at_jcol(3) = - eps_shifted_quarter*1.0_8/8.0_8 + eps_shifted_quarter_2*3.0_8/8.0_8!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-               !    value_at_jcol(4) =   eps_shifted_quarter*1.0_8/8.0_8 + eps_shifted_quarter_2*1.0_8/8.0_8
-               !    value_at_jcol(2) =   -(value_at_jcol(1)+value_at_jcol(3)+value_at_jcol(4))
-
-               !    call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
-               ! I have a neighbor on the left
-               ! ELSE
-                  ! print*,'should not be here'
-
-                  ! jcolumn_global(1) = irow_global - (iend-ibegin+1)    ! BELOW
                   ! No neighbor on the left, I can use my own node     ! LEFT
                   IF (indx_x_min==ibegin) THEN 
                      jcolumn_global(2) = irow_global - 1
@@ -1469,16 +1635,8 @@ contains
                   jcolumn_global(5) = irow_global - (iend-ibegin+1) + 1! BOTTOM RIGHT
                                     
 
-                  ! jcolumn_global(2) = process_left_bottom_right_inner_node + (j-indx_y_min-1) * process_left_solved_nodes_row_length                      ! LEFT
-                  ! jcolumn_global(3) = irow_global                      ! CENTER         
-                  ! jcolumn_global(4) = irow_global + 1                  ! RIGHT
-
-                  ! I will fill matrix values now
-                  ! IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
-
-                ! IF ( i_cylindrical==2 ) factor_geom_cyl = DBLE(i+1)/DBLE(i)
                   IF ( i_cylindrical==2 ) THEN
-                     factor_geom_cyl = 2.0_8 ! I need this because1/8 in cartesian comes from 1/4*1/2
+                     factor_geom_cyl = 2.0_8 ! I need this because 1/8 in cartesian comes from 1/4*1/2
                      factor_geom_cyl_right = 1.0_8 + 1.0_8/(2.0_8*DBLE(i))
                      factor_geom_cyl_left = 1.0_8 - 1.0_8/(2.0_8*DBLE(i))
                   END IF
@@ -1495,34 +1653,9 @@ contains
                   value_at_jcol(3) = -(value_at_jcol(1) + value_at_jcol(2) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6))                  
 
                   call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr)                   
-                  ! value_at_jcol(1) =   eps_i_jshifted(i,j)
-                  ! value_at_jcol(2) =   eps_ishifted_j(i,j)
-                  ! value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-                  ! value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl          
-                  
-                  ! call MatSetValues(Amat, one, irow_global, 4, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr) 
-               ! END IF
+
+            ! Right of the block. I might need to communicate with my right neighbor if it exists. 
             ELSE IF ( i==indx_x_max-1 ) THEN
-               ! print*,'i_max',i,j
-               ! this is at the right of the domain, along the BC
-               ! IF (indx_x_max==iend) THEN        
-               !    jcolumn_global(2) = irow_global - 1               ! LEFT
-               !    jcolumn_global(3) = irow_global                   ! CENTER
-               !    jcolumn_global(4) = irow_global - (iend-ibegin+1) - 1! BOTTOM LEFT                     
-
-               !    ! Filling matrix
-               !    CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter)   !left
-               !    CALL GET_EPS_IN_POINT(DBLE(i)-0.25_8, DBLE(j) - 0.5_8, eps_shifted_quarter_2) !below       
-
-               !    value_at_jcol(1) =   eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8
-               !    value_at_jcol(2) = - eps_shifted_quarter_2*1.0_8/8.0_8 + eps_shifted_quarter*3.0_8/8.0_8!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-               !    value_at_jcol(4) =   eps_shifted_quarter*1.0_8/8.0_8 + eps_shifted_quarter_2*1.0_8/8.0_8
-               !    value_at_jcol(3) =   -(value_at_jcol(1)+value_at_jcol(2)+value_at_jcol(4))
-               !    ! value_at_jcol(1) =   eps_i_jshifted(i,j)
-               !    ! value_at_jcol(2) =   eps_ishifted_j(i,j)
-               !    ! value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_ishifted_j(i,j) )  
-
-               !    call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)        
 
                   IF ( i_cylindrical==2 ) THEN
                      factor_geom_cyl = 2.0_8 ! I need this because1/8 in cartesian comes from 1/4*1/2
@@ -1530,15 +1663,13 @@ contains
                      factor_geom_cyl_left = 1.0_8 - 1.0_8/(2.0_8*DBLE(i))
                   END IF               
                
-               ! ! I have a neighbor on the right
-               ! ELSE 
-                  ! print*,'should not be here 2'
-                  ! jcolumn_global(1) = irow_global - (iend-ibegin+1)    ! BELOW
-                  jcolumn_global(2) = irow_global - 1                  ! LEFT
-                  jcolumn_global(3) = irow_global                      ! CENTER         
+                  jcolumn_global(2) = irow_global - 1                     ! LEFT
+                  jcolumn_global(3) = irow_global                         ! CENTER         
+                  ! No neighbor on the right, I can use my own node
                   IF ( indx_x_max==iend ) THEN
-                     jcolumn_global(4) = irow_global + 1                 ! RIGHT  
+                     jcolumn_global(4) = irow_global + 1                  ! RIGHT  
                      jcolumn_global(5) = irow_global - (iend-ibegin+1) + 1! BOTTOM RIGHT
+                  ! Neighbor on the right, I need to communicate
                   ELSE
                      jcolumn_global(4) = process_right_bottom_left_inner_node + (j-indx_y_min-1) * process_right_solved_nodes_row_length                 ! RIGHT
                      jcolumn_global(5) = process_right_bottom_left_inner_node + (j-indx_y_min-1-1) * process_right_solved_nodes_row_length! BOTTOM RIGHT
@@ -1557,18 +1688,8 @@ contains
                   value_at_jcol(3) = -(value_at_jcol(1) + value_at_jcol(2) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6))                  
 
                   call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr)                           
-                  
-                  ! ! Filling matrix
-                  ! value_at_jcol(1) =   eps_i_jshifted(i,j)
-                  ! value_at_jcol(2) =   eps_ishifted_j(i,j)
-                  ! value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-                  ! value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
 
-                  ! call MatSetValues(Amat, one, irow_global, 4, jcolumn_global, value_at_jcol, INSERT_VALUES, ierr)        
-                  
-               ! END IF
-
-               ! this is at the left of the domain, along the BC
+               ! this is at the right of the domain, along the BC
             ELSE IF ( i==indx_x_max .AND. iend==indx_x_max ) THEN
 
                   jcolumn_global(2) = irow_global - 1               ! LEFT
@@ -1588,28 +1709,11 @@ contains
                   value_at_jcol(2) = (- eps_shifted_quarter_2*1.0_8/8.0_8 + eps_shifted_quarter*3.0_8/8.0_8*factor_geom_cyl_left)*factor_geom_cyl!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
                   value_at_jcol(4) =   (eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_left + eps_shifted_quarter_2*1.0_8/8.0_8)*factor_geom_cyl
                   value_at_jcol(3) =   -(value_at_jcol(1)+value_at_jcol(2)+value_at_jcol(4))
-                  ! value_at_jcol(1) =   eps_i_jshifted(i,j)
-                  ! value_at_jcol(2) =   eps_ishifted_j(i,j)
-                  ! value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_ishifted_j(i,j) )  
+
 
                   call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)                       
 
-               ! jcolumn_global(2) = irow_global                      ! CENTER         
-               ! jcolumn_global(3) = irow_global + 1                  ! RIGHT               
-               ! jcolumn_global(4) = irow_global - (iend-ibegin+1) + 1! BOTTOM RIGHT    
-               
-               ! ! I will fill matrix values now
-               ! IF ( i_cylindrical==2 ) factor_geom_cyl = two 
-               ! CALL GET_EPS_IN_POINT(DBLE(i)+0.5_8, DBLE(j) - 0.25_8, eps_shifted_quarter)   !right
-               ! CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j)- 0.50_8, eps_shifted_quarter_2) !below                  
-
-               ! value_at_jcol(1) =   eps_shifted_quarter_2*3.0_8/8.0_8 - eps_shifted_quarter*1.0_8/8.0_8
-               ! value_at_jcol(3) = - eps_shifted_quarter*1.0_8/8.0_8 + eps_shifted_quarter_2*3.0_8/8.0_8!-(eps_i_jshifted(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-               ! value_at_jcol(4) =   eps_shifted_quarter*1.0_8/8.0_8 + eps_shifted_quarter_2*1.0_8/8.0_8
-               ! value_at_jcol(2) =   -(value_at_jcol(1)+value_at_jcol(3)+value_at_jcol(4))
-
-               ! call MatSetValues(Amat, one, irow_global, 4, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr)                
-               
+            ! This is a regular node at the top BC. Far from block boundaries and wall materials 
             ELSE
 
                ! Remove corners as it was done previously
@@ -1638,17 +1742,12 @@ contains
                value_at_jcol(5) =   eps_shifted_quarter*1.0_8/8.0_8*factor_geom_cyl_right*factor_geom_cyl
                value_at_jcol(6) =   eps_shifted_quarter_2*1.0_8/8.0_8*factor_geom_cyl_left*factor_geom_cyl
                value_at_jcol(3) = -(value_at_jcol(1) + value_at_jcol(2) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6))
-
-               ! value_at_jcol(1) =   eps_i_jshifted(i,j)
-               ! value_at_jcol(2) =   eps_ishifted_j(i,j)
-               ! value_at_jcol(3) = -(eps_i_jshifted(i,j) + eps_ishifted_j(i,j) + eps_ishifted_j(i+1,j)*factor_geom_cyl)
-               ! value_at_jcol(4) =   eps_ishifted_j(i+1,j)*factor_geom_cyl
       
                call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr) 
-            END IF
-          END IF         
+            END IF ! IF loop over i index
+          END IF !IF (block_has_neumann_bc_Y_top) THEN        
              
-       END DO
+       END DO !DO i = ibegin, iend
     END IF
 
 ! end of initialization of matrix coefficients written by DS ---------------

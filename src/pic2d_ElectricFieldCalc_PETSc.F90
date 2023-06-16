@@ -51,10 +51,10 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
 !   k_test_r = 11./4*two*pi/Lr
 !   k_test_z = 5.0*two*pi/Lz
 !   alpha_r = 18.071063967910924/Lr ! sixth root
-   ! k_x_cart = (pi+5.0_8*pi)/Lr ! Test in Cartesian coordinates
-   ! k_y_cart = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cartesian coordinates
-   ! k_test_r = (pi/2.0_8+6.0_8*pi)/Lr ! Test in Cylindrical coordinates
-   ! k_test_z = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cylindrical coordinates   
+   k_x_cart = (pi+5.0_8*pi)/Lr ! Test in Cartesian coordinates
+   k_y_cart = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cartesian coordinates
+   k_test_r = (pi/2.0_8+6.0_8*pi)/Lr ! Test in Cylindrical coordinates
+   k_test_z = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cylindrical coordinates   
 
   ALLOCATE(   queue(1:block_N_of_nodes_to_solve), STAT = ALLOC_ERR)
   ALLOCATE(rhsvalue(1:block_N_of_nodes_to_solve), STAT = ALLOC_ERR)
@@ -89,21 +89,32 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
 ! boundary object along bottom border
      DO i = ibegin, iend
         nn = nn + 1
-        DO n = 1, N_of_local_object_parts_below
-           m = index_of_local_object_part_below(n)
-           i_start = local_object_part(m)%istart
-           i_end   = local_object_part(m)%iend
-           nobj   = local_object_part(m)%object_number
-           IF ((i.GE.i_start).AND.(i.LE.i_end)) THEN
-              IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
-                 rhsvalue(nn) = whole_object(nobj)%phi
-              ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
-                 rhsvalue(nn) = whole_object(nobj)%phi_profile(i)
-              END IF
-              EXIT
-           END IF
-        END DO
-     END DO
+         IF ( .NOT.block_has_neumann_bc_Y_bottom ) THEN
+            DO n = 1, N_of_local_object_parts_below
+               m = index_of_local_object_part_below(n)
+               i_start = local_object_part(m)%istart
+               i_end   = local_object_part(m)%iend
+               nobj   = local_object_part(m)%object_number
+               IF ((i.GE.i_start).AND.(i.LE.i_end)) THEN
+                  IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
+                     rhsvalue(nn) = whole_object(nobj)%phi
+                  ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
+                     rhsvalue(nn) = whole_object(nobj)%phi_profile(i)
+                  END IF
+                  EXIT
+               END IF
+            END DO
+         ELSE ! Neumann
+
+               ! rhsvalue(nn) = -(k_x_cart**2+k_y_cart**2)*SIN(k_x_cart*DBLE(i)*delta_x_m)*(one)/ F_scale_V*delta_x_m**2/2.0 ! Cartesian. 
+               ! IF (i==0) THEN
+               !    rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)-k_test_r**2)/ F_scale_V*delta_x_m**2/two ! Cylindrical
+               ! ELSE
+               !    rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i))/ F_scale_V*delta_x_m**2/two ! Cylindrical
+               ! END IF
+            rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS              
+         END IF
+      END DO
   END IF
 
   DO j = indx_y_min+1, indx_y_max-1 !>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
@@ -130,6 +141,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
            END DO
         ELSE !IF (whole_object(nobj)%object_type.EQ.SYMMETRY_PLANE) THEN
            rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))
+         !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_z*delta_x_m*j)-k_test_r**2*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
          !   rhsvalue(nn) = -(k_test_r+(k_test_r**2+k_test_z**2))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2!/two ! Ttest cylindrical with double Neumann
            !   rhsvalue(nn) = zero
            ! Check if I am in inner dielecctric
@@ -155,8 +167,11 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
      DO i = indx_x_min+1, indx_x_max-1
         nn = nn + 1
         rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))
-         !  rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2
+      !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
+      !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2 
+        !  rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2
       !   rhsvalue(nn) = -(k_x_cart**2+k_y_cart**2)*SIN(k_x_cart*DBLE(i)*delta_x_m)*SIN(k_y_cart*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2 ! Test cartesian. Solution phi = sin(kx*x)*sin(ky*y). Dirichlet 0 at left/bottom/right and neumann at top
+         ! rhsvalue(nn) = -(k_x_cart**2+k_y_cart**2)*SIN(k_x_cart*DBLE(i)*delta_x_m)*COS(k_y_cart*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2 ! Test cartesian. Solution phi = sin(kx*x)*cos(ky*y). Dirichlet 0 at left/top/right and neumann at bottom      
       !   rhsvalue(nn) = zero!-(k_test_r*SIN(delta_x_m*k_test_r*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r*i))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet at BCs z=0, z=2cm,r=3cm. Divide by scaling factor
       !   CALL FIND_INNER_OBJECT_CONTAINING_POINT(i,j,ni0,position_flag)
       !   IF ( position_flag<0 ) THEN ! imposed right hand side to test solver in cyl coordinates
@@ -611,7 +626,7 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
       ! enforce boundary condition EX=0 at the symmetry plane
       IF ( symmetry_plane_X_left )  EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = 0.0_8
       IF ( neumann_Y_cluster_top )  EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = zero
-      IF ( neumann_Y_cluster_top )  EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = zero
+      IF ( neumann_Y_cluster_bottom )  EY(c_indx_x_min:c_indx_x_max, c_indx_y_min) = zero
       IF ( neumann_X_cluster_left ) EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = zero
       IF ( neumann_X_cluster_right )EX(c_indx_x_max, c_indx_y_min:c_indx_y_max) = zero         
       
