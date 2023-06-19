@@ -40,27 +40,30 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
   INTEGER :: index_maxi_r,index_maxi_z ! test r-z
   INTEGER :: ni0,position_flag ! test if I ma in an inner object
   REAL(8) :: alpha_r ! root of bessel function
+  LOGICAL :: neumann_flag ! determines if point i,j is Neumann
+
+  neumann_flag = .FALSE.
 
   ! I need collective operation because we do not know the exact size of the box... This is because of ghost points ...
-  CALL MPI_ALLREDUCE(indx_x_max, index_maxi_r,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
-  CALL MPI_ALLREDUCE(indx_y_max, index_maxi_z,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+!   CALL MPI_ALLREDUCE(indx_x_max, index_maxi_r,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+!   CALL MPI_ALLREDUCE(indx_y_max, index_maxi_z,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
   
-  Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
-  Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
+!   Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
+!   Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
 !   print*,'Lr,Lz,index_maxi_r,index_maxi_z',Lr,Lz,index_maxi_r,index_maxi_z
 !   k_test_r = 11./4*two*pi/Lr
 !   k_test_z = 5.0*two*pi/Lz
 !   alpha_r = 18.071063967910924/Lr ! sixth root
-   k_x_cart = (pi+5.0_8*pi)/Lr ! Test in Cartesian coordinates
-   k_x_cart_neumann_right = (pi/2.0_8+7.0_8*pi)/Lr ! Test in Cartesian coordinates. Neumann right only
-   k_y_cart_neumann_right = (pi+5.0_8*pi)/Lz ! Test in Cartesian coordinates. Neumann right only
-   k_y_cart = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cartesian coordinates
-   k_test_r = (pi/2.0_8+6.0_8*pi)/Lr ! Test in Cylindrical coordinates
-   k_test_z = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cylindrical coordinates  
-   k_test_r_neumann_right = (pi+6.0_8*pi)/Lr ! Test in Cylindrical coordinates  with neumann right and dirichlet otherzise  
-   k_test_z_neumann_right = (pi+5.0_8*pi)/Lz ! Test in Cylindrical coordinates  with neumann right and dirichlet otherzise  
-   k_test_r_dirichlet = (pi/2.0_8+6.0_8*pi)/Lr ! Test in Cylindrical coordinates  with dirichlet otherzise  
-   k_test_z_dirichlet = (pi+5.0_8*pi)/Lz ! Test in Cylindrical coordinates  with dirichlet otherzise     
+   ! k_x_cart = (pi+5.0_8*pi)/Lr ! Test in Cartesian coordinates
+   ! k_x_cart_neumann_right = (pi/2.0_8+7.0_8*pi)/Lr ! Test in Cartesian coordinates. Neumann right only
+   ! k_y_cart_neumann_right = (pi+5.0_8*pi)/Lz ! Test in Cartesian coordinates. Neumann right only
+   ! k_y_cart = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cartesian coordinates
+   ! k_test_r = (pi/2.0_8+6.0_8*pi)/Lr ! Test in Cylindrical coordinates
+   ! k_test_z = (pi/2.0_8+5.0_8*pi)/Lz ! Test in Cylindrical coordinates  
+   ! k_test_r_neumann_right = (pi+6.0_8*pi)/Lr ! Test in Cylindrical coordinates  with neumann right and dirichlet otherzise  
+   ! k_test_z_neumann_right = (pi+5.0_8*pi)/Lz ! Test in Cylindrical coordinates  with neumann right and dirichlet otherzise  
+   ! k_test_r_dirichlet = (pi/2.0_8+6.0_8*pi)/Lr ! Test in Cylindrical coordinates  with dirichlet otherzise  
+   ! k_test_z_dirichlet = (pi+5.0_8*pi)/Lz ! Test in Cylindrical coordinates  with dirichlet otherzise     
 
   ALLOCATE(   queue(1:block_N_of_nodes_to_solve), STAT = ALLOC_ERR)
   ALLOCATE(rhsvalue(1:block_N_of_nodes_to_solve), STAT = ALLOC_ERR)
@@ -111,6 +114,11 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
                END IF
             END DO
          ELSE ! Neumann
+            ! Double check if current point is Neumann or not (a cluster could have both Neumann and metal)
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,indx_y_min,neumann_flag)
+
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN                
 
                ! rhsvalue(nn) = -(k_x_cart**2+k_y_cart**2)*SIN(k_x_cart*DBLE(i)*delta_x_m)*(one)/ F_scale_V*delta_x_m**2/2.0 ! Cartesian. 
                ! IF (i==0) THEN
@@ -118,7 +126,23 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
                ! ELSE
                !    rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i))/ F_scale_V*delta_x_m**2/two ! Cylindrical
                ! END IF
-            rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS              
+               rhsvalue(nn) = factor_rho * (rho_i(i,indx_y_min) - rho_e(i,indx_y_min))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS              
+            ELSE
+               DO n = 1, N_of_local_object_parts_below
+                  m = index_of_local_object_part_below(n)
+                  i_start = local_object_part(m)%istart
+                  i_end   = local_object_part(m)%iend
+                  nobj   = local_object_part(m)%object_number
+                  IF ((i.GE.i_start).AND.(i.LE.i_end)) THEN
+                     IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi
+                     ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi_profile(i)
+                     END IF
+                     EXIT
+                  END IF
+               END DO               
+            ENDIF
          END IF
       END DO
   END IF
@@ -147,9 +171,30 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
                   END IF
                END DO
             ELSE
-               rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))/two
-               ! rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*(one)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2/two ! Test cartesian. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at top/bottom/right and neumann at left
+               ! Double check if current point is Neumann or not (a cluster could have both Neumann and metal)
+               CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(indx_x_min,j,neumann_flag)
 
+               ! This point is Neumann, I shall proceed
+               IF ( neumann_flag ) THEN
+                  rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))/two
+                  ! rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*(one)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2/two ! Test cartesian. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at top/bottom/right and neumann at left
+               ! Metal
+               ELSE 
+                  DO n = 1, N_of_local_object_parts_left
+                     m = index_of_local_object_part_left(n)
+                     j_start = local_object_part(m)%jstart
+                     j_end   = local_object_part(m)%jend
+                     nobj   = local_object_part(m)%object_number
+                     IF ((j.GE.j_start).AND.(j.LE.j_end)) THEN
+                        IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
+                           rhsvalue(nn) = whole_object(nobj)%phi
+                        ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
+                           rhsvalue(nn) = whole_object(nobj)%phi_profile(j)
+                        END IF
+                        EXIT
+                     END IF
+                  END DO
+               ENDIF                  
             ENDIF
         ELSE !IF (whole_object(nobj)%object_type.EQ.SYMMETRY_PLANE) THEN
            rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))
@@ -234,13 +279,35 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
                END IF
             END DO
          ELSE ! Neuman right
-            ! rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*(-one)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2/two ! Test cartesian. Solution phi = sin(kx*x)*sin(ky*y). Dirichlet 0 at left/bottom/top and neumann at right            
-            ! IF (i==0) THEN
-            !    rhsvalue(nn) = (-(k_test_r_neumann_right**2+k_test_z_neumann_right**2)*(-one)*SIN(k_test_z_neumann_right*DBLE(j)*delta_x_m)-k_test_r_neumann_right**2*SIN(k_test_z_neumann_right*delta_x_m*j))/ F_scale_V*delta_x_m**2/two ! Test cylidnrical. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at bottom/top and neumann at right. symmetry axis also
-            ! ELSE
-            !    rhsvalue(nn) = (-(k_test_r_neumann_right**2+k_test_z_neumann_right**2)*(-one)*SIN(k_test_z_neumann_right*DBLE(j)*delta_x_m)-k_test_r_neumann_right/(delta_x_m*DBLE(i))*SIN(k_test_r_neumann_right*delta_x_m*DBLE(i))*SIN(k_test_z_neumann_right*delta_x_m*j))/ F_scale_V*delta_x_m**2/two ! Test cylidnrical. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at bottom/top and neumann at right. symmetry axis also
-            ! ENDIF
-            rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS  
+            ! Double check if current point is Neumann or not (a cluster could have both Neumann and metal)
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(indx_x_max,j,neumann_flag)
+
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN            
+               ! rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*(-one)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2/two ! Test cartesian. Solution phi = sin(kx*x)*sin(ky*y). Dirichlet 0 at left/bottom/top and neumann at right            
+               ! IF (i==0) THEN
+               !    rhsvalue(nn) = (-(k_test_r_neumann_right**2+k_test_z_neumann_right**2)*(-one)*SIN(k_test_z_neumann_right*DBLE(j)*delta_x_m)-k_test_r_neumann_right**2*SIN(k_test_z_neumann_right*delta_x_m*j))/ F_scale_V*delta_x_m**2/two ! Test cylidnrical. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at bottom/top and neumann at right. symmetry axis also
+               ! ELSE
+               !    rhsvalue(nn) = (-(k_test_r_neumann_right**2+k_test_z_neumann_right**2)*(-one)*SIN(k_test_z_neumann_right*DBLE(j)*delta_x_m)-k_test_r_neumann_right/(delta_x_m*DBLE(i))*SIN(k_test_r_neumann_right*delta_x_m*DBLE(i))*SIN(k_test_z_neumann_right*delta_x_m*j))/ F_scale_V*delta_x_m**2/two ! Test cylidnrical. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at bottom/top and neumann at right. symmetry axis also
+               ! ENDIF
+               rhsvalue(nn) = factor_rho * (rho_i(indx_x_max,j) - rho_e(indx_x_max,j))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS  
+               !METAL   
+            ELSE
+               DO n = 1, N_of_local_object_parts_right
+                  m = index_of_local_object_part_right(n)
+                  j_start = local_object_part(m)%jstart
+                  j_end   = local_object_part(m)%jend
+                  nobj   = local_object_part(m)%object_number
+                  IF ((j.GE.j_start).AND.(j.LE.j_end)) THEN
+                     IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi
+                     ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi_profile(j)
+                     END IF
+                     EXIT
+                  END IF
+               END DO               
+            ENDIF
          END IF
      END IF
 
@@ -267,14 +334,35 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
                END IF
             END DO
          ELSE
-            ! Cylindrical
-            ! IF (i==0) THEN
-            !    rhsvalue(nn) =(-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2/2.0!TEst cylindrical double neumann
-            ! ELSE
-            !    rhsvalue(nn) =(-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2/2.0!TEst cylindrical double neumann
-            ! END IF
-            !    rhsvalue(nn) = -(k_x_cart**2+k_y_cart**2)*SIN(k_x_cart*DBLE(i)*delta_x_m)*(-one)/ F_scale_V*delta_x_m**2/2.0 ! Cartesian
-            rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS  
+            ! Double check if current point is Neumann or not (a cluster could have both Neumann and metal)
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,indx_y_max,neumann_flag)
+
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN                    
+               ! Cylindrical
+               ! IF (i==0) THEN
+               !    rhsvalue(nn) =(-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2/2.0!TEst cylindrical double neumann
+               ! ELSE
+               !    rhsvalue(nn) =(-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2/2.0!TEst cylindrical double neumann
+               ! END IF
+               !    rhsvalue(nn) = -(k_x_cart**2+k_y_cart**2)*SIN(k_x_cart*DBLE(i)*delta_x_m)*(-one)/ F_scale_V*delta_x_m**2/2.0 ! Cartesian
+               rhsvalue(nn) = factor_rho * (rho_i(i,indx_y_max) - rho_e(i,indx_y_max))/two ! Nodal volue at top is dx**2/2 in cartesian. In cylindrical, I keep the same convention, ie the RHS has a factoer dx**2/2, everythong else is put on the LHS  
+            ELSE
+               DO n = 1, N_of_local_object_parts_above
+                  m = index_of_local_object_part_above(n)
+                  i_start = local_object_part(m)%istart
+                  i_end   = local_object_part(m)%iend
+                  nobj   = local_object_part(m)%object_number
+                  IF ((i.GE.i_start).AND.(i.LE.i_end)) THEN
+                     IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi
+                     ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi_profile(i)
+                     END IF
+                     EXIT
+                  END IF
+               END DO               
+            ENDIF
          END IF
      END DO
   END IF
@@ -497,7 +585,9 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
   REAL(8), ALLOCATABLE :: loc_EX(:,:)
   REAL(8), ALLOCATABLE :: loc_EY(:,:)
   INTEGER ALLOC_ERR
+  LOGICAL :: neumann_flag
 
+  neumann_flag = .FALSE.
   factor2_E_from_F = F_scale_V / (E_scale_Vm * 2.0_8 * delta_x_m)
   factor1_E_from_F = F_scale_V / (E_scale_Vm * delta_x_m)
 
@@ -653,10 +743,55 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
      END DO
       ! enforce boundary condition EX=0 at the symmetry plane
       IF ( symmetry_plane_X_left )  EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = 0.0_8
-      IF ( neumann_Y_cluster_top )  EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = zero
-      IF ( neumann_Y_cluster_bottom )  EY(c_indx_x_min:c_indx_x_max, c_indx_y_min) = zero
-      IF ( neumann_X_cluster_left ) EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = zero
-      IF ( neumann_X_cluster_right )EX(c_indx_x_max, c_indx_y_min:c_indx_y_max) = zero         
+      IF ( neumann_Y_cluster_top ) THEN
+         DO i=c_indx_x_min, c_indx_x_max
+            
+            ! Check if point i,j is Neumann 
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,c_indx_y_max,neumann_flag)
+            
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN            
+               EY(i, c_indx_y_max) = zero
+            ENDIF 
+         ENDDO
+      END IF
+      IF ( neumann_Y_cluster_bottom ) THEN
+         DO i=c_indx_x_min, c_indx_x_max
+            
+            ! Check if point i,j is Neumann 
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,c_indx_y_min,neumann_flag)
+            
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN            
+               EY(i, c_indx_y_min) = zero
+            ENDIF 
+         ENDDO      
+      ENDIF
+      IF ( neumann_X_cluster_left ) THEN 
+         DO j=c_indx_y_min, c_indx_y_max
+            
+            ! Check if point i,j is Neumann 
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(c_indx_x_min,j,neumann_flag)
+            
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN       
+               EX(c_indx_x_min, j) = zero     
+            ENDIF 
+         ENDDO      
+      END IF
+         
+      IF ( neumann_X_cluster_right ) THEN
+         DO j=c_indx_y_min, c_indx_y_max
+            
+            ! Check if point i,j is Neumann 
+            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(c_indx_x_max,j,neumann_flag)
+            
+            ! This point is Neumann, I shall proceed
+            IF ( neumann_flag ) THEN       
+               EX(c_indx_x_max, j) = zero     
+            ENDIF 
+         ENDDO      
+      END IF              
       
 
 ! exchange boundary field values with neighbor masters
