@@ -385,9 +385,11 @@ contains
           IF (jbegin.EQ.indx_y_min) THEN                       ! BELOW
             ! boundary object along the bottom border
              jcolumn_global(1) = irow_global - (iend-ibegin+1)                          ! use the own node
+             jcolumn_global(6) = irow_global - (iend-ibegin+1) + 1    ! BOTTOM RIGHT
           ELSE
             ! use a node from neighbor below
              jcolumn_global(1) = process_below_left_top_inner_node-1                    ! use a node from the neighbor below
+             jcolumn_global(6) = process_below_left_top_inner_node-1 + 1    ! BOTTOM RIGHT
           END IF
           jcolumn_global(2) = irow_global                      ! CENTER
           jcolumn_global(3) = irow_global+1                    ! RIGHT
@@ -432,11 +434,30 @@ contains
                   value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl*rhs_coef + eps_ishifted_j(i+1,j)*factor_geom_cyl*rhs_coef)
                   value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl*rhs_coef ! this is 4 
                   value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl
+
+                  call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) ! Same for both cylindrical r-z and Cartesian. left point= right point
                ELSE ! We have a Neumann BC. Cannot be cylindrical here 
-                  value_at_jcol(1) =   eps_i_jshifted(i,j)
-                  value_at_jcol(2) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i+1,j) )
-                  value_at_jcol(3) =   eps_ishifted_j(i+1,j) 
-                  value_at_jcol(4) =   eps_i_jshifted(i,j+1)
+
+                  jcolumn_global(5) = irow_global + (iend-ibegin+1) + 1    ! TOP RIGHT
+                  
+                  !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+                  ! Cartesian
+                  dS1_dx = half
+                  dS2_dx = 1.0_8
+                  dS3_dx = half
+                  rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS                          
+
+                  CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) + 0.5_8, eps_shifted_quarter)   !top
+                  CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) - 0.5_8, eps_shifted_quarter_2) !below    
+
+                  value_at_jcol(1) =   3.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef ! BELOW
+                  value_at_jcol(3) =  - 1.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef - 1.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef + eps_i_jshifted(i+1,j)  ! RIGHT
+                  value_at_jcol(4) =   3.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef ! ABOVE*
+                  value_at_jcol(5) =   1.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef ! TOP RIGHT
+                  value_at_jcol(6) =   1.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef ! BOTTOM RIGHT
+
+                  value_at_jcol(2) = -(value_at_jcol(1) + value_at_jcol(3) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6) ) ! CENTER
+                  call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr) 
                END IF                     
                !  print*,'axis,i,j',i,j
                !  print*,'value_at_jcol(1:4)',value_at_jcol(1:4)
@@ -444,7 +465,7 @@ contains
 !                value_at_jcol(2) = -1.0_8
 !                value_at_jcol(3) = 0.5_8
 !                value_at_jcol(4) = 0.25_8
-               call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) ! Same for both cylindrical r-z and Cartesian. left point= right point
+               
          END SELECT
 
        END IF   !### IF (.NOT.block_has_symmetry_plane_X_left) THEN
@@ -892,19 +913,38 @@ contains
                      value_at_jcol(1) =   eps_i_jshifted(i,j)*factor_axis_geom_cyl
                      value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl*rhs_coef + eps_ishifted_j(i+1,j)*factor_geom_cyl*rhs_coef)
                      value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl*rhs_coef ! this is 4
-                     value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl    
+                     value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl   
+                     
+                     call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
                   ELSE ! We have a Neumann BC. Cannot be cylindrical here 
-                     value_at_jcol(1) =   eps_i_jshifted(i,j)
-                     value_at_jcol(2) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i+1,j) )
-                     value_at_jcol(3) =   eps_ishifted_j(i+1,j) 
-                     value_at_jcol(4) =   eps_i_jshifted(i,j+1)
+                     
+                     jcolumn_global(5) = irow_global + (iend-ibegin+1) + 1    ! TOP RIGHT
+                     jcolumn_global(6) = irow_global - (iend-ibegin+1) + 1    ! BOTTOM RIGHT
+                     !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+                     ! Cartesian
+                     dS1_dx = half
+                     dS2_dx = 1.0_8
+                     dS3_dx = half
+                     rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS                          
+   
+                     CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) + 0.5_8, eps_shifted_quarter)   !top
+                     CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) - 0.5_8, eps_shifted_quarter_2) !below    
+   
+                     value_at_jcol(1) =   3.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef ! BELOW
+                     value_at_jcol(3) =  - 1.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef - 1.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef + eps_i_jshifted(i+1,j)  ! RIGHT
+                     value_at_jcol(4) =   3.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef ! ABOVE*
+                     value_at_jcol(5) =   1.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef ! TOP RIGHT
+                     value_at_jcol(6) =   1.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef ! BOTTOM RIGHT
+   
+                     value_at_jcol(2) = -(value_at_jcol(1) + value_at_jcol(3) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6) ) ! CENTER
+                     call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr) 
                   END IF                                  
                   !  print*,'value_at_jcol(1:4)_wil2',value_at_jcol(1:4)
 !                   value_at_jcol(1) = 0.25_8
 !                   value_at_jcol(2) = -1.0_8
 !                   value_at_jcol(3) = 0.5_8
 !                   value_at_jcol(4) = 0.25_8
-                  call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
+                  
             END SELECT
 
           END IF   !### IF (.NOT.block_has_symmetry_plane_X_left) THEN
@@ -1216,8 +1256,10 @@ contains
           IF (jend.EQ.indx_y_max) THEN                         ! ABOVE
 ! boundary object along the top border
              jcolumn_global(4) = irow_global + (iend-ibegin+1)                         ! use the own node
+             jcolumn_global(6) = irow_global + (iend-ibegin+1) + 1    ! TOP RIGHT
           ELSE
              jcolumn_global(4) = process_above_left_bottom_inner_node-1                ! use a node from the neighbor above
+             jcolumn_global(6) = process_above_left_bottom_inner_node-1 + 1    ! TOP RIGHT
           END IF
 
 ! check whether the point is inside or at the surface of any inner object
@@ -1259,18 +1301,37 @@ contains
                   value_at_jcol(2) = -(eps_i_jshifted(i,j)*factor_axis_geom_cyl + eps_i_jshifted(i,j+1)*factor_axis_geom_cyl + eps_ishifted_j(i+1,j)*factor_geom_cyl*rhs_coef + eps_ishifted_j(i+1,j)*factor_geom_cyl*rhs_coef)
                   value_at_jcol(3) =   (eps_ishifted_j(i+1,j) + eps_ishifted_j(i+1,j))*factor_geom_cyl*rhs_coef ! this is 4 
                   value_at_jcol(4) =   eps_i_jshifted(i,j+1)*factor_axis_geom_cyl
+
+                  call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
                ELSE ! We have a Neumann BC. Cannot be cylindrical here 
-                  value_at_jcol(1) =   eps_i_jshifted(i,j)
-                  value_at_jcol(2) = -(eps_i_jshifted(i,j) + eps_i_jshifted(i,j+1) + eps_ishifted_j(i+1,j) )
-                  value_at_jcol(3) =   eps_ishifted_j(i+1,j) 
-                  value_at_jcol(4) =   eps_i_jshifted(i,j+1)                     
+                  
+                  jcolumn_global(6) = irow_global - (iend-ibegin+1) + 1    ! BOTTOM RIGHT
+                  
+                  !!! I define geometrical coefs: 1= top, 2 = right, 3 = bottom, 4 = left
+                  ! Cartesian
+                  dS1_dx = half
+                  dS2_dx = 1.0_8
+                  dS3_dx = half
+                  rhs_coef = 1.0_8 ! we will have dx**2/2 for the volume RHS                          
+
+                  CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) + 0.5_8, eps_shifted_quarter)   !top
+                  CALL GET_EPS_IN_POINT(DBLE(i)+0.25_8, DBLE(j) - 0.5_8, eps_shifted_quarter_2) !below    
+
+                  value_at_jcol(1) =   3.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef ! BELOW
+                  value_at_jcol(3) =  - 1.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef - 1.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef + eps_i_jshifted(i+1,j)  ! RIGHT
+                  value_at_jcol(4) =   3.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef ! ABOVE*
+                  value_at_jcol(5) =   1.0_8/4.0_8*eps_shifted_quarter*dS1_dx/rhs_coef ! TOP RIGHT
+                  value_at_jcol(6) =   1.0_8/4.0_8*eps_shifted_quarter_2*dS3_dx/rhs_coef ! BOTTOM RIGHT
+
+                  value_at_jcol(2) = -(value_at_jcol(1) + value_at_jcol(3) + value_at_jcol(4) + value_at_jcol(5) + value_at_jcol(6) ) ! CENTER
+                  call MatSetValues(Amat, one, irow_global, six, jcolumn_global(1:6), value_at_jcol(1:6), INSERT_VALUES, ierr)                   
                END IF
                !  print*,'value_at_jcol(1:4)_wil6',value_at_jcol(1:4)
 !                value_at_jcol(1) = 0.25_8
 !                value_at_jcol(2) = -1.0_8
 !                value_at_jcol(3) = 0.5_8
 !                value_at_jcol(4) = 0.25_8
-               call MatSetValues(Amat, one, irow_global, four, jcolumn_global(1:4), value_at_jcol(1:4), INSERT_VALUES, ierr) 
+               
          END SELECT
 
        END IF

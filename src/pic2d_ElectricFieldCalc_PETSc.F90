@@ -130,21 +130,27 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
      IF (ibegin.EQ.indx_x_min) THEN
 ! boundary object along left border
         nn = nn + 1
-        IF (.NOT.block_has_symmetry_plane_X_left) THEN
-           DO n = 1, N_of_local_object_parts_left
-              m = index_of_local_object_part_left(n)
-              j_start = local_object_part(m)%jstart
-              j_end   = local_object_part(m)%jend
-              nobj   = local_object_part(m)%object_number
-              IF ((j.GE.j_start).AND.(j.LE.j_end)) THEN
-                 IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
-                    rhsvalue(nn) = whole_object(nobj)%phi
-                 ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
-                    rhsvalue(nn) = whole_object(nobj)%phi_profile(j)
-                 END IF
-                 EXIT
-              END IF
-           END DO
+         IF (.NOT.block_has_symmetry_plane_X_left) THEN
+            IF (.NOT.block_has_neumann_bc_X_left) THEN
+               DO n = 1, N_of_local_object_parts_left
+                  m = index_of_local_object_part_left(n)
+                  j_start = local_object_part(m)%jstart
+                  j_end   = local_object_part(m)%jend
+                  nobj   = local_object_part(m)%object_number
+                  IF ((j.GE.j_start).AND.(j.LE.j_end)) THEN
+                     IF (whole_object(nobj)%object_type.EQ.METAL_WALL) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi
+                     ELSE IF (whole_object(nobj)%object_type.EQ.VACUUM_GAP) THEN
+                        rhsvalue(nn) = whole_object(nobj)%phi_profile(j)
+                     END IF
+                     EXIT
+                  END IF
+               END DO
+            ELSE
+               rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))/two
+               ! rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*(one)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2/two ! Test cartesian. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at top/bottom/right and neumann at left
+
+            ENDIF
         ELSE !IF (whole_object(nobj)%object_type.EQ.SYMMETRY_PLANE) THEN
            rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))
          !   rhsvalue(nn) = (-(k_test_r_neumann_right**2+k_test_z_neumann_right**2)*(one)*SIN(k_test_z_neumann_right*DBLE(j)*delta_x_m)-k_test_r_neumann_right**2*SIN(k_test_z_neumann_right*delta_x_m*j))/ F_scale_V*delta_x_m**2!/two ! Test cylidnrical. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at bottom/top and neumann at right. symmetry axis also
@@ -175,6 +181,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
      DO i = indx_x_min+1, indx_x_max-1
         nn = nn + 1
         rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))
+      !   rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*COS(k_x_cart_neumann_right*DBLE(i)*delta_x_m)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2 ! Test cartesian. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at top/bottom/right and neumann at left
       !   rhsvalue(nn) = -(k_test_r*SIN(delta_x_m*k_test_r_dirichlet*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r_dirichlet*i))*SIN(k_test_z_dirichlet*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet 
       !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
       !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2 
