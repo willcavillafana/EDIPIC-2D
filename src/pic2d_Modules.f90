@@ -189,6 +189,8 @@ MODULE CurrentProblemValues
                             ! For the z_theta plane we can take a Cartesian geometry for now
   INTEGER :: debug_level
 
+  REAL(8) :: weight_ptcl ! Statistical weight of particles
+
   INTEGER :: i_no_poisson                                    ! Deactivate poisson   (no  e_field)
   INTEGER :: i_reflection_cyl_electron, i_reflection_cyl_ion ! Indicates if   we asked for a specular reflection for electrons and ions in cylindrical geometry. Inelastic collisions are not implemented for now (Dec 20, 2022)
   INTEGER :: i_empty_domain                                  ! Initialize domain with no particles (=1, 0 otherwise by default)

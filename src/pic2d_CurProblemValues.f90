@@ -128,7 +128,8 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER pos1, pos2
   INTEGER flag_scatter
   CHARACTER(LEN=string_length) :: message, routine
-  INTEGER :: c_indx_x_max_total,c_indx_x_min_total
+  INTEGER :: c_indx_x_max_total,c_indx_x_min_total, c_indx_y_max_total,c_indx_y_min_total
+  REAL(8) :: LX_max, LY_max
 
 ! functions
   REAL(8) Bx, By
@@ -148,8 +149,13 @@ SUBROUTINE INITIATE_PARAMETERS
   routine = "INITIATE_PARAMETERS"
 
 ! default values
+  weight_ptcl = zero
+  LX_max = zero
+  LY_max = zero
   c_indx_x_min_total = 0
   c_indx_x_max_total = 0
+  c_indx_y_min_total = 0
+  c_indx_y_max_total = 0  
   Delta_r = one
   Delta_z = one
   i_no_poisson = 0
@@ -1045,11 +1051,14 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
 
   CALL SET_CLUSTER_STRUCTURE
 
+  ! Get min and max of index in x/r and y/z directions
+  ! print*,'c_indx_x_max,c_indx_x_min',c_indx_x_max,c_indx_x_min
+  CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+  CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
+  CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+  CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
   IF ( i_cylindrical==2) THEN
-   ! Get min and max of index in x/r and y/z directions
-   ! print*,'c_indx_x_max,c_indx_x_min',c_indx_x_max,c_indx_x_min
-   CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
-   CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
+
    ! print*,'c_indx_x_max_total,c_indx_x_min_total,factor',c_indx_x_max_total,c_indx_x_min_total,pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m
    ! CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
    ! CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)  
@@ -1060,6 +1069,19 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
    ! I implicity changen the statistical weight: w_cyl = pi*R*w_cart = pi*R*n_scale*dx**2/(N_ppc_cart)
 
   END IF
+
+  ! Print statistical weight of particles
+  LX_max = delta_x_m*DBLE(c_indx_x_max_total-c_indx_x_min_total)
+  LY_max = delta_x_m*DBLE(c_indx_y_max_total-c_indx_y_min_total) 
+  WRITE( message,'(A,ES10.3,A)') "Total length in X direction is LX = ",LX_max," [m]"
+  CALL print_message(message)  
+  WRITE( message,'(A,ES10.3,A)') "Total length in Y direction is LY = ",LY_max," [m]"
+  CALL print_message(message)    
+
+  ! Print statistical weight of particles
+  weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+  WRITE( message,'(A,ES10.3)') "Statistical weight of particles is w_stat = ",weight_ptcl
+  CALL print_message(message)    
 
   N_scale_part_m3 = N_plasma_m3 / N_of_particles_cell
   current_factor_Am2 = e_Cl * V_scale_ms * N_scale_part_m3
