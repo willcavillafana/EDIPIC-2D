@@ -486,6 +486,9 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
   INTEGER s
   REAL(8) x, y, vx, vy, vz
   INTEGER tag
+  REAL(8) :: r_old, vx_old, vy_old, x_cart, z_cart ! old radius, readial and axial velocity in r-z
+  REAL(8) :: alpha_ang  
+  REAL(8) :: vx_new, vy_new, vz_new
 !  TYPE(boundary_object) myobject
 
   REAL(8) xorg, yorg
@@ -502,16 +505,36 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
   INTEGER coll_direction_flag
 
   REAL coll_coord   ! coordinate of collision point, y/x for collisions with vertical/horizontal segments, respectively
+  
+  IF (i_cylindrical==0) THEN
+      xorg = x - vx*N_subcycles
+      yorg = y - vy*N_subcycles
+   ELSE IF ( i_cylindrical==2 ) THEN
+      ! Go backward in time to find old radius
+      x_cart = x - vx*N_subcycles ! radius
+      z_cart = - vz*N_subcycles ! in theta direction
+      xorg =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
+      yorg = y - vy*N_subcycles
 
-  xorg = x - vx*N_subcycles
-  yorg = y - vy*N_subcycles
+      ! Deduce old velocity
+      alpha_ang = DATAN2(z_cart,x_cart) 
+
+      ! Former velocity in previous coordinate system
+      vx_old =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+      vy_old = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+   ENDIF
+
+   ! By default the velocity at impact is the one I have right now (will be different in cylindrical)
+   vx_new = vx ! r in cylindrical rz
+   vy_new = vy ! z in cylindrical rz
+   vz_new = vz ! theta in cylindrical rz
 
   n_do = -1
   mcross = -1
 
   DO n_try = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
 
-     CALL FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n_try, mcross_try, xcross_try, ycross_try, distorg_try)
+     CALL FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n_try, mcross_try, xcross_try, ycross_try, distorg_try,vx_old,vy_old, vy, vx_new, vz_new)
 
      IF (mcross_try.LT.0) CYCLE  ! no crossing found
 
@@ -554,9 +577,9 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
         coll_coord = REAL(xcross)
   END SELECT
 
-  CALL ADD_ION_TO_BO_COLLS_LIST(s, coll_coord, REAL(vx), REAL(vy), REAL(vz), tag, n_do, mcross)
+  CALL ADD_ION_TO_BO_COLLS_LIST(s, coll_coord, REAL(vx_new), REAL(vy_new), REAL(vz_new), tag, n_do, mcross)
 
-  CALL DO_ION_COLL_WITH_INNER_OBJECT(s, xcross, ycross, vx, vy, vz, tag, whole_object(n_do), coll_direction_flag)
+  CALL DO_ION_COLL_WITH_INNER_OBJECT(s, xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag)
 
 END SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT
 

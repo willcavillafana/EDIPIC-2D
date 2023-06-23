@@ -546,7 +546,10 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
 !  INTEGER nio  ! number of the inner object
   REAL(8) x, y, vx, vy, vz
   INTEGER tag
-!  TYPE(boundary_object) myobject
+  REAL(8) :: r_old, vx_old, vy_old, x_cart, z_cart ! old radius, readial and axial velocity in r-z
+  REAL(8) :: alpha_ang
+  REAL(8) :: vx_new, vy_new, vz_new
+  !  TYPE(boundary_object) myobject
 
   REAL(8) xorg, yorg
 
@@ -563,15 +566,37 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
 
   REAL coll_coord   ! coordinate of collision point, y/x for collisions with vertical/horizontal segments, respectively
 
-  xorg = x - vx
-  yorg = y - vy
+  ! Find previous position
+  IF (i_cylindrical==0) THEN
+      xorg = x - vx
+      yorg = y - vy
+
+  ELSE IF ( i_cylindrical==2 ) THEN
+      ! Go backward in time to find old radius
+      x_cart = x - vx ! radius
+      z_cart = - vz ! in theta direction
+      xorg =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
+      yorg = y - vy
+
+      ! Deduce old velocity
+      alpha_ang = DATAN2(z_cart,x_cart) 
+
+      ! Former velocity in previous coordinate system
+      vx_old =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+      vy_old = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+   ENDIF
+
+   ! By default the velocity at impact is the one I have right now (will be different in cylindrical)
+   vx_new = vx ! r in cylindrical rz
+   vy_new = vy ! z in cylindrical rz
+   vz_new = vz ! theta in cylindrical rz
 
   n_do = -1
   mcross = -1
 
   DO n_try = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
 
-     CALL FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n_try, mcross_try, xcross_try, ycross_try, distorg_try)
+     CALL FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n_try, mcross_try, xcross_try, ycross_try, distorg_try,vx_old,vy_old, vy, vx_new, vz_new)
 
      IF (mcross_try.LT.0) CYCLE  ! no crossing found
 
@@ -614,9 +639,9 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
         coll_coord = REAL(xcross)
   END SELECT
 
-  CALL ADD_ELECTRON_TO_BO_COLLS_LIST(coll_coord, REAL(vx), REAL(vy), REAL(vz), tag, n_do, mcross)
+  CALL ADD_ELECTRON_TO_BO_COLLS_LIST(coll_coord, REAL(vx_new), REAL(vy_new), REAL(vz_new), tag, n_do, mcross)
 
-  CALL DO_ELECTRON_COLL_WITH_INNER_OBJECT(xcross, ycross, vx, vy, vz, tag, whole_object(n_do), coll_direction_flag)
+  CALL DO_ELECTRON_COLL_WITH_INNER_OBJECT(xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag)
 
 END SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT
 
@@ -710,18 +735,20 @@ END SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT
 
 !--------------------------
 !
-SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n, mcross, xcross, ycross, distorg)
+SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n, mcross, xcross, ycross, distorg, vx_old, vy_old, vz_axial, vx_new, vz_new)
 
   USE CurrentProblemValues !, ONLY : inner_object, METAL_WALL, DIELECTRIC
 
   IMPLICIT NONE
 
   REAL(8), INTENT(IN) :: xorg, yorg, x, y
+  REAL(8), INTENT(IN) :: vx_old, vy_old, vz_axial
   INTEGER, INTENT(IN) :: n
 
   INTEGER, INTENT(OUT) :: mcross
   REAL(8), INTENT(OUT) :: xcross, ycross
   REAL(8), INTENT(OUT) :: distorg
+  REAL(8), INTENT(INOUT) :: vx_new, vz_new ! New velocities at impact with the wall (in cylindrical, it will be different). Will not be updated if Cartesian
 
   INTEGER m
 
@@ -741,8 +768,7 @@ SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n, mcross, xc
         jbot = MIN(whole_object(n)%segment(m)%jstart, whole_object(n)%segment(m)%jend)
         jtop = MAX(whole_object(n)%segment(m)%jstart, whole_object(n)%segment(m)%jend)
         myxcross = DBLE(whole_object(n)%segment(m)%istart)
-
-        CALL CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, myxcross, DBLE(jbot), DBLE(jtop), mystatus, myycross )
+        CALL CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, myxcross, DBLE(jbot), DBLE(jtop), mystatus, myycross, vx_old, vy_old, vz_axial, vx_new, vz_new )
         IF (mystatus.NE.0) CYCLE
 
         jcross = MAX(jbot, MIN(jtop-1, INT(myycross)))
@@ -774,7 +800,7 @@ SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n, mcross, xc
         iright = MAX(whole_object(n)%segment(m)%istart, whole_object(n)%segment(m)%iend)
         myycross = DBLE(whole_object(n)%segment(m)%jstart)
 
-        CALL CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, myycross, DBLE(ileft), DBLE(iright), mystatus, myxcross )
+        CALL CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, myycross, DBLE(ileft), DBLE(iright), mystatus, myxcross, vx_old, vy_old, vz_axial, vx_new, vz_new )
         IF (mystatus.NE.0) CYCLE
 
         icross = MAX(ileft, MIN(iright-1, INT(myxcross)))
@@ -808,16 +834,25 @@ END SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT
 !----------------------------------------------------------
 !### assume that yminseg < ymaxseg
 !
-SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, yminseg, ymaxseg, mystatus, ycross )
+SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, yminseg, ymaxseg, mystatus, ycross, vx_old, vy_old, vz_axial, vx_new, vz_new )
 
   use, intrinsic :: ieee_arithmetic
+  USE CurrentProblemValues, ONLY: i_cylindrical, four, one, two
 
   IMPLICIT NONE
 
   REAL(8), INTENT(IN) :: xorg, yorg, x, y          ! coordinates of the ends of particle trajectory segment
   REAL(8), INTENT(IN) :: xseg, yminseg, ymaxseg    ! coordinates of the ends of vertical boundary segment
+  REAL(8), INTENT(IN) :: vx_old, vy_old, vz_axial        ! old vr and vtheta speed with axial speed vz (not rotated so I keep that)
   INTEGER, INTENT(OUT) :: mystatus                 ! zero if crossing found, nonzero otherwise
   REAL(8), INTENT(OUT) :: ycross                   ! y-coordinate of the crossing
+  REAL(8), INTENT(INOUT) :: vx_new, vz_new   ! Velocities at time of impact in cylindrical
+
+  ! IN/OUT
+  REAL(8) :: a,b,delta ! trajectory parameters and intermediate computation variables
+  REAL(8) :: x_star,y_star ! Intersection point with outer radius
+  REAl(8) :: t_star, x_start
+  REAL(8) :: alpha_ang
 
   mystatus = -1
 
@@ -831,8 +866,31 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
   IF (xorg.EQ.x) RETURN
 
 ! since we are here, ends of segment {xorg,yorg}-{x,y} are on different sides of segment {xseg,yminseg}-{xseg,ymaxseg}
+   IF ( i_cylindrical==0 ) THEN
+      ycross = yorg + (y-yorg) * (xseg-xorg) / (x-xorg)
+   ELSE IF ( i_cylindrical==2 ) THEN
+      ! Step 1: compute coefficients of straight line if I had no impact, y= ax+b
+      ! Compute initial trajectory
+      x_start = xorg
+      a = vy_old/vx_old
+      b = -a*x_start
+   
+      ! Step 2: get coordinates of interection point with radius
+      delta = four*(a**2*(xseg**2-x_start**2)+xseg**2)
+      x_star = (-two*a*b+SQRT(delta))/(two*(a**2+one)) ! Take positive solution (should be OK)
+      y_star = a*x_star+b   
+      
+      ! Step 3: deduce spent time
+      t_star = (x_star-x_start)/vx_old
 
-  ycross = yorg + (y-yorg) * (xseg-xorg) / (x-xorg)
+      ! Step 4: compute axial location of intersection
+      ycross = vz_axial*t_star+yorg
+
+      ! Step 5: Deduce final velocity at time of impact
+      alpha_ang = DATAN2(y_star,x_star)
+      vx_new =  COS(alpha_ang)*vx_old + SIN(alpha_ang)*vy_old
+      vz_new = -SIN(alpha_ang)*vx_old + COS(alpha_ang)*vy_old ! theta
+   END IF
 
   IF (.NOT.ieee_is_finite(ycross)) THEN
      mystatus = 1
@@ -852,16 +910,25 @@ END SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT
 !----------------------------------------------------------
 !### assume that xminseg < xmagseg
 !
-SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, xminseg, xmaxseg, mystatus, xcross )
+SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, xminseg, xmaxseg, mystatus, xcross, vx_old, vy_old, vz_axial, vx_new, vz_new )
 
   use, intrinsic :: ieee_arithmetic
+  USE CurrentProblemValues, ONLY: i_cylindrical, four, one, two
 
   IMPLICIT NONE
 
   REAL(8), INTENT(IN) :: xorg, yorg, x, y          ! coordinates of the ends of particle trajectory segment
   REAL(8), INTENT(IN) :: yseg, xminseg, xmaxseg    ! coordinates of the ends of horizontal boundary segment
+  REAL(8), INTENT(IN) :: vx_old, vy_old, vz_axial        ! old vr and vtheta speed with axial speed vz (not rotated so I keep that)
   INTEGER, INTENT(OUT) :: mystatus                 ! zero if crossing found, nonzero otherwise
   REAL(8), INTENT(OUT) :: xcross                   ! x-coordinate of the crossing
+  REAL(8), INTENT(INOUT) :: vx_new, vz_new   ! Velocities at time of impact in cylindrical
+
+  ! IN/OUT
+  REAL(8) :: a,b,delta ! trajectory parameters and intermediate computation variables
+  REAL(8) :: x_star,y_star ! Intersection point with outer radius
+  REAl(8) :: t_star, x_start
+  REAL(8) :: alpha_ang
 
   mystatus = -1
 
@@ -875,8 +942,25 @@ SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, x
   IF (yorg.EQ.y) RETURN
 
 ! since we are here, ends of segment {xorg,yorg}-{x,y} are on different sides of segment {xseg,yminseg}-{xseg,ymaxseg}
+  IF ( i_cylindrical==0 ) THEN
+      xcross = xorg + (x-xorg) * (yseg-yorg) / (y-yorg)
+   ELSE IF ( i_cylindrical==2 ) THEN
+      ! Step 1: deduce how long I need to reach the horizontal wall
+      t_star = (yseg-yorg)/vz_axial
+      ! IF (xorg > 329.7661 .AND. xorg<329.7663) t_star = one
+      ! Step 2: Compute new x and y coordinates in the r-theta plane
+      x_start = xorg
+      x_star = x_start+vx_old*t_star
+      y_star = vy_old*t_star
 
-  xcross = xorg + (x-xorg) * (yseg-yorg) / (y-yorg)
+      ! Step 3: Compute new radius when the particle hits the wall
+      xcross = SQRT(x_star**2+y_star**2)
+
+      ! Step 4 Compute velocities vr and vtheta at time of imnpact
+      alpha_ang = DATAN2(y_star,x_star)
+      vx_new =  COS(alpha_ang)*vx_old + SIN(alpha_ang)*vy_old
+      vz_new = -SIN(alpha_ang)*vx_old + COS(alpha_ang)*vy_old ! theta
+   END IF
 
   IF (.NOT.ieee_is_finite(xcross)) THEN
      mystatus = 1
@@ -885,8 +969,8 @@ SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, x
 
   IF (xcross.LT.xminseg) RETURN
   IF (xcross.GT.xmaxseg) RETURN
-  IF (xcross.LT.MIN(x,xorg)) RETURN  ! paranoidal failsafe check?
-  IF (xcross.GT.MAX(x,xorg)) RETURN  !
+  IF (xcross.LT.MIN(x,xorg) .AND.i_cylindrical==0 ) RETURN  ! paranoidal failsafe check? In cylindrical I can have this situation because the radius is not a linear function.
+  IF (xcross.GT.MAX(x,xorg).AND.i_cylindrical==0 ) RETURN  !
 
   mystatus = 0
   RETURN
