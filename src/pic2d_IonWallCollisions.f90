@@ -180,7 +180,7 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,
                CALL print_error(message,routine)
             END IF
 
-            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected,N_subcycles )
+            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,vy,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected,N_subcycles )
 
             ! Adjust position in local Cartesian frame after collision
             x_cart = x_reflected

@@ -154,7 +154,19 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_ol
                CALL print_error(message,routine)
             END IF
 
-            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected )
+            ! ! Go backward in time to find old radius
+            ! x_cart = x - vx ! radius
+            ! z_cart = - vz ! in theta direction
+            ! x_old =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
+      
+            ! ! Deduce old velocity
+            ! alpha_ang = DATAN2(z_cart,x_cart) 
+      
+            ! ! Former velocity in previous coordinate system
+            ! vx_old =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+            ! vy_old = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz            
+
+            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,vz,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected, 1 )
 
             ! Adjust position in local Cartesian frame after collision
             x_cart = x_reflected
@@ -1222,16 +1234,18 @@ END SUBROUTINE ADD_ELECTRON_TO_BO_COLLS_LIST
 !!    @date    Dec-19-2022
 !-------------------------------------------------------------------------------------------------- 
 
-SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_j,n_subcycles)
+SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,dot_prod_j,n_subcycles)
    
    USE mod_print, ONLY: print_debug
    USE CurrentProblemValues, ONLY: string_length,two,four,one
+   USE ParallelOperationValues, ONLY: Rank_of_process
    IMPLICIT NONE
 
    !IN/OUT
    REAL(8), INTENT(IN) :: x_start ! x start in current iteration
    REAL(8), INTENT(IN) :: vx ! radial normalized velocity before collision. It is the increment in radial direction
-   REAL(8), INTENT(IN) :: vy ! azimuthal normalized before collision> It is the increment in azimuthal direction
+   REAL(8), INTENT(IN) :: vy ! azimuthal normalized before collision. It is the increment in azimuthal direction
+   REAL(8), INTENT(IN) :: vz_axial ! axial velocity normalized. It is the increment in axial direction
    REAL(8), INTENT(IN) :: R_max ! normalized radius at which we have a reflection
    INTEGER, INTENT(IN), OPTIONAL :: n_subcycles ! subcycle frequency (for ions only)
    REAL(8), INTENT(OUT) :: dot_prod_i,dot_prod_j,xf,yf ! final position in local Cartesian frame  
@@ -1244,6 +1258,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    REAL(8) :: v_perp_new ! new velocity after collision
    REAL(8) :: module_velocity,dt_remaining ! velocity module and remaining time 
    REAL(8) :: n_sub ! subcycle frequency for ions (will be one for electrons)
+   REAL(8) :: t_star! amount of time I need to hit the wall
    
 
    CHARACTER(LEN=string_length) :: routine
@@ -1255,8 +1270,8 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    CALL print_debug( routine,local_debug_level)
    
    ! Subcycle freq if needed
-   n_sub = one ! for electrons is the default value
-   IF (PRESENT(n_subcycles)) n_sub = REAL(n_subcycles) ! this is for ions normally 
+   ! n_sub = one ! for electrons is the default value
+   n_sub = DBLE(n_subcycles) ! this is for ions normally 
 
    ! Step 1: compute coefficients of straight line if I had no refelction, y= ax+b
    ! Compute initial trajectory
@@ -1269,8 +1284,9 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    y_star = a*x_star+b   
 
    ! Step 3: compute remaining distance after collision
-   d_star = SQRT((x_star-x_start)**2+y_star**2)
-   d_remaining = SQRT((vx*n_sub)**2+(vy*n_sub)**2) - d_star  
+   t_star = (x_star-x_start)/(vx*n_sub) ! Portion of time I have used
+   d_star = SQRT((x_star-x_start)**2+y_star**2+(vz_axial*n_sub*t_star)**2)
+   d_remaining = SQRT((vx*n_sub)**2+(vy*n_sub)**2+(vz_axial*n_sub)**2) - d_star  
    
    ! Step 4: compute orthogonal and parallel velocity at intersection point, with respect to tangent  
    beta = DATAN2(y_star,x_star) ! polar angle at intersection point
@@ -1281,16 +1297,18 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    v_perp_new = - v_perp ! v_par is unchanged   
 
    ! Step 6: Compute equivalent time to spend of the remaining distance
-   module_velocity = SQRT(v_perp**2+v_par**2)
+   module_velocity = SQRT(v_perp**2+v_par**2+(vz_axial)**2)
    dt_remaining = d_remaining/module_velocity   
 
    ! Step 7: compute back velocity in current Cartesian frame
    dot_prod_i = v_perp_new*COS(beta)-v_par*SIN(beta) ! dot product v_prime with i vector (x)
    dot_prod_j = v_perp_new*SIN(beta)+v_par*COS(beta) ! dot product v_prime with j vector (y)
-   xf = x_star+dot_prod_i*dt_remaining
-   yf = y_star + dot_prod_j*dt_remaining   
+   xf = x_star+dot_prod_i*dt_remaining*n_sub
+   yf = y_star + dot_prod_j*dt_remaining*n_sub   
+
 
    IF (SQRT(xf**2+yf**2)>R_max) THEN
+      print*,'t_star',t_star
       print*,'x_start,',x_start
       print*,'vx,vy',vx,vy
       print*,'xf,yf,',xf,yf
@@ -1298,8 +1316,12 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
       print*,'beta,',beta
       print*,'v_par',v_par
       print*,'v_perp',v_perp
+      print*,'vz_axial',vz_axial
+      print*,'d_remaining',d_remaining
+      print*,'module_velocity',module_velocity
       print*,'d_star',d_star
       print*,'xstar,dt_remaining',x_star,dt_remaining
+      print*,'n_sub',n_sub
 
 
    ENDIF
