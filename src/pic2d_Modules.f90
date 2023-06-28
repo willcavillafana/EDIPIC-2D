@@ -178,6 +178,7 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: two = 2.0_8
   REAL(8), PARAMETER :: three = 3.0_8
   REAL(8), PARAMETER :: four = 4.0_8
+  REAL(8) eps_0_Fm
 
   INTEGER, PARAMETER :: string_length = 300
 
@@ -195,7 +196,9 @@ MODULE CurrentProblemValues
   INTEGER :: i_reflection_cyl_electron, i_reflection_cyl_ion ! Indicates if   we asked for a specular reflection for electrons and ions in cylindrical geometry. Inelastic collisions are not implemented for now (Dec 20, 2022)
   INTEGER :: i_empty_domain                                  ! Initialize domain with no particles (=1, 0 otherwise by default)
 
-  REAL(8) eps_0_Fm
+  REAL(8) :: LX, LY ! maximal dimensions of domain (dimensio)
+
+  INTEGER :: c_indx_x_min_total, c_indx_x_max_total, c_indx_y_min_total, c_indx_y_max_total ! Maximal and minal index of simulation doain in X and Y directions
 
   ! Coulomb collisions stuff
   REAL(8) L_ee_0 ! base argument of Coulomb logarithm
@@ -1568,7 +1571,7 @@ MODULE mod_print
 
     IF ( Rank_of_process==0 ) THEN
       WRITE(*,'(T8,A,I4,A)') ">>> WARNING: "//TRIM(message)
-      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+      ! CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
     END IF
 
   END SUBROUTINE     

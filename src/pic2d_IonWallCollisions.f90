@@ -172,42 +172,44 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,
          
          ! By default I do not have a specular reflection in cylindrica coordinates. Only for domain boundary
          ELSE IF ( i_reflection_cyl_ion==1 ) THEN
-            IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
-               message='missing optional paramaters'
-               CALL print_error(message,routine)
-            ELSE IF ( m<=0 ) THEN
-               message='specular reflection is not implemented for inner objects'
-               CALL print_error(message,routine)
-            END IF
+            ! If I need reflection I enter here
+            IF (whole_object(nwo)%reflects_all_ions==1 ) THEN            
+               IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
+                  message='missing optional paramaters'
+                  CALL print_error(message,routine)
+               ELSE IF ( m<=0 ) THEN
+                  message='specular reflection is not implemented for inner objects'
+                  CALL print_error(message,routine)
+               END IF
 
-            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,vy,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected,N_subcycles )
+               CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,vy,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected,N_subcycles )
 
-            ! Adjust position in local Cartesian frame after collision
-            x_cart = x_reflected
-            z_cart = y_reflected
-            radius = SQRT( x_cart**2+z_cart**2 )
+               ! Adjust position in local Cartesian frame after collision
+               x_cart = x_reflected
+               z_cart = y_reflected
+               radius = SQRT( x_cart**2+z_cart**2 )
 
-            ! Velocity in local cartesian frame
-            vx = vx_reflected
-            vz = vy_reflected  ! theta direction in z  
+               ! Velocity in local cartesian frame
+               vx = vx_reflected
+               vz = vy_reflected  ! theta direction in z  
 
-            ! Then compute increment angle alpha
-            alpha_ang = DATAN2(z_cart,x_cart)         
+               ! Then compute increment angle alpha
+               alpha_ang = DATAN2(z_cart,x_cart)         
 
-            ! Update radius (X). 
-            x = radius
-            
-            ! Get Final velocities in cylindrical system. (z speed has already been update above)
-            vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
-            vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+               ! Update radius (X). 
+               x = radius
+               
+               ! Get Final velocities in cylindrical system. (z speed has already been update above)
+               vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+               vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
 
-            vx = vx_temp
-            vz = vz_temp        
-            
-            ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+               vx = vx_temp
+               vz = vz_temp        
+               
+               ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
 
-            CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, whole_object(nwo)%object_id_number)
-        
+               CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, whole_object(nwo)%object_id_number)
+            ENDIF          
          END IF
 
         particle_not_processed = .FALSE.
@@ -503,7 +505,7 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
   REAL(8) xcross_try, ycross_try, distorg_try
 
   INTEGER coll_direction_flag
-
+  REAL(8) :: t_star, R_max
   REAL coll_coord   ! coordinate of collision point, y/x for collisions with vertical/horizontal segments, respectively
   
   IF (i_cylindrical==0) THEN
@@ -511,10 +513,30 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
       yorg = y - vy*N_subcycles
    ELSE IF ( i_cylindrical==2 ) THEN
       ! Go backward in time to find old radius
-      x_cart = x - vx*N_subcycles ! radius
-      z_cart = - vz*N_subcycles ! in theta direction
+      x_cart = x - vx*DBLE(N_subcycles) ! radius
+      z_cart = - vz*DBLE(N_subcycles) ! in theta direction
       xorg =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
-      yorg = y - vy*N_subcycles
+      yorg = y - vy*DBLE(N_subcycles)
+
+      ! Check if old particle position is not outside simulation domain. In such a case I need to correct initial origin point. This isutation can happen when I have cylindrical reflections
+      R_max = DBLE(c_indx_x_max_total)
+      IF ( i_cylindrical==2 .AND. xorg> R_max ) THEN
+
+         xorg = R_max-1.0D-6
+
+         
+         ! Compute actual time you spent from external boundary. Positive solution should be OK
+         t_star = (x*(vx*DBLE(N_subcycles))+SQRT( (R_max*(vx*DBLE(N_subcycles)))**2 + (vz*DBLE(N_subcycles))**2*(R_max**2 - x**2) ))/((vx*DBLE(N_subcycles))**2+(vz*DBLE(N_subcycles))**2)
+
+         ! Correct axial position 
+         yorg = y - vy*t_star*DBLE(N_subcycles)
+
+         ! Correct init positions in local frame
+         x_cart = x - vx*t_star*DBLE(N_subcycles)
+         z_cart = -vz*t_star*DBLE(N_subcycles)
+
+         ! print*,'xorg,t_star,t_star_2,x_cart,z_cart',xorg,t_star,(x*vx-SQRT( (xorg*vx)**2 + vz**2*(xorg**2 - x**2) ))/(vx**2+vz**2),x_cart,z_cart
+      END IF
 
       ! Deduce old velocity
       alpha_ang = DATAN2(z_cart,x_cart) 
@@ -579,13 +601,13 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
 
   CALL ADD_ION_TO_BO_COLLS_LIST(s, coll_coord, REAL(vx_new), REAL(vy_new), REAL(vz_new), tag, n_do, mcross)
 
-  CALL DO_ION_COLL_WITH_INNER_OBJECT(s, xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag)
+  CALL DO_ION_COLL_WITH_INNER_OBJECT(s, xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag,xorg,vx_old,vy_old)
 
 END SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT
 
 !-----------------------------------------
 !
-SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, coll_direction_flag)
+SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, coll_direction_flag, x_old,vx_old,vy_old)
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
@@ -595,6 +617,7 @@ SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, col
   IMPLICIT NONE
 
 !  INTEGER nio  ! number of the inner object
+  REAL(8) :: x_old, vx_old, vy_old ! old radius, readial and azimuthal velocity in r-z
   INTEGER s
   REAL(8) x, y, vx, vy, vz
   INTEGER tag
@@ -604,7 +627,8 @@ SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, col
   REAL(8) xmin, xmax, ymin, ymax
 
   INTEGER i_left_top, i_right_top, i_right_bottom, i_left_bottom_bis, i, ip1
-
+  REAL(8) :: x_reflected,y_reflected,vx_reflected,vy_reflected ! position and veloicty in local Cartesian frame after specular reflection in Cylindrical
+  REAL(8) :: R_object, alpha_ang, vx_temp, vz_temp, x_cart, z_cart, radius
   REAL(8) dqip1, dqi
 
 ! identify side of the inner object hit by the particle
@@ -616,10 +640,61 @@ SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, col
 
   myobject%ion_hit_count(s) = myobject%ion_hit_count(s) + 1
 
-  IF (myobject%reflects_all_ions) THEN
-     CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
-     RETURN
-  END IF
+  ! General case not cylindrical
+  IF ( i_reflection_cyl_ion==0 ) THEN
+      IF (myobject%reflects_all_ions) THEN
+         CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
+         RETURN
+      END IF
+   ELSE IF ( i_reflection_cyl_ion==1 ) THEN
+      ! Left or right
+      IF ( coll_direction_flag==1 .OR. coll_direction_flag==3 ) THEN
+
+         IF ( coll_direction_flag==1 ) THEN
+            R_object = xmax
+         ELSE IF ( coll_direction_flag==3 ) THEN
+            R_object = xmin
+         ENDIF
+         CALL REFLECT_CYLINDRICAL( x_old,vx_old,vy_old,vz,R_object,x_reflected,y_reflected,vx_reflected,vy_reflected, N_subcycles )
+
+         ! Adjust position in local Cartesian frame after collision
+         x_cart = x_reflected
+         z_cart = y_reflected
+         radius = SQRT( x_cart**2+z_cart**2 )
+
+         ! Velocity in local cartesian frame
+         vx = vx_reflected
+         vz = vy_reflected  ! theta direction in z  
+
+         ! Then compute increment angle alpha
+         alpha_ang = DATAN2(z_cart,x_cart)         
+
+         ! Update radius (X). 
+         ! IF ( radius>c_X_area_max) print*,'x_wil',x
+         radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
+         x = radius
+         
+         ! Get Final velocities in cylindrical system. (z speed has already been update above)
+         vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+         vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+
+         vx = vx_temp
+         vz = vz_temp        
+         
+         ! print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
+         ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
+         ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+
+         CALL ADD_ION_TO_ADD_LIST(s, x, y, vx, vy, vz, tag)
+      ! For other directions, I need to check
+      ELSE
+         IF (myobject%reflects_all_ions) THEN
+            CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
+            RETURN
+         END IF         
+      ENDIF
+      RETURN
+   ENDIF
 
   IF (myobject%object_type.EQ.DIELECTRIC) THEN
 ! update the surface charge

@@ -204,6 +204,7 @@ end if
 
         ! Update radius (X). 
         electron(k)%X = radius
+      !   IF (radius>456.95 .AND. radius<456.96) print*,'radius,x_old_1', radius,x_old
         
 
         ! Get Final velocities in cylindrical system. (z speed has already been update above)
@@ -405,6 +406,7 @@ end if
               CALL ADD_ELECTRON_TO_SEND_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
            ELSE
             ! right neighbor cluster does not exist
+            ! IF (x_old>456.836155) print*,'x_old,X,Y_1',x_old,electron(k)%X,electron(k)%Y
               CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
            END IF
 
@@ -424,6 +426,7 @@ end if
                 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.GE.c_Y_area_min) THEN
+                  ! IF (x_old>456.836155) print*,'x_old,X,Y_2',x_old,electron(k)%X,electron(k)%Y
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                       
@@ -433,6 +436,7 @@ end if
                  IF ((electron(k)%X-c_X_area_max).LT.(c_Y_area_min-electron(k)%Y)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_BELOW(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
+                  ! IF (x_old>456.836155) print*,'x_old,X,Y_3',electron(k)%X,electron(k)%Y
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
@@ -460,6 +464,7 @@ end if
 
               CASE (FLAT_WALL_RIGHT)
                  IF (electron(k)%Y.LE.c_Y_area_max) THEN
+                  ! IF (x_old>456.836155) print*,'x_old,X,Y_4',electron(k)%X,electron(k)%Y
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  ELSE
                     CALL ADD_ELECTRON_TO_SEND_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)                    
@@ -469,6 +474,7 @@ end if
                  IF ((electron(k)%X-c_X_area_max).LT.(electron(k)%Y-c_Y_area_max)) THEN
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_ABOVE(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag)
                  ELSE
+                  ! IF (x_old>456.836155) print*,'x_old,X,Y_5',electron(k)%X,electron(k)%Y
                     CALL PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, x_old,vx_old,vy_old)
                  END IF
 
@@ -1461,10 +1467,20 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
 !  USE ParallelOperationValues
   USE CurrentProblemValues
   USE ElectronParticles, ONLY : N_e_to_add, electron_to_add
+  USE ParallelOperationValues, ONLY: Rank_of_process
+  USE mod_print, ONLY: print_warning
 
   IMPLICIT NONE
 
   INTEGER k, n 
+  LOGICAL :: check_flag
+  REAL(8) :: t_star, R_max
+  REAL(8) :: r_old, vx_old, vy_old, x_cart, z_cart ! old radius, readial and axial velocity in r-z
+  REAL(8) :: alpha_ang
+  REAL(8) :: vx_new, vy_new, vz_new  
+  REAL(8) xorg, yorg
+  REAL(8) x, y, vx, vy, vz
+  CHARACTER(LEN=string_length) :: message, routine
 
   IF (N_of_inner_objects.EQ.0) RETURN
 
@@ -1478,15 +1494,69 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
         IF (electron_to_add(k)%Y.LE.whole_object(n)%Ymin) CYCLE
         IF (electron_to_add(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT( electron_to_add(k)%X, &
-                                                & electron_to_add(k)%Y, &
-                                                & electron_to_add(k)%VX, &
-                                                & electron_to_add(k)%VY, &
-                                                & electron_to_add(k)%VZ, &
-                                                & electron_to_add(k)%tag) !, &
-!                                                & whole_object(n) )
-        CALL REMOVE_ELECTRON_FROM_ADD_LIST(k)  ! this subroutine does  N_e_to_add = N_e_to_add - 1 and k = k-1
-        EXIT
+        ! By default I assume the particle is effectveily outside inner object
+        check_flag = .TRUE.
+        ! If I have cylindrical collisions I need to double check the origin point is effectively outside the domain. Particles may steam from a previous cylindrical collision
+        IF ( i_reflection_cyl_electron==1 ) THEN
+
+            ! Define some stuff
+            x = electron_to_add(k)%X
+            y = electron_to_add(k)%Y
+            vx = electron_to_add(k)%VX
+            vy = electron_to_add(k)%VY 
+            vz = electron_to_add(k)%VZ
+
+            ! Go backward in time to find old radius
+            x_cart =  x - vx ! radius
+            z_cart = - vz ! in theta direction
+            xorg =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
+            yorg = y - vy 
+            
+            ! Check if old particle position is not outside simulation domain. In such a case I need to correct initial origin point. This situation can happen when I have cylindrical reflections
+            R_max = DBLE(c_indx_x_max_total)
+            
+            IF ( i_cylindrical==2 .AND. xorg> R_max ) THEN
+      
+               xorg = R_max-1.0D-6
+      
+               
+               ! Compute actual time you spent from external boundary. Positive solution should be OK
+               t_star = (x*vx+SQRT( (R_max*vx)**2 + vz**2*(R_max**2 - x**2) ))/(vx**2+vz**2)
+      
+               ! Correct axial position 
+               yorg = y - vy*t_star
+
+               !!! Check if initial position is outside inner object
+               ! by default I assume it can be problematic
+               check_flag = .FALSE.
+               ! Radius is outside
+               IF ( xorg> whole_object(n)%Xmax .OR. xorg<whole_object(n)%Xmin ) THEN
+                  ! Axial poistion outside
+                  IF ( yorg> whole_object(n)%Ymax .OR. yorg<whole_object(n)%Ymin ) THEN
+                     check_flag = .TRUE.
+                  END IF
+               ENDIF
+               
+            END IF
+         ENDIF
+         IF ( check_flag ) THEN
+            ! IF (electron_to_add(k)%X>456.95 .AND. electron_to_add(k)%X<456.96) print*,'electron_to_add(k)%X_wil,rank,k', electron_to_add(k)%X, Rank_of_process,k
+            CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT( electron_to_add(k)%X, &
+                                                      & electron_to_add(k)%Y, &
+                                                      & electron_to_add(k)%VX, &
+                                                      & electron_to_add(k)%VY, &
+                                                      & electron_to_add(k)%VZ, &
+                                                      & electron_to_add(k)%tag) !, &
+      !                                                & whole_object(n) )
+            CALL REMOVE_ELECTRON_FROM_ADD_LIST(k)  ! this subroutine does  N_e_to_add = N_e_to_add - 1 and k = k-1
+            EXIT
+         ELSE ! Particle in cylindrical had an elastic collisions and was oustide the domain. The calcualted position at collision was still insiode the object.
+              ! In such a case I need to discard the particle. It is considered as lost. This avoids a catadtrophic error but does not solve the bug. Bug is due to the fact that you do not follow particles each
+              ! time they corsse a cell interface. This is what we should do to make the algorithm robust.
+            WRITE( message,'(A,ES10.3,A,ES10.3,A)') "Particle X = ",electron_to_add(k)%X," Y = ",electron_to_add(k)%Y," will be discarded because of reflection in cylindrical coordinates"
+            CALL print_warning(message)
+            CALL REMOVE_ELECTRON_FROM_ADD_LIST(k)  ! this subroutine does  N_e_to_add = N_e_to_add - 1 and k = k-1
+         ENDIF
      END DO
   END DO
 

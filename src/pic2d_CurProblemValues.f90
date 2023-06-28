@@ -128,7 +128,7 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER pos1, pos2
   INTEGER flag_scatter
   CHARACTER(LEN=string_length) :: message, routine
-  INTEGER :: c_indx_x_max_total,c_indx_x_min_total, c_indx_y_max_total,c_indx_y_min_total
+
   REAL(8) :: LX_max, LY_max
 
 ! functions
@@ -3730,8 +3730,8 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   INTEGER sum_Ni
 
   INTEGER :: n_limit_x_total,n_limit_y_total ! total number of cells in whole domain in r direction (cylindrical)
-  INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
-  INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
+!   INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
+!   INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
   REAL(8) :: N_electron_tot ! number of electrons in whole domain
   REAL(8) :: N_electrons_total_cyl
   INTEGER :: ierr

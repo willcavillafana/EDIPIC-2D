@@ -146,58 +146,65 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_ol
 
        !   ! By default I do not have a specular reflection in cylindrica coordinates. Only for domain boundary
          ELSE IF ( i_reflection_cyl_electron==1 ) THEN
-            IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
-               message='missing optional paramaters'
-               CALL print_error(message,routine)
-            ELSE IF ( m<=0 ) THEN
-               message='specular reflection is not implemented for inner objects'
-               CALL print_error(message,routine)
-            END IF
+            ! If I need reflection I enter here
+            IF (whole_object(nwo)%Elast_refl_type==0 .AND. whole_object(nwo)%Emitted_model(1)==1 ) THEN
+               IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
+                  message='missing optional paramaters'
+                  CALL print_error(message,routine)
+               ELSE IF ( m<=0 ) THEN
+                  message='specular reflection is not implemented for inner objects'
+                  CALL print_error(message,routine)
+               END IF
 
-            ! ! Go backward in time to find old radius
-            ! x_cart = x - vx ! radius
-            ! z_cart = - vz ! in theta direction
-            ! x_old =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
-      
-            ! ! Deduce old velocity
-            ! alpha_ang = DATAN2(z_cart,x_cart) 
-      
-            ! ! Former velocity in previous coordinate system
-            ! vx_old =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
-            ! vy_old = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz            
+               ! ! Go backward in time to find old radius
+               ! x_cart = x - vx ! radius
+               ! z_cart = - vz ! in theta direction
+               ! x_old =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
+         
+               ! ! Deduce old velocity
+               ! alpha_ang = DATAN2(z_cart,x_cart) 
+         
+               ! ! Former velocity in previous coordinate system
+               ! vx_old =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+               ! vy_old = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz            
+               ! IF (x_old>456.8361553) print*,'x_old_test',x_old
+               CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,vz,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected, 1 )
 
-            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,vz,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected, 1 )
+               ! Adjust position in local Cartesian frame after collision
+               x_cart = x_reflected
+               z_cart = y_reflected
+               radius = SQRT( x_cart**2+z_cart**2 )
 
-            ! Adjust position in local Cartesian frame after collision
-            x_cart = x_reflected
-            z_cart = y_reflected
-            radius = SQRT( x_cart**2+z_cart**2 )
+               ! Velocity in local cartesian frame
+               vx = vx_reflected
+               vz = vy_reflected  ! theta direction in z  
 
-            ! Velocity in local cartesian frame
-            vx = vx_reflected
-            vz = vy_reflected  ! theta direction in z  
+               ! Then compute increment angle alpha
+               alpha_ang = DATAN2(z_cart,x_cart)         
 
-            ! Then compute increment angle alpha
-            alpha_ang = DATAN2(z_cart,x_cart)         
+               ! Update radius (X). 
+               ! IF ( radius>c_X_area_max) print*,'x_wil',x
+               radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
+               x = radius
+               
+               ! Get Final velocities in cylindrical system. (z speed has already been update above)
+               vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+               vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
 
-            ! Update radius (X). 
-            ! IF ( radius>c_X_area_max) print*,'x_wil',x
-            radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
-            x = radius
-            
-            ! Get Final velocities in cylindrical system. (z speed has already been update above)
-            vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
-            vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+               vx = vx_temp
+               vz = vz_temp        
+               
+               ! IF (radius>456.956 .AND. radius<456.957) print*,'x_old_alone,y_axial',x_old,y
+               ! IF (radius>456.956 .AND. radius<456.957) print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
+               ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
+               ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
 
-            vx = vx_temp
-            vz = vz_temp        
-            
-            ! print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
-            ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
-            ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
-
-            CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, whole_object(nwo)%object_id_number)
-        
+               CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, whole_object(nwo)%object_id_number)
+            ELSE ! This obejct has no reflection in cylindrical coordinates
+               IF (whole_object(nwo)%SEE_enabled) THEN
+                  CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, whole_object(nwo), -1, 3)
+               END IF
+            ENDIF          
          END IF
 
         particle_not_processed = .FALSE.
@@ -575,6 +582,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
   REAL(8) xcross_try, ycross_try, distorg_try
 
   INTEGER coll_direction_flag
+  REAL(8) :: t_star, R_max
 
   REAL coll_coord   ! coordinate of collision point, y/x for collisions with vertical/horizontal segments, respectively
 
@@ -589,6 +597,26 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
       z_cart = - vz ! in theta direction
       xorg =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
       yorg = y - vy
+
+      ! Check if old particle position is not outside simulation domain. In such a case I need to correct initial origin point. This isutation can happen when I have cylindrical reflections
+      R_max = DBLE(c_indx_x_max_total)
+      IF ( i_cylindrical==2 .AND. xorg> R_max ) THEN
+
+         xorg = R_max-1.0D-6
+
+         
+         ! Compute actual time you spent from external boundary. Positive solution should be OK
+         t_star = (x*vx+SQRT( (R_max*vx)**2 + vz**2*(R_max**2 - x**2) ))/(vx**2+vz**2)
+
+         ! Correct axial position 
+         yorg = y - vy*t_star
+
+         ! Correct init positions in local frame
+         x_cart = x - vx*t_star
+         z_cart = -vz*t_star
+
+         ! print*,'xorg,t_star,t_star_2,x_cart,z_cart',xorg,t_star,(x*vx-SQRT( (xorg*vx)**2 + vz**2*(xorg**2 - x**2) ))/(vx**2+vz**2),x_cart,z_cart
+      END IF
 
       ! Deduce old velocity
       alpha_ang = DATAN2(z_cart,x_cart) 
@@ -630,9 +658,9 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
      END IF
 
   END DO   !### DO n_try = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
-   
+
   IF (mcross.EQ.-1) THEN
-     PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT ",4(2x,f10.4))', xorg, yorg, x, y
+     PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT ",4(2x,f10.4))', xorg, yorg, x, y, x_cart
      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
   END IF
 
@@ -653,13 +681,13 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
 
   CALL ADD_ELECTRON_TO_BO_COLLS_LIST(coll_coord, REAL(vx_new), REAL(vy_new), REAL(vz_new), tag, n_do, mcross)
 
-  CALL DO_ELECTRON_COLL_WITH_INNER_OBJECT(xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag)
+  CALL DO_ELECTRON_COLL_WITH_INNER_OBJECT(xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag,xorg,vx_old,vy_old)
 
 END SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT
 
 !-----------------------------------------
 !
-SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, myobject, coll_direction_flag)
+SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, myobject, coll_direction_flag,x_old,vx_old,vy_old)
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
@@ -668,6 +696,7 @@ SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, myobject, c
   IMPLICIT NONE
 
 !  INTEGER nio  ! number of the inner object
+  REAL(8) :: x_old, vx_old, vy_old ! old radius, readial and azimuthal velocity in r-z
   REAL(8) x, y, vx, vy, vz
   INTEGER tag
   TYPE(boundary_object) myobject
@@ -676,7 +705,8 @@ SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, myobject, c
   REAL(8) xmin, xmax, ymin, ymax
 
   INTEGER i_left_top, i_right_top, i_right_bottom, i_left_bottom_bis, i, ip1
-
+  REAL(8) :: x_reflected,y_reflected,vx_reflected,vy_reflected ! position and veloicty in local Cartesian frame after specular reflection in Cylindrical
+  REAL(8) :: R_object, alpha_ang, vx_temp, vz_temp, x_cart, z_cart, radius
   REAL(8) dqip1, dqi
 
 ! identify side of the inner object hit by the particle
@@ -738,10 +768,74 @@ SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, myobject, c
 
      END SELECT
   END IF   !### IF (myobject%object_type.EQ.DIELECTRIC) THEN
+! print*,'hello,i_reflection_cyl_electron,coll_direction_flag',i_reflection_cyl_electron,coll_direction_flag
+   IF (i_reflection_cyl_electron==0 ) THEN
 
-  IF (myobject%SEE_enabled) THEN
-     CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
-  END IF
+      IF (myobject%SEE_enabled) THEN
+         CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
+      END IF
+   ! Cylindrical coordinates, I need a special treatment
+   ELSE IF ( i_cylindrical==2 ) THEN
+      ! If this object has cylindrical reflection, I need to be carfeul
+      IF ( myobject%Elast_refl_type==0 .AND. myobject%Emitted_model(1)==1) THEN
+         ! ELSE IF ( i_reflection_cyl_electron==1 ) THEN
+         ! Left or right
+         IF ( coll_direction_flag==1 .OR. coll_direction_flag==3 ) THEN
+
+            ! right
+            IF ( coll_direction_flag==1 ) THEN
+               R_object = xmax
+            ! left
+            ELSE IF ( coll_direction_flag==3 ) THEN
+               R_object = xmin
+            ENDIF
+            CALL REFLECT_CYLINDRICAL( x_old,vx_old,vy_old,vz,R_object,x_reflected,y_reflected,vx_reflected,vy_reflected, 1 )
+
+            ! Adjust position in local Cartesian frame after collision
+            x_cart = x_reflected
+            z_cart = y_reflected
+            radius = SQRT( x_cart**2+z_cart**2 )
+
+            ! Velocity in local cartesian frame
+            vx = vx_reflected
+            vz = vy_reflected  ! theta direction in z  
+
+            ! Then compute increment angle alpha
+            alpha_ang = DATAN2(z_cart,x_cart)         
+
+            ! Update radius (X). 
+            ! IF ( radius>c_X_area_max) print*,'x_wil',x
+            radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
+            x = radius
+            
+            ! Get Final velocities in cylindrical system. (z speed has already been update above)
+            vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+            vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+
+            vx = vx_temp
+            vz = vz_temp        
+            ! print*,'x_old,x',x_old,x
+            ! IF (x_old > 457.01 .AND. x_old<457.15) print*,'x_old,x,wil_1',x_old,x
+            ! IF (x > 456.97 .AND. x<456.98) print*,'x_old,x,wil_2',x_old,x
+            ! print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
+            ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
+            ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+
+            CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, myobject%object_id_number)
+         ! For other directions, I need to check
+         ELSE
+            IF (myobject%SEE_enabled) THEN
+               CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
+               ! print*,'x_old,x_2',x_old,x
+            END IF         
+         ENDIF
+      ELSE ! This obejct has no reflection in cylindrical coordinates
+         IF (myobject%SEE_enabled) THEN
+            CALL PROCESS_ELECTRON_INDUCED_ELECTRON_EMISSION(x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
+         END IF
+      ENDIF         
+   ENDIF
+         
 
 END SUBROUTINE DO_ELECTRON_COLL_WITH_INNER_OBJECT
 
@@ -776,7 +870,7 @@ SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n, mcross, xc
 
      IF (whole_object(n)%segment(m)%istart.EQ.whole_object(n)%segment(m)%iend) THEN
 ! vertical segment
-
+         
         jbot = MIN(whole_object(n)%segment(m)%jstart, whole_object(n)%segment(m)%jend)
         jtop = MAX(whole_object(n)%segment(m)%jstart, whole_object(n)%segment(m)%jend)
         myxcross = DBLE(whole_object(n)%segment(m)%istart)
@@ -807,7 +901,7 @@ SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT(xorg, yorg, x, y, n, mcross, xc
 
      ELSE IF (whole_object(n)%segment(m)%jstart.EQ.whole_object(n)%segment(m)%jend) THEN
 ! horizontal segment
-
+      
         ileft  = MIN(whole_object(n)%segment(m)%istart, whole_object(n)%segment(m)%iend)
         iright = MAX(whole_object(n)%segment(m)%istart, whole_object(n)%segment(m)%iend)
         myycross = DBLE(whole_object(n)%segment(m)%jstart)
@@ -873,7 +967,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
   IF (MIN(xorg, x).GT.xseg) RETURN
   IF (MAX(yorg, y).LT.yminseg) RETURN
   IF (MIN(yorg, y).GT.ymaxseg) RETURN
-
+  IF (xorg>456.999) print*,'xorg_vert,yorg',xorg,yorg
 ! extremely unlikely situation, particle goes exactly along the surface of the object
   IF (xorg.EQ.x) RETURN
 
@@ -902,6 +996,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
       alpha_ang = DATAN2(y_star,x_star)
       vx_new =  COS(alpha_ang)*vx_old + SIN(alpha_ang)*vy_old
       vz_new = -SIN(alpha_ang)*vx_old + COS(alpha_ang)*vy_old ! theta
+      ! IF (xorg > 456.9 .AND. xorg<457.1) print*,'xorg,ycross,y,yminseg,ymaxseg',xorg,ycross,y,yminseg,ymaxseg
    END IF
 
   IF (.NOT.ieee_is_finite(ycross)) THEN
@@ -949,7 +1044,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, x
   IF (MIN(yorg, y).GT.yseg) RETURN
   IF (MAX(xorg, x).LT.xminseg) RETURN
   IF (MIN(xorg, x).GT.xmaxseg) RETURN
-
+!   IF (xorg>456.999) print*,'xorg_horizontal,yorg',xorg,yorg
 ! extremely unlikely situation, particle goes exactly along the surface of the object
   IF (yorg.EQ.y) RETURN
 
@@ -972,6 +1067,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, x
       alpha_ang = DATAN2(y_star,x_star)
       vx_new =  COS(alpha_ang)*vx_old + SIN(alpha_ang)*vy_old
       vz_new = -SIN(alpha_ang)*vx_old + COS(alpha_ang)*vy_old ! theta
+      ! IF (xorg > 456 .AND. xorg<457.1) print*,'xorg,xcross,x,xminseg,xmaxseg',xorg,xcross,x,xminseg,xmaxseg
    END IF
 
   IF (.NOT.ieee_is_finite(xcross)) THEN
@@ -1281,10 +1377,12 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
    ! Step 2: get coordinates of interection point with outer radius
    delta = four*(a**2*(R_max**2-x_start**2)+R_max**2)
    x_star = (-two*a*b+SQRT(delta))/(two*(a**2+one)) ! Take positive solution (should be OK)
-   y_star = a*x_star+b   
+   y_star = a*x_star+b  
+   
 
    ! Step 3: compute remaining distance after collision
    t_star = (x_star-x_start)/(vx*n_sub) ! Portion of time I have used
+   ! IF (x_start>456.8361553 ) print*,'x_start,x_star,y_star,xneg,R,t_star',x_start,x_star,y_star,(-two*a*b-SQRT(delta))/(two*(a**2+one)),SQRT(x_star**2+y_star**2),t_star
    d_star = SQRT((x_star-x_start)**2+y_star**2+(vz_axial*n_sub*t_star)**2)
    d_remaining = SQRT((vx*n_sub)**2+(vy*n_sub)**2+(vz_axial*n_sub)**2) - d_star  
    
@@ -1307,7 +1405,8 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
    yf = y_star + dot_prod_j*dt_remaining*n_sub   
 
 
-   IF (SQRT(xf**2+yf**2)>R_max) THEN
+   IF ( (SQRT(xf**2+yf**2)>R_max .AND. x_start<R_max) .OR. (SQRT(xf**2+yf**2)<R_max .AND. x_start>R_max) ) THEN
+      print*,'R_max',R_max
       print*,'t_star',t_star
       print*,'x_start,',x_start
       print*,'vx,vy',vx,vy

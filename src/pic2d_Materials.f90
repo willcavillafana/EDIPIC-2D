@@ -270,7 +270,8 @@ SUBROUTINE PREPARE_WALL_MATERIALS
    IF ( i_reflection_cyl_electron==1 ) THEN
       message = 'Specular reflection in cylindrical geometry activated for electrons'
       CALL print_message( message,routine )
-   ELSE IF( i_reflection_cyl_ion==1 ) THEN
+   ENDIF
+   IF( i_reflection_cyl_ion==1 ) THEN
       message = 'Specular reflection in cylindrical geometry activated for ions'
       CALL print_message( message,routine )
    END IF      
