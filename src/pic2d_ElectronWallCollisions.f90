@@ -154,7 +154,7 @@ SUBROUTINE PROCESS_ELECTRON_COLL_WITH_BOUNDARY_RIGHT(x, y, vx, vy, vz, tag, x_ol
                CALL print_error(message,routine)
             END IF
 
-            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected )
+            CALL REFLECT_CYLINDRICAL ( x_old,vx_old,vy_old,c_X_area_max,x_reflected,y_reflected,vx_reflected,vy_reflected, 1 )
 
             ! Adjust position in local Cartesian frame after collision
             x_cart = x_reflected
@@ -1149,7 +1149,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    REAL(8), INTENT(IN) :: vx ! radial normalized velocity before collision. It is the increment in radial direction
    REAL(8), INTENT(IN) :: vy ! azimuthal normalized before collision> It is the increment in azimuthal direction
    REAL(8), INTENT(IN) :: R_max ! normalized radius at which we have a reflection
-   INTEGER, INTENT(IN), OPTIONAL :: n_subcycles ! subcycle frequency (for ions only)
+   INTEGER, INTENT(IN) :: n_subcycles ! subcycle frequency (for ions only)
    REAL(8), INTENT(OUT) :: dot_prod_i,dot_prod_j,xf,yf ! final position in local Cartesian frame  
 
    !LOCAL
@@ -1171,8 +1171,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,R_max ,xf,yf,dot_prod_i,dot_prod_
    CALL print_debug( routine,local_debug_level)
    
    ! Subcycle freq if needed
-   n_sub = one ! for electrons is the default value
-   IF (PRESENT(n_subcycles)) n_sub = REAL(n_subcycles) ! this is for ions normally 
+   n_sub = REAL(n_subcycles) ! this is for ions normally 
 
    ! Step 1: compute coefficients of straight line if I had no refelction, y= ax+b
    ! Compute initial trajectory

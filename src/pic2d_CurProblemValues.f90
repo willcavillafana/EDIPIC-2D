@@ -1381,7 +1381,7 @@ SUBROUTINE print_info_object_type(n,obj_type)
          type_name = 'a priori unknow BC. Results might be wrong'
    END SELECT
    
-   WRITE( message, '(A,I2,A)'), "Object # ",n," ",TRIM(type_name)
+   WRITE( message, '(A,I2,A)'), "Object # ",n," "//TRIM(type_name)
    CALL print_message(message)
 
 
