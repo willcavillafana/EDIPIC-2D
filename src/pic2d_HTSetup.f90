@@ -449,7 +449,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                coeff_J = delta_t_s*N_subcycles / ( e_Cl*weight_ptcl ) 
                ioniz_ecr_vol_I_injected = ioniz_ecr_vol_I_injected*coeff_J ! This a number of macroparticles
 
-               WRITE( message,'(A,ES10.3)') "Number of macroparticles to inject =  ",ioniz_ecr_vol_I_injected
+               WRITE( message,'(A,ES10.3)') "Number of macroparticles to inject per ion cycle =  ",ioniz_ecr_vol_I_injected
                CALL print_message( message ) 
 
                EXIT
