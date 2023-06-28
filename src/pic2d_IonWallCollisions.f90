@@ -173,7 +173,7 @@ SUBROUTINE PROCESS_ION_COLL_WITH_BOUNDARY_RIGHT(s, x, y, vx, vy, vz, tag, x_old,
          ! By default I do not have a specular reflection in cylindrica coordinates. Only for domain boundary
          ELSE IF ( i_reflection_cyl_ion==1 ) THEN
             ! If I need reflection I enter here
-            IF (whole_object(nwo)%reflects_all_ions==1 ) THEN            
+            IF ( whole_object(nwo)%reflects_all_ions ) THEN            
                IF ( .NOT. PRESENT(x_old) .OR. .NOT. PRESENT(vx_old) .OR. .NOT. PRESENT(vy_old)) THEN
                   message='missing optional paramaters'
                   CALL print_error(message,routine)
