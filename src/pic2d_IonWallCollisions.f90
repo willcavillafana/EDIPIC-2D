@@ -580,7 +580,7 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
   END DO   !### DO n_try = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
    
   IF (mcross.EQ.-1) THEN
-     PRINT '("Error-1 in TRY_ION_COLL_WITH_INNER_OBJECT")'
+     PRINT '("Error-1 in TRY_ION_COLL_WITH_INNER_OBJECT. If this is a problem with cylindrical and specular reflection, remove specular walls behind inner object")'
      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
   END IF
 

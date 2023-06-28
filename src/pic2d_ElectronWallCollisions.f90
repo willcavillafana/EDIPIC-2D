@@ -660,7 +660,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
   END DO   !### DO n_try = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
 
   IF (mcross.EQ.-1) THEN
-     PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT ",4(2x,f10.4))', xorg, yorg, x, y, x_cart
+     PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT. If this is a problem with cylindrical and specular reflection, remove specular walls behind inner object ",4(2x,f10.4))', xorg, yorg, x, y
      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
   END IF
 
