@@ -1489,10 +1489,20 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ION_ADD_LIST
 !  USE ParallelOperationValues
   USE CurrentProblemValues
   USE IonParticles, ONLY : N_ions_to_add, ion_to_add, N_spec
+  USE ParallelOperationValues, ONLY: Rank_of_process
+  USE mod_print, ONLY: print_warning  
 
   IMPLICIT NONE
 
   INTEGER s, k, n 
+  LOGICAL :: check_flag
+  REAL(8) :: t_star, R_max
+  REAL(8) :: r_old, vx_old, vy_old, x_cart, z_cart ! old radius, readial and axial velocity in r-z
+  REAL(8) :: alpha_ang
+  REAL(8) :: vx_new, vy_new, vz_new  
+  REAL(8) xorg, yorg
+  REAL(8) x, y, vx, vy, vz
+  CHARACTER(LEN=string_length) :: message, routine  
 
   IF (N_of_inner_objects.EQ.0) RETURN
 
@@ -1508,16 +1518,69 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ION_ADD_LIST
            IF (ion_to_add(s)%part(k)%Y.LE.whole_object(n)%Ymin) CYCLE
            IF (ion_to_add(s)%part(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-           CALL TRY_ION_COLL_WITH_INNER_OBJECT( s, &
-                                              & ion_to_add(s)%part(k)%X, &
-                                              & ion_to_add(s)%part(k)%Y, &
-                                              & ion_to_add(s)%part(k)%VX, &
-                                              & ion_to_add(s)%part(k)%VY, &
-                                              & ion_to_add(s)%part(k)%VZ, &
-                                              & ion_to_add(s)%part(k)%tag )  !, &
-!                                                  & whole_object(n) )
-           CALL REMOVE_ION_FROM_ADD_LIST(s, k)  ! this subroutine does  N_ions_to_add(s) = N_ions_to_add(s) - 1 and k = k-1
-           EXIT
+        ! By default I assume the particle is effectveily outside inner object
+           check_flag = .TRUE.
+           ! If I have cylindrical collisions I need to double check the origin point is effectively outside the domain. Particles may steam from a previous cylindrical collision
+           IF ( i_reflection_cyl_ion==1 ) THEN
+   
+               ! Define some stuff
+               x = ion_to_add(s)%part(k)%X
+               y = ion_to_add(s)%part(k)%Y
+               vx = ion_to_add(s)%part(k)%VX
+               vy = ion_to_add(s)%part(k)%VY 
+               vz = ion_to_add(s)%part(k)%VZ
+   
+               ! Go backward in time to find old radius
+               x_cart =  x - vx*DBLE(N_subcycles) ! radius
+               z_cart = - vz*DBLE(N_subcycles) ! in theta direction
+               xorg =  SQRT( x_cart**2 + z_cart**2 ) ! old radius      
+               yorg = y - vy*DBLE(N_subcycles) 
+               
+               ! Check if old particle position is not outside simulation domain. In such a case I need to correct initial origin point. This situation can happen when I have cylindrical reflections
+               R_max = DBLE(c_indx_x_max_total)
+               
+               IF ( i_cylindrical==2 .AND. xorg> R_max ) THEN
+         
+                  xorg = R_max-1.0D-6
+         
+                  
+                  ! Compute actual time you spent from external boundary. Positive solution should be OK
+                  t_star = (x*vx*DBLE(N_subcycles)+SQRT( (R_max*vx*DBLE(N_subcycles))**2 + (vz*DBLE(N_subcycles))**2*(R_max**2 - x**2) ))/((vx*DBLE(N_subcycles))**2+(vz*DBLE(N_subcycles))**2)
+         
+                  ! Correct axial position 
+                  yorg = y - vy*t_star*DBLE(N_subcycles)
+   
+                  !!! Check if initial position is outside inner object
+                  ! by default I assume it can be problematic
+                  check_flag = .FALSE.
+                  ! Radius is outside
+                  IF ( xorg> whole_object(n)%Xmax .OR. xorg<whole_object(n)%Xmin ) THEN
+                     ! Axial poistion outside
+                     IF ( yorg> whole_object(n)%Ymax .OR. yorg<whole_object(n)%Ymin ) THEN
+                        check_flag = .TRUE.
+                     END IF
+                  ENDIF
+                  
+               END IF
+            ENDIF    
+            IF ( check_flag ) THEN       
+               CALL TRY_ION_COLL_WITH_INNER_OBJECT( s, &
+                                                   & ion_to_add(s)%part(k)%X, &
+                                                   & ion_to_add(s)%part(k)%Y, &
+                                                   & ion_to_add(s)%part(k)%VX, &
+                                                   & ion_to_add(s)%part(k)%VY, &
+                                                   & ion_to_add(s)%part(k)%VZ, &
+                                                   & ion_to_add(s)%part(k)%tag )  !, &
+      !                                                  & whole_object(n) )
+               CALL REMOVE_ION_FROM_ADD_LIST(s, k)  ! this subroutine does  N_ions_to_add(s) = N_ions_to_add(s) - 1 and k = k-1
+               EXIT
+            ELSE ! Particle in cylindrical had an elastic collisions and was oustide the domain. The calcualted position at collision was still insiode the object.
+               ! In such a case I need to discard the particle. It is considered as lost. This avoids a catadtrophic error but does not solve the bug. Bug is due to the fact that you do not follow particles each
+               ! time they corsse a cell interface. This is what we should do to make the algorithm robust.
+             WRITE( message,'(A,ES10.3,A,ES10.3,A)') "Ion particle X = ",ion_to_add(s)%part(k)%X," Y = ",ion_to_add(s)%part(k)%Y," will be discarded because of reflection in cylindrical coordinates"
+             CALL print_warning(message)
+             CALL REMOVE_ION_FROM_ADD_LIST(s, k)  ! this subroutine does  N_ions_to_add(s) = N_ions_to_add(s) - 1 and k = k-1
+          ENDIF               
         END DO
      END DO
 

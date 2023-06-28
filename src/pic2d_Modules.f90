@@ -178,6 +178,7 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: two = 2.0_8
   REAL(8), PARAMETER :: three = 3.0_8
   REAL(8), PARAMETER :: four = 4.0_8
+  REAL(8) eps_0_Fm
 
   INTEGER, PARAMETER :: string_length = 300
 
@@ -189,11 +190,15 @@ MODULE CurrentProblemValues
                             ! For the z_theta plane we can take a Cartesian geometry for now
   INTEGER :: debug_level
 
+  REAL(8) :: weight_ptcl ! Statistical weight of particles
+
   INTEGER :: i_no_poisson                                    ! Deactivate poisson   (no  e_field)
   INTEGER :: i_reflection_cyl_electron, i_reflection_cyl_ion ! Indicates if   we asked for a specular reflection for electrons and ions in cylindrical geometry. Inelastic collisions are not implemented for now (Dec 20, 2022)
   INTEGER :: i_empty_domain                                  ! Initialize domain with no particles (=1, 0 otherwise by default)
 
-  REAL(8) eps_0_Fm
+  REAL(8) :: LX, LY ! maximal dimensions of domain (dimensio)
+
+  INTEGER :: c_indx_x_min_total, c_indx_x_max_total, c_indx_y_min_total, c_indx_y_max_total ! Maximal and minal index of simulation doain in X and Y directions
 
   ! Coulomb collisions stuff
   REAL(8) L_ee_0 ! base argument of Coulomb logarithm
@@ -650,6 +655,12 @@ MODULE ClusterAndItsBoundaries
 
   LOGICAL symmetry_plane_X_left
 
+  ! Neumann boundary imposed. Cluster variable
+  LOGICAL neumann_X_cluster_left
+  LOGICAL neumann_X_cluster_right
+  LOGICAL neumann_Y_cluster_bottom
+  LOGICAL neumann_Y_cluster_top
+
   INTEGER n_left(1:2)       ! contain indices of objects in array c_local_object_part
   INTEGER n_right(1:2)      ! which endpoints will participate in surface charge exchange
   INTEGER n_below(1:2)      ! with left/right/below/above neighbor cluster
@@ -768,6 +779,11 @@ MODULE BlockAndItsBoundaries
   TYPE(object_link) local_object_part(1:max_N_of_local_object_parts)
 
   LOGICAL block_has_symmetry_plane_X_left
+
+  LOGICAL block_has_neumann_bc_X_left
+  LOGICAL block_has_neumann_bc_X_right
+  LOGICAL block_has_neumann_bc_Y_bottom
+  LOGICAL block_has_neumann_bc_Y_top
 
   INTEGER N_of_local_object_parts_left
   INTEGER N_of_local_object_parts_right
@@ -1555,7 +1571,7 @@ MODULE mod_print
 
     IF ( Rank_of_process==0 ) THEN
       WRITE(*,'(T8,A,I4,A)') ">>> WARNING: "//TRIM(message)
-      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+      ! CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
     END IF
 
   END SUBROUTINE     

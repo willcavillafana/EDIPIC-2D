@@ -10,6 +10,7 @@ PROGRAM MainProg
   USE mod_timers, ONLY: start_timer, end_timer, print_timer, pic_loop_timer
   USE mod_print, ONLY: print_message, print_git_info
   USE IonParticles, ONLY: i_freeze_ions
+  USE ElectronParticles, ONLY :  electron_to_add
 
   IMPLICIT NONE
 
@@ -247,14 +248,15 @@ PROGRAM MainProg
      CALL end_timer( create_instantaneous_snapshot_timer )
      CALL start_timer( electron_pusher_with_collisions_inner_object_timer )    
      !t9 = MPI_WTIME()
-
+   !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_3',electron_to_add(1707)%X
      CALL ADVANCE_ELECTRONS_PLUS                      !   velocity: n-1/2 ---> n+1/2
                                                       ! coordinate: n     ---> n+1 
                                                       ! may calculate electron moments for averaged snapshots
-
+   !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_0',electron_to_add(1707)%X
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
      CALL SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
+   !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_4',electron_to_add(1707)%X
 
      IF ((n_sub+1).NE.N_subcycles) CALL FIND_ALIENS_IN_ELECTRON_ADD_LIST        ! when n_sub+1==N_subcycles, the ions will be advanced below
                                                                                 ! there may be more electrons in the electron_to_add array due to ion-induced SEE
@@ -374,7 +376,7 @@ PROGRAM MainProg
         CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
         CALL start_timer( transfer_particle_after_pusher_timer ) 
         !t11 = t10
-
+         ! IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_1',electron_to_add(1707)%X
         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive ONLY electrons crossing the borders
            CALL EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
         ELSE                                                              !

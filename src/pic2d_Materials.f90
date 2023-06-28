@@ -245,7 +245,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
         CASE (1)
            whole_object(n)%lowest_energy_for_see = MIN(whole_object(n)%lowest_energy_for_see, whole_object(n)%minE_see_elastic)
            IF ( i_cylindrical==2 .AND. whole_object(n)%Elast_refl_type==0 ) i_reflection_cyl_electron = 1 ! I need a special treatment in cylindrical coordinates for purely specular
-        CASE (2)
+         CASE (2)
            whole_object(n)%lowest_energy_for_see = MIN(whole_object(n)%lowest_energy_for_see, whole_object(n)%E_elast_0)
      END SELECT
 
@@ -270,7 +270,8 @@ SUBROUTINE PREPARE_WALL_MATERIALS
    IF ( i_reflection_cyl_electron==1 ) THEN
       message = 'Specular reflection in cylindrical geometry activated for electrons'
       CALL print_message( message,routine )
-   ELSE IF( i_reflection_cyl_ion==1 ) THEN
+   ENDIF
+   IF( i_reflection_cyl_ion==1 ) THEN
       message = 'Specular reflection in cylindrical geometry activated for ions'
       CALL print_message( message,routine )
    END IF      

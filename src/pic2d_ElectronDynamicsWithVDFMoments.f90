@@ -2,12 +2,13 @@
 !
 SUBROUTINE ADVANCE_ELECTRONS_PLUS
 
-  USE ParallelOperationValues, ONLY : cluster_rank_key
+  USE ParallelOperationValues, ONLY : cluster_rank_key, Rank_of_process
   USE CurrentProblemValues, ONLY : T_cntr
   USE Snapshots, ONLY : cs_N, cs_VX, cs_VY, cs_VZ, cs_WX, cs_WY, cs_WZ, cs_VXVY, cs_VXVZ, cs_VYVZ, cs_QX, cs_QY, cs_QZ
   USE AvgSnapshots, ONLY : current_avgsnap, N_of_all_avgsnaps, avgsnapshot, save_avg_data
   USE ClusterAndItsBoundaries, ONLY : c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
   USE Diagnostics, ONLY : Save_probes_e_data_T_cntr
+  USE ElectronParticles, ONLY :  electron_to_add
 
   IMPLICIT NONE
 
@@ -114,7 +115,7 @@ SUBROUTINE ADVANCE_ELECTRONS_PLUS
      cs_QZ = 0.0
 
      CALL ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
-
+   !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_advance_2',electron_to_add(1707)%X
      IF (cluster_rank_key.EQ.0) CALL COLLECT_ELECTRON_DATA_FOR_AVERAGED_SNAPSHOT
 
 ! cleanup
@@ -143,8 +144,10 @@ SUBROUTINE ADVANCE_ELECTRONS_PLUS
 
      IF (T_cntr.EQ.Save_probes_e_data_T_cntr) THEN
         CALL ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_PROBES
+      !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_advance_1',electron_to_add(1707)%X
      ELSE
         CALL ADVANCE_ELECTRONS
+      !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_advance_0',electron_to_add(1707)%X
      END IF
 
   END IF
@@ -457,7 +460,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
 
       ! Then compute increment angle alpha
       alpha_ang = DATAN2(z_cart,x_cart) 
-
+      IF (radius>456.92 .AND. radius<456.93) print*,'radius,x_old_2', radius,x_old
       ! Update radius (X). 
       electron(k)%X = radius
       electron(k)%Y = electron(k)%Y + electron(k)%VY
@@ -1316,7 +1319,7 @@ end if
       ! Get Final velocities in cylindrical system. (z speed has already been update above)
       vx_temp =   COS(alpha_ang)*electron(k)%VX + SIN(alpha_ang)*electron(k)%VZ
       vz_temp = - SIN(alpha_ang)*electron(k)%VX + COS(alpha_ang)*electron(k)%VZ    
-      
+      ! IF (radius>456.92 .AND. radius<456.93) print*,'radius,x_old_3', radius,x_old
       electron(k)%VX = vx_temp
       electron(k)%VZ = vz_temp      
 

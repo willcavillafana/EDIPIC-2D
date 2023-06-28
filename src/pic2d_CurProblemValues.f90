@@ -128,7 +128,8 @@ SUBROUTINE INITIATE_PARAMETERS
   INTEGER pos1, pos2
   INTEGER flag_scatter
   CHARACTER(LEN=string_length) :: message, routine
-  INTEGER :: c_indx_x_max_total,c_indx_x_min_total
+
+  REAL(8) :: LX_max, LY_max
 
 ! functions
   REAL(8) Bx, By
@@ -148,8 +149,13 @@ SUBROUTINE INITIATE_PARAMETERS
   routine = "INITIATE_PARAMETERS"
 
 ! default values
+  weight_ptcl = zero
+  LX_max = zero
+  LY_max = zero
   c_indx_x_min_total = 0
   c_indx_x_max_total = 0
+  c_indx_y_min_total = 0
+  c_indx_y_max_total = 0  
   Delta_r = one
   Delta_z = one
   i_no_poisson = 0
@@ -1045,11 +1051,14 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
 
   CALL SET_CLUSTER_STRUCTURE
 
+  ! Get min and max of index in x/r and y/z directions
+  ! print*,'c_indx_x_max,c_indx_x_min',c_indx_x_max,c_indx_x_min
+  CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+  CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
+  CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
+  CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
   IF ( i_cylindrical==2) THEN
-   ! Get min and max of index in x/r and y/z directions
-   ! print*,'c_indx_x_max,c_indx_x_min',c_indx_x_max,c_indx_x_min
-   CALL MPI_ALLREDUCE(c_indx_x_max, c_indx_x_max_total,1, MPI_INT, MPI_MAX, MPI_COMM_WORLD, stattus, ierr)
-   CALL MPI_ALLREDUCE(c_indx_x_min, c_indx_x_min_total,1, MPI_INT, MPI_MIN, MPI_COMM_WORLD, stattus, ierr)
+
    ! print*,'c_indx_x_max_total,c_indx_x_min_total,factor',c_indx_x_max_total,c_indx_x_min_total,pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m
    ! CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
    ! CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)  
@@ -1060,6 +1069,19 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
    ! I implicity changen the statistical weight: w_cyl = pi*R*w_cart = pi*R*n_scale*dx**2/(N_ppc_cart)
 
   END IF
+
+  ! Print statistical weight of particles
+  LX_max = delta_x_m*DBLE(c_indx_x_max_total-c_indx_x_min_total)
+  LY_max = delta_x_m*DBLE(c_indx_y_max_total-c_indx_y_min_total) 
+  WRITE( message,'(A,ES10.3,A)') "Total length in X direction is LX = ",LX_max," [m]"
+  CALL print_message(message)  
+  WRITE( message,'(A,ES10.3,A)') "Total length in Y direction is LY = ",LY_max," [m]"
+  CALL print_message(message)    
+
+  ! Print statistical weight of particles
+  weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+  WRITE( message,'(A,ES10.3)') "Statistical weight of particles is w_stat = ",weight_ptcl
+  CALL print_message(message)    
 
   N_scale_part_m3 = N_plasma_m3 / N_of_particles_cell
   current_factor_Am2 = e_Cl * V_scale_ms * N_scale_part_m3
@@ -1921,6 +1943,7 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   USE ParallelOperationValues
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
+  USE mod_print, ONLY: print_parser_error
 
   IMPLICIT NONE
 
@@ -1940,6 +1963,7 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   INTEGER ibufer(4)
 
   INTEGER :: local_debug_level
+  CHARACTER(LEN=string_length) :: message
   local_debug_level = 1    
 
   IF (cluster_rank_key.NE.0) RETURN
@@ -1960,6 +1984,11 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   connect_below = .FALSE.
 
   symmetry_plane_X_left = .FALSE.
+
+  neumann_X_cluster_left = .FALSE.
+  neumann_X_cluster_right = .FALSE.
+  neumann_Y_cluster_bottom = .FALSE.
+  neumann_Y_cluster_top = .FALSE.
 
   n_left = 0
   n_right = 0
@@ -2013,6 +2042,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
 
                  IF (whole_object(n)%object_type.EQ.SYMMETRY_PLANE) symmetry_plane_X_left = .TRUE.
 
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_X_cluster_left = .TRUE.
+
                  c_N_of_local_object_parts_left = c_N_of_local_object_parts_left+1
                  c_index_of_local_object_part_left(c_N_of_local_object_parts_left) = c_N_of_local_object_parts
               END IF
@@ -2025,6 +2057,11 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
   IF (symmetry_plane_X_left) THEN
      PRINT '("Proc ",i4," (cluster master) has a symmetry plane on its left edge" )', Rank_of_process
   END IF
+
+   IF ( .NOT.symmetry_plane_X_left .AND. i_cylindrical>0 ) THEN
+      WRITE( message ,'(A)') "When using cylindrical coorindates, you must have the left boundary defined as a symmetry axis (flag=5)"
+      CALL print_parser_error ( message )
+   END IF
 
 ! check the top edge of the cluster
   IF (Rank_of_master_above.EQ.-1) THEN
@@ -2053,6 +2090,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
                     ALLOCATE(c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend), STAT = ALLOC_ERR)
                     c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend) = 0.0_8
                  END IF
+
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_Y_cluster_top = .TRUE.                 
 
                  c_N_of_local_object_parts_above = c_N_of_local_object_parts_above+1
                  c_index_of_local_object_part_above(c_N_of_local_object_parts_above) = c_N_of_local_object_parts
@@ -2091,6 +2131,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
                     c_local_object_part(c_N_of_local_object_parts)%surface_charge(jstart:jend) = 0.0_8
                  END IF
 
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_X_cluster_right = .TRUE.                 
+
                  c_N_of_local_object_parts_right = c_N_of_local_object_parts_right+1
                  c_index_of_local_object_part_right(c_N_of_local_object_parts_right) = c_N_of_local_object_parts
               END IF
@@ -2127,6 +2170,9 @@ SUBROUTINE IDENTIFY_CLUSTER_BOUNDARIES
                     ALLOCATE(c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend), STAT = ALLOC_ERR)
                     c_local_object_part(c_N_of_local_object_parts)%surface_charge(istart:iend) = 0.0_8
                  END IF
+
+                 ! Double check if Neumann 
+                 IF ( whole_object(n)%object_type==NEUMANN ) neumann_Y_cluster_bottom = .TRUE.                 
 
                  c_N_of_local_object_parts_below = c_N_of_local_object_parts_below+1
                  c_index_of_local_object_part_below(c_N_of_local_object_parts_below) = c_N_of_local_object_parts
@@ -3684,8 +3730,8 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   INTEGER sum_Ni
 
   INTEGER :: n_limit_x_total,n_limit_y_total ! total number of cells in whole domain in r direction (cylindrical)
-  INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
-  INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
+!   INTEGER :: c_indx_x_min_total,c_indx_x_max_total ! global min and max of grid points in radial direction
+!   INTEGER :: c_indx_y_min_total,c_indx_y_max_total ! global min and max of grid points in radial direction
   REAL(8) :: N_electron_tot ! number of electrons in whole domain
   REAL(8) :: N_electrons_total_cyl
   INTEGER :: ierr

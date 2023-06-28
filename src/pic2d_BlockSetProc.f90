@@ -138,6 +138,11 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
 
   block_has_symmetry_plane_X_left = .FALSE.
 
+  block_has_neumann_bc_X_left   = .FALSE.
+  block_has_neumann_bc_X_right  = .FALSE.
+  block_has_neumann_bc_Y_bottom = .FALSE.
+  block_has_neumann_bc_Y_top    = .FALSE.
+
   IF ( (Rank_of_process_left.GE.0).AND. &
        (Rank_of_process_right.GE.0).AND. &
        (Rank_of_process_below.GE.0).AND. &
@@ -174,6 +179,9 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
                  index_of_local_object_part_left(N_of_local_object_parts_left) = N_of_local_object_parts
 
                  IF (whole_object(n)%object_type.EQ.SYMMETRY_PLANE) block_has_symmetry_plane_X_left = .TRUE.
+                 
+                 ! Neumann BC
+                 IF ( whole_object(n)%object_type==NEUMANN ) block_has_neumann_bc_X_left = .TRUE.
 
               END IF
 
@@ -206,6 +214,10 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
 
                  N_of_local_object_parts_above = N_of_local_object_parts_above+1
                  index_of_local_object_part_above(N_of_local_object_parts_above) = N_of_local_object_parts
+                 
+                 ! Neumann BC
+                 IF ( whole_object(n)%object_type==NEUMANN ) block_has_neumann_bc_Y_top = .TRUE.
+
               END IF
 
            END IF
@@ -237,6 +249,10 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
 
                  N_of_local_object_parts_right = N_of_local_object_parts_right+1
                  index_of_local_object_part_right(N_of_local_object_parts_right) = N_of_local_object_parts
+
+                 ! Neumann BC
+                 IF ( whole_object(n)%object_type==NEUMANN ) block_has_neumann_bc_X_right = .TRUE.                 
+
               END IF
 
            END IF
@@ -268,6 +284,10 @@ SUBROUTINE IDENTIFY_BLOCK_BOUNDARIES
 
                  N_of_local_object_parts_below = N_of_local_object_parts_below+1
                  index_of_local_object_part_below(N_of_local_object_parts_below) = N_of_local_object_parts
+
+                 ! Neumann BC
+                 IF ( whole_object(n)%object_type==NEUMANN ) block_has_neumann_bc_Y_bottom = .TRUE.                 
+
               END IF
 
            END IF

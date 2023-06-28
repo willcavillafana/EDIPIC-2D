@@ -204,6 +204,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    USE CurrentProblemValues
    USE IonParticles
    USE ClusterAndItsBoundaries
+   USE mod_print, ONLY: print_message
  
    IMPLICIT NONE
  
@@ -216,6 +217,8 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    REAL(8) :: T_inj_i_eV ! temperature of injected ions
    REAL(8) T_ion_e_eV
    REAL(8) T_ion_i_eV
+   CHARACTER(LEN=string_length) :: message
+   REAL(8) :: injected_current
  
    INTEGER ALLOC_ERR
  
@@ -266,22 +269,27 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    END IF
   
    IF (use_ecr_injection>0) THEN
-! place grid in such a way that it is not exactly on any boundary
-   grid_j = MAX(1, MIN(INT(injection_y_ecr * 0.001_8 / delta_x_m), global_maximal_j-1))
 
-   IF ((injection_y_ecr * 0.001_8).LT.(global_maximal_j * delta_x_m)) THEN
-      injection_y_ecr = DBLE(grid_j)
-      ecr_injection_inside = .TRUE.
-      IF (Rank_of_process.EQ.0) PRINT '(2x,"Injection ECR inside: y_inj=",f12.9," [mm]")',injection_y_ecr*delta_x_m/0.001_8
-   ELSE
-      injection_y_ecr = DBLE(global_maximal_j)-1.0d-6
-      ecr_injection_inside = .FALSE.
-      IF (Rank_of_process.EQ.0) PRINT '(2x,"Injection ECR at BC: y_inj=",f12.9," [mm]")',injection_y_ecr*delta_x_m/0.001_8
-   END IF
+      ! Actual injected current
+      injected_current = DBLE(N_macro_constant_injection)*weight_ptcl/delta_t_s*e_Cl
+      WRITE( message,'(A,ES10.3,A)') "Injection current with ECR type is I_inj = ",injected_current," [A]"
+      CALL print_message(message)        
+      ! place grid in such a way that it is not exactly on any boundary
+      grid_j = MAX(1, MIN(INT(injection_y_ecr * 0.001_8 / delta_x_m), global_maximal_j-1))
 
- ! prepare velocity conversion factors
-   factor_convert_vinj = SQRT(T_inj_eV / T_e_eV) / N_max_vel
-   factor_convert_vinj_i = SQRT(T_inj_i_eV / T_e_eV) / (N_max_vel*SQRT(Ms(1))) ! One species for now. 
+      IF ((injection_y_ecr * 0.001_8).LT.(global_maximal_j * delta_x_m)) THEN
+         injection_y_ecr = DBLE(grid_j)
+         ecr_injection_inside = .TRUE.
+         IF (Rank_of_process.EQ.0) PRINT '(2x,"Injection ECR inside: y_inj=",f12.9," [mm]")',injection_y_ecr*delta_x_m/0.001_8
+      ELSE
+         injection_y_ecr = DBLE(global_maximal_j)-1.0d-6
+         ecr_injection_inside = .FALSE.
+         IF (Rank_of_process.EQ.0) PRINT '(2x,"Injection ECR at BC: y_inj=",f12.9," [mm]")',injection_y_ecr*delta_x_m/0.001_8
+      END IF
+
+   ! prepare velocity conversion factors
+      factor_convert_vinj = SQRT(T_inj_eV / T_e_eV) / N_max_vel
+      factor_convert_vinj_i = SQRT(T_inj_i_eV / T_e_eV) / (N_max_vel*SQRT(Ms(1))) ! One species for now. 
 
    END IF
 
@@ -441,7 +449,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                coeff_J = delta_t_s*N_subcycles / ( e_Cl*weight_ptcl ) 
                ioniz_ecr_vol_I_injected = ioniz_ecr_vol_I_injected*coeff_J ! This a number of macroparticles
 
-               WRITE( message,'(A,ES10.3)') "Number of macroparticles to inject =  ",ioniz_ecr_vol_I_injected
+               WRITE( message,'(A,ES10.3)') "Number of macroparticles to inject per ion cycle =  ",ioniz_ecr_vol_I_injected
                CALL print_message( message ) 
 
                EXIT
@@ -1349,11 +1357,14 @@ SUBROUTINE PERFORM_PLASMA_EMISSION_ECR_SETUP
  
    DO n = 1, add_N_e_to_emit
  
-      x = DBLE(c_indx_x_min) + well_random_number() * DBLE(c_indx_x_max-1-c_indx_x_min)
-      x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+      IF (i_cylindrical==0) THEN
+         x = DBLE(c_indx_x_min) + well_random_number() * DBLE(c_indx_x_max-1-c_indx_x_min)
+      ELSE IF (i_cylindrical==2) THEN
+         x = SQRT(DBLE(c_indx_x_min)**2 + well_random_number() * (DBLE(c_indx_x_max-1)**2-DBLE(c_indx_x_min)**2))
+      END IF
+
       ! x = MIN(x,DBLE(390))
-      x_ion = DBLE(c_indx_x_min) + well_random_number() * DBLE(c_indx_x_max-1-c_indx_x_min)
-      x_ion = MIN(MAX(x_ion, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))    
+      x_ion = x
       ! x_ion = MIN(x_ion,DBLE(390))  
  !###     y = DBLE(c_indx_y_max)-1.0d-6
  
