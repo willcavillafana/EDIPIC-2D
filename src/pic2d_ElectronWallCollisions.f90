@@ -967,7 +967,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
   IF (MIN(xorg, x).GT.xseg) RETURN
   IF (MAX(yorg, y).LT.yminseg) RETURN
   IF (MIN(yorg, y).GT.ymaxseg) RETURN
-  IF (xorg>456.999) print*,'xorg_vert,yorg',xorg,yorg
+  !IF (xorg>456.999) print*,'xorg_vert,yorg',xorg,yorg
 ! extremely unlikely situation, particle goes exactly along the surface of the object
   IF (xorg.EQ.x) RETURN
 
