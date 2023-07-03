@@ -460,7 +460,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
 
       ! Then compute increment angle alpha
       alpha_ang = DATAN2(z_cart,x_cart) 
-      IF (radius>456.92 .AND. radius<456.93) print*,'radius,x_old_2', radius,x_old
+      !IF (radius>456.92 .AND. radius<456.93) print*,'radius,x_old_2', radius,x_old
       ! Update radius (X). 
       electron(k)%X = radius
       electron(k)%Y = electron(k)%Y + electron(k)%VY
