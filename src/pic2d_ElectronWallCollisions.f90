@@ -660,6 +660,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
   END DO   !### DO n_try = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
 
   IF (mcross.EQ.-1) THEN
+     print*,'xorg,yorg,xnew,ynew,vx.vy.vz,vx_old,vy_old',xorg,yorg,x,y,vx,vy,vz,vx_old,vy_old
      PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT. If this is a problem with cylindrical and specular reflection, remove specular walls behind inner object ",4(2x,f10.4))', xorg, yorg, x, y
      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
   END IF
@@ -943,7 +944,7 @@ END SUBROUTINE FIND_CLOSEST_INTERSECTION_WITH_OBJECT
 SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, yminseg, ymaxseg, mystatus, ycross, vx_old, vy_old, vz_axial, vx_new, vz_new )
 
   use, intrinsic :: ieee_arithmetic
-  USE CurrentProblemValues, ONLY: i_cylindrical, four, one, two
+  USE CurrentProblemValues, ONLY: i_cylindrical, four, one, two, zero
 
   IMPLICIT NONE
 
@@ -959,6 +960,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
   REAL(8) :: x_star,y_star ! Intersection point with outer radius
   REAl(8) :: t_star, x_start
   REAL(8) :: alpha_ang
+  REAL(8) :: sol_sign
 
   mystatus = -1
 
@@ -978,17 +980,30 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
       ! Step 1: compute coefficients of straight line if I had no impact, y= ax+b
       ! Compute initial trajectory
       x_start = xorg
-      a = vy_old/vx_old
-      b = -a*x_start
-   
-      ! Step 2: get coordinates of interection point with radius
-      delta = four*(a**2*(xseg**2-x_start**2)+xseg**2)
-      x_star = (-two*a*b+SQRT(delta))/(two*(a**2+one)) ! Take positive solution (should be OK)
-      y_star = a*x_star+b   
-      
-      ! Step 3: deduce spent time
-      t_star = (x_star-x_start)/vx_old
 
+      !!! Need to differentiate some cases 
+      ! Vertical line (improbable case)
+      IF ( vx_old==zero ) THEN 
+          x_star = x_start
+          y_star = SIGN(one,vy_old)*SQRT(xseg**2-x_start**2)
+          t_star = y_star/vy_old
+      ELSE ! Line with finite slope 
+          sol_sign = SIGN(one,vx_old) ! This will determine which solution of the quadratice equation we retain
+
+          a = vy_old/vx_old
+          b = -a*x_start
+       
+          ! Step 2: get coordinates of interection point with radius
+          delta = four*(a**2*(xseg**2-x_start**2)+xseg**2)
+          !delta = a**2*(xseg-x_start)*(xseg+x_start)+xseg**2
+          x_star = (-two*a*b+sol_sign*SQRT(delta))/(two*(a**2+one)) ! Correct solution is autmoatically chosen 
+          !x_star = (-a*b+SQRT(delta))/(a**2+one) ! Take positive solution (should be OK)
+          y_star = a*x_star+b   
+          
+          ! Step 3: deduce spent time
+          t_star = (x_star-x_start)/vx_old
+
+      END IF
       ! Step 4: compute axial location of intersection
       ycross = vz_axial*t_star+yorg
 
@@ -996,7 +1011,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
       alpha_ang = DATAN2(y_star,x_star)
       vx_new =  COS(alpha_ang)*vx_old + SIN(alpha_ang)*vy_old
       vz_new = -SIN(alpha_ang)*vx_old + COS(alpha_ang)*vy_old ! theta
-      ! IF (xorg > 456.9 .AND. xorg<457.1) print*,'xorg,ycross,y,yminseg,ymaxseg',xorg,ycross,y,yminseg,ymaxseg
+       !IF (xorg > 1819.9999 .AND. xorg<1820.0) print*,'y_star,tnew,vy_old',y_star,(y_star)/vy_old,vy_old
    END IF
 
   IF (.NOT.ieee_is_finite(ycross)) THEN
@@ -1053,7 +1068,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_HORIZONTAL_SEGMENT( xorg, yorg, x, y, yseg, x
       xcross = xorg + (x-xorg) * (yseg-yorg) / (y-yorg)
    ELSE IF ( i_cylindrical==2 ) THEN
       ! Step 1: deduce how long I need to reach the horizontal wall
-      t_star = (yseg-yorg)/vz_axial
+      t_star = (yseg-yorg)/vz_axial ! vz cannot be zero here (or we could not reach the wall 
       ! IF (xorg > 329.7661 .AND. xorg<329.7663) t_star = one
       ! Step 2: Compute new x and y coordinates in the r-theta plane
       x_start = xorg
@@ -1333,7 +1348,7 @@ END SUBROUTINE ADD_ELECTRON_TO_BO_COLLS_LIST
 SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,dot_prod_j,n_subcycles)
    
    USE mod_print, ONLY: print_debug
-   USE CurrentProblemValues, ONLY: string_length,two,four,one
+   USE CurrentProblemValues, ONLY: string_length,two,four,one, zero
    USE ParallelOperationValues, ONLY: Rank_of_process
    IMPLICIT NONE
 
@@ -1355,7 +1370,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
    REAL(8) :: module_velocity,dt_remaining ! velocity module and remaining time 
    REAL(8) :: n_sub ! subcycle frequency for ions (will be one for electrons)
    REAL(8) :: t_star! amount of time I need to hit the wall
-   
+   REAl(8) :: sol_sign ! Sign to pick correct solution
 
    CHARACTER(LEN=string_length) :: routine
    INTEGER :: local_debug_level
@@ -1370,17 +1385,27 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
 
    ! Step 1: compute coefficients of straight line if I had no refelction, y= ax+b
    ! Compute initial trajectory
-   a = vy/vx
-   b = -a*x_start
+   !!! Need to differentiate some cases
+   ! Vertical line (improbable case)
+   IF ( vx==zero ) THEN
+       x_star = x_start
+       y_star = SIGN(one,vy)*SQRT(R_max**2-x_start**2)
+       t_star = y_star/vy  
+   ELSE ! Line with finite slope
+       sol_sign = SIGN(one,vx) ! This will determine which solution of the quadratice equation we retain    
+       a = vy/vx
+       b = -a*x_start
 
-   ! Step 2: get coordinates of interection point with outer radius
-   delta = four*(a**2*(R_max**2-x_start**2)+R_max**2)
-   x_star = (-two*a*b+SQRT(delta))/(two*(a**2+one)) ! Take positive solution (should be OK)
-   y_star = a*x_star+b  
+       ! Step 2: get coordinates of interection point with outer radius
+       delta = four*(a**2*(R_max**2-x_start**2)+R_max**2)
+       x_star = (-two*a*b+sol_sign*SQRT(delta))/(two*(a**2+one)) ! Take correcvt solution depending on sign
+       y_star = a*x_star+b  
    
 
-   ! Step 3: compute remaining distance after collision
-   t_star = (x_star-x_start)/(vx*n_sub) ! Portion of time I have used
+       ! Step 3: compute remaining distance after collision
+       t_star = (x_star-x_start)/(vx*n_sub) ! Portion of time I have used
+   END IF
+
    ! IF (x_start>456.8361553 ) print*,'x_start,x_star,y_star,xneg,R,t_star',x_start,x_star,y_star,(-two*a*b-SQRT(delta))/(two*(a**2+one)),SQRT(x_star**2+y_star**2),t_star
    d_star = SQRT((x_star-x_start)**2+y_star**2+(vz_axial*n_sub*t_star)**2)
    d_remaining = SQRT((vx*n_sub)**2+(vy*n_sub)**2+(vz_axial*n_sub)**2) - d_star  

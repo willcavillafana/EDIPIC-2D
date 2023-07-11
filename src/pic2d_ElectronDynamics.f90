@@ -1496,7 +1496,7 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
 ! collision detected
         ! By default I assume the particle is effectveily outside inner object
         check_flag = .TRUE.
-        ! If I have cylindrical collisions I need to double check the origin point is effectively outside the domain. Particles may steam from a previous cylindrical collision
+        ! If I have cylindrical collisions I need to double check the origin point is effectively outside the domain. Particles may stem from a previous cylindrical collision
         IF ( i_reflection_cyl_electron==1 ) THEN
 
             ! Define some stuff
@@ -1520,7 +1520,7 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
                xorg = R_max-1.0D-6
       
                
-               ! Compute actual time you spent from external boundary. Positive solution should be OK
+               ! Compute actual time you spent from external boundary. Positive solution should be OK. t must be positive. Start with x_cart and z_cart 
                t_star = (x*vx+SQRT( (R_max*vx)**2 + vz**2*(R_max**2 - x**2) ))/(vx**2+vz**2)
       
                ! Correct axial position 
