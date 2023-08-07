@@ -77,7 +77,7 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
         CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
      end if
 
-! interpolate the moments
+    ! interpolate the moments
 
      i = INT(electron(k)%X)
      j = INT(electron(k)%Y)
@@ -85,13 +85,13 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
      IF (electron(k)%X.EQ.c_X_area_max) i = c_indx_x_max-1
      IF (electron(k)%Y.EQ.c_Y_area_max) j = c_indx_y_max-1
 
-if ((i.lt.c_indx_x_min).or.(i.gt.(c_indx_x_max-1)).or.(j.lt.c_indx_y_min).or.(j.gt.(c_indx_y_max-1))) then
-   print '("Process ",i4," : Error-2 in PERFORM_COULOMB_SCATTERING : index out of bounds")', Rank_of_process
-   print '("Process ",i4," : k/N_electrons : ",i8,2x,i8)', Rank_of_process, k, N_electrons
-   print '("Process ",i4," : x/y/vx/vy/vz/tag : ",5(2x,e14.7),2x,i4)', Rank_of_process, electron(k)%X, electron(k)%Y, electron(k)%Vx, electron(k)%Vy, electron(k)%Vz, electron(k)%tag
-   print '("Process ",i4," : minx/maxx/miny/maxy : ",4(2x,e14.7))', Rank_of_process, c_X_area_min, c_X_area_max, c_Y_area_min, c_Y_area_max
-   CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
-end if
+      if ((i.lt.c_indx_x_min).or.(i.gt.(c_indx_x_max-1)).or.(j.lt.c_indx_y_min).or.(j.gt.(c_indx_y_max-1))) then
+        print '("Process ",i4," : Error-2 in PERFORM_COULOMB_SCATTERING : index out of bounds")', Rank_of_process
+        print '("Process ",i4," : k/N_electrons : ",i8,2x,i8)', Rank_of_process, k, N_electrons
+        print '("Process ",i4," : x/y/vx/vy/vz/tag : ",5(2x,e14.7),2x,i4)', Rank_of_process, electron(k)%X, electron(k)%Y, electron(k)%Vx, electron(k)%Vy, electron(k)%Vz, electron(k)%tag
+        print '("Process ",i4," : minx/maxx/miny/maxy : ",4(2x,e14.7))', Rank_of_process, c_X_area_min, c_X_area_max, c_Y_area_min, c_Y_area_max
+        CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+      end if
 
      ax_ip1 = electron(k)%X - DBLE(i) ! consider setting all ax, ay to 0.5 to smooth out the moments?
      ax_i   = 1.0_8 - ax_ip1
@@ -108,30 +108,29 @@ end if
     !  a01 = 0.25_8
     !  a10 = 0.25_8
     !  a11 = 0.25_8
-! these moments have already been time-averaged over the ion time step:
+    ! these moments have already been time-averaged over the ion time step:
      n_loc = acc_rho_e(0,i,j) * a00 + acc_rho_e(0,i+1,j) * a10 + acc_rho_e(0,i,j+1) * a01 + acc_rho_e(0,i+1,j+1) * a11 
      nb_ptcl_loc = acc_rho_e(0,i,j) * a00 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j) * a10 / factor_cyl_vol(i+1) + acc_rho_e(0,i,j+1) * a01 / factor_cyl_vol(i) + acc_rho_e(0,i+1,j+1) * a11 / factor_cyl_vol(i+1)
      vx_loc= acc_rho_e(1,i,j) * a00 + acc_rho_e(1,i+1,j) * a10 + acc_rho_e(1,i,j+1) * a01 + acc_rho_e(1,i+1,j+1) * a11
      vy_loc= acc_rho_e(2,i,j) * a00 + acc_rho_e(2,i+1,j) * a10 + acc_rho_e(2,i,j+1) * a01 + acc_rho_e(2,i+1,j+1) * a11
      vz_loc= acc_rho_e(3,i,j) * a00 + acc_rho_e(3,i+1,j) * a10 + acc_rho_e(3,i,j+1) * a01 + acc_rho_e(3,i+1,j+1) * a11
      v2_loc= acc_rho_e(4,i,j) * a00 + acc_rho_e(4,i+1,j) * a10 + acc_rho_e(4,i,j+1) * a01 + acc_rho_e(4,i+1,j+1) * a11
-      
+ 
      IF (n_loc .EQ. 0.0_8) CYCLE !no scattering occurs
-
-        vx_loc = vx_loc / nb_ptcl_loc
-        vy_loc = vy_loc / nb_ptcl_loc
-        vz_loc = vz_loc / nb_ptcl_loc     
-
-        v2_loc = v2_loc / nb_ptcl_loc - (vx_loc**2 + vy_loc**2 + vz_loc**2)      
-        T_loc_eV  = 0.6666666667_8 * v2_loc * (N_max_vel ** 2) * T_e_eV 
-! normalized density and temperature:
-        dens_ratio = n_loc / DBLE(N_of_particles_cell)
-        temp_ratio = T_loc_eV / T_e_eV
+     
+      vx_loc = vx_loc / nb_ptcl_loc
+      vy_loc = vy_loc / nb_ptcl_loc
+      vz_loc = vz_loc / nb_ptcl_loc     
+      v2_loc = MAX(v2_loc / nb_ptcl_loc - (vx_loc**2 + vy_loc**2 + vz_loc**2),zero) ! Make sure I have positive temperature. Because of numerical precision, it could be negative in rare cases. 
+      T_loc_eV  = 0.6666666667_8 * v2_loc * (N_max_vel ** 2) * T_e_eV 
+      ! normalized density and temperature:
+      dens_ratio = n_loc / DBLE(N_of_particles_cell)
+      temp_ratio = T_loc_eV / T_e_eV
 
      Vx = electron(k)%VX
      Vy = electron(k)%VY
      Vz = electron(k)%VZ
-! sample a collision partner from the field particle distribution:     
+    ! sample a collision partner from the field particle distribution:     
      call GetMaxwellVelocity(Vx_sample)
      call GetMaxwellVelocity(Vy_sample)
      call GetMaxwellVelocity(Vz_sample)
@@ -140,7 +139,7 @@ end if
      Vy_sample = Vy_sample * vel_factor + vy_loc
      Vz_sample = Vz_sample * vel_factor + vz_loc
 
-! relative velocity in internal units of the code:
+    ! relative velocity in internal units of the code:
      Ux = Vx - Vx_sample
      Uy = Vy - Vy_sample
      Uz = Vz - Vz_sample
@@ -158,9 +157,9 @@ end if
      Vframe_y = 0.5_8 * (Vy + Vy_sample)
      Vframe_z = 0.5_8 * (Vz + Vz_sample)
 
-! Nanbu [1997] is the reference work applied here:
+    ! Nanbu [1997] is the reference work applied here:
      L_ee = L_ee_0 * (temp_ratio / dens_ratio)**0.5 * (3.0_8 * temp_ratio + Wsq_scaled) ! try to account for possible high-energy electrons
-!     L_ee = L_ee_0 * (temp_ratio / dens_ratio)**0.5 * (6.0_8 * temp_ratio)
+    !     L_ee = L_ee_0 * (temp_ratio / dens_ratio)**0.5 * (6.0_8 * temp_ratio)
      IF (U_scaled.GE.1.e-5) THEN
         s_coll = LOG(L_ee) / pi * base_Coulomb_probab * dens_ratio / U_scaled**3
      ELSE
@@ -169,7 +168,7 @@ end if
 
      A_norm = 3.0_8 * EXP(-s_coll) / (1.0_8 - EXP(-3.0_8 * s_coll)) ! new approximation for Nanbu normalization factor
 
-! sample the scattering angle from the random walk process:      
+    ! sample the scattering angle from the random walk process:      
      R = well_random_number()
      IF (R.LE.1.e-20) THEN 
         CosKsi = -1.0_8     
@@ -186,32 +185,32 @@ end if
      Fi = 2.0_8 * pi * well_random_number()
      CosFi = COS(Fi)
      SinFi = SIN(Fi)
-! velocity in the center-of-mass frame:
+    ! velocity in the center-of-mass frame:
      Vx = 0.5_8 * Ux
      Vy = 0.5_8 * Uy
      Vz = 0.5_8 * Uz
      
-! Scattering the electron in the CM frame.
-! Turn the velocity in that frame, using Ksi and Fi. After that transform the velocity to the laboratory frame.
+    ! Scattering the electron in the CM frame.
+    ! Turn the velocity in that frame, using Ksi and Fi. After that transform the velocity to the laboratory frame.
 
     V =    0.5_8 * SQRT(Usq) ! (U/2)
     V_xy = 0.5_8 * SQRT(Ux*Ux + Uy*Uy)
 
-  IF (V_xy.GT.1.0d-20) THEN
-     a = Vx / V_xy
-     b = Vy / V_xy
-     Vx_s = Vx * CosKsi + (SinFi * V * b + CosFi * Vz * a) * SinKsi
-     Vy_s = Vy * CosKsi - (SinFi * V * a - CosFi * Vz * b) * SinKsi
-     Vz_s = Vz * CosKsi - V_xy * CosFi * SinKsi
-  ELSE
-     Vx_s = ABS(Vz) * SinKsi * CosFi
-     Vy_s = ABS(Vz) * SinKsi * SinFi
-     Vz_s = Vz * CosKsi
-  END IF
-! back to "lab" frame after scattering:  
-  electron(k)%VX = Vframe_x + Vx_s 
-  electron(k)%VY = Vframe_y + Vy_s
-  electron(k)%VZ = Vframe_z + Vz_s
+    IF (V_xy.GT.1.0d-20) THEN
+      a = Vx / V_xy
+      b = Vy / V_xy
+      Vx_s = Vx * CosKsi + (SinFi * V * b + CosFi * Vz * a) * SinKsi
+      Vy_s = Vy * CosKsi - (SinFi * V * a - CosFi * Vz * b) * SinKsi
+      Vz_s = Vz * CosKsi - V_xy * CosFi * SinKsi
+    ELSE
+      Vx_s = ABS(Vz) * SinKsi * CosFi
+      Vy_s = ABS(Vz) * SinKsi * SinFi
+      Vz_s = Vz * CosKsi
+    END IF
+    ! back to "lab" frame after scattering:  
+    electron(k)%VX = Vframe_x + Vx_s 
+    electron(k)%VY = Vframe_y + Vy_s
+    electron(k)%VZ = Vframe_z + Vz_s
 
   END DO ! particle loop
 
