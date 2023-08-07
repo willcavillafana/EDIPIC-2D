@@ -73,6 +73,7 @@ contains
     factor_axis_geom_cyl = 1.0_8
     factor_geom_cyl_left = 1.0_8
     factor_geom_cyl_right = 1.0_8
+    rhs_coef = 1.0_8
    neumann_flag = .FALSE.
 !    integer            :: m, n, nx, ny, i, j, k, ix, jy
 !    PetscInt :: nrows, ncols, one=1, five=5, temp
