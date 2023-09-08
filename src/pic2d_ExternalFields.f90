@@ -296,10 +296,10 @@ REAL(8) FUNCTION By(x, y)
       coef_1 = 1.76e+04 ! At Lx it is 1G
       By = -B0*EXP(-coef_1*x**2)
   ELSE IF ( i_mag_profile==2 ) THEN
-      IF ( y*delta_x_m > 2.5224e-2 ) THEN
-         B0 = -200e-4/B_scale_T
+      IF ( y > y_discontinuity_1 ) THEN ! already normalized 
+         B0 = top_B_val_1
       ELSE
-         B0 = -400e-4/B_scale_T
+         B0 = bottom_B_val_1
       END IF
       By = B0
   END IF    

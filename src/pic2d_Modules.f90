@@ -26,6 +26,7 @@ MODULE ExternalFields
 
   ! Parameter for ECR cathode
   INTEGER :: i_mag_profile ! 0: off, 1 gaussian in x direction, 1 double direction in y direction
+  REAL(8) :: top_B_val_1, bottom_B_val_1, y_discontinuity_1 ! for i_mag=2 (double unifrom profile in y). y_discontinuity_1 is where the field goes from top_B_val_1 to bottom_B_val_1
 
 END MODULE ExternalFields
 

@@ -308,10 +308,12 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    USE SetupValues, ONLY: j_ion_source_start_ecr, j_ion_source_end_ecr, i_ion_source_start_ecr, i_ion_source_end_ecr, c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, &
                           c_i_ion_source_start_ecr, c_i_ion_source_end_ecr, i_neutral_profile, i_ionize_source_ecr, xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz, &
                           ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr, ye_neutral_1, ys_neutral_1, nn_neutral_1
-   USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell, delta_t_s, e_Cl, zero, N_subcycles
+   USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell, delta_t_s, e_Cl, zero, N_subcycles, &
+                                    B_scale_T
    USE mod_print, ONLY: print_parser_error, print_message
    USE ParallelOperationValues!, ONLY: Rank_of_process, cluster_rank_key
    USE MCCollisions, ONLY: neutral
+   USE ExternalFields, ONLY: i_mag_profile, bottom_B_val_1, top_B_val_1, y_discontinuity_1
    
    CHARACTER(LEN=string_length) :: message, chaval,long_buf,line,separator, routine
    INTEGER :: i_found ! flag to decide if I found keyword or not.
@@ -365,6 +367,37 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
       IF ( i_found==0 ) THEN
          IF ( Rank_of_process==0 ) PRINT*,'magnetic_field_profile no present. I assume we do not want it'//achar(10)
       END IF    
+
+      IF ( i_mag_profile==2 ) THEN
+         ! Must provide top value, low value of B field and Y location at which we have the discontinuity
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="double_uniform_y_B_top_B_low_y_loc" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,top_B_val_1,bottom_B_val_1,y_discontinuity_1
+               WRITE( message,'(A,ES10.3,A,ES10.3,A,ES10.3,A)') "Magnetic field profile double_uniform_y top_B_val_1,bottom_B_val_1 = ",top_B_val_1," ",bottom_B_val_1," [T]. Discontinuity from top to low value at y=",y_discontinuity_1," [m]"//achar(10)
+               CALL print_message( message )  
+               
+               ! Normalize length
+               y_discontinuity_1 = y_discontinuity_1/delta_x_m
+               
+               ! Normalize B field
+               top_B_val_1    = top_B_val_1/B_scale_T
+               bottom_B_val_1 = bottom_B_val_1/B_scale_T
+
+               EXIT
+            END IF
+         END DO   
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "gradient_aperture_1_Y_start_Y_end_nn_final keyword not present. I need three doubles. Two first ones in m. Last one in m-3"
+            CALL print_parser_error(message)
+         END IF            
+      END IF
+         
 
       i_found = 0
       REWIND(9)
