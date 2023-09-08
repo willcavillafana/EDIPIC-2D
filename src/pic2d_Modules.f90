@@ -1087,6 +1087,7 @@ MODULE SetupValues
   INTEGER :: c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, c_i_ion_source_start_ecr, c_i_ion_source_end_ecr ! boundaries for cluster
 
   INTEGER :: i_neutral_profile ! For ECR project. Selects predefined neutral profiles
+  REAL(8) :: ys_neutral_1,ye_neutral_1,nn_neutral_1 ! For i_neutral_profile=1 (graident in Y direction). This is starting and ending points of gradient. nn_neutral_1 is the final neutral density profile. Below that it remains the profiles remains at this value 
   INTEGER :: i_ionize_source_ecr ! For Ecr, volumic ionization source term 
   REAL(8) :: ioniz_ecr_vol_I_injected ! For ECR volumic ionization source: injected current in A
   REAL(8) :: xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz ! For ECR volumic ionization source: position of ionization volumic source

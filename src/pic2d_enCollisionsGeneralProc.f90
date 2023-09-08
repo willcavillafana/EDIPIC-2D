@@ -8,6 +8,7 @@ SUBROUTINE INITIATE_ELECTRON_NEUTRAL_COLLISIONS
   USE MCCollisions
   USE CurrentProblemValues, ONLY : kB_JK, e_Cl, N_max_vel, T_e_eV, N_max_vel
   USE IonParticles, ONLY : N_spec, Ms
+  USE SetupValues, ONLY: i_neutral_profile, nn_neutral_1
 !  USE ClusterAndItsBoundaries
 
   IMPLICIT NONE
@@ -85,6 +86,8 @@ SUBROUTINE INITIATE_ELECTRON_NEUTRAL_COLLISIONS
      READ (9, '(5x,f7.1)') neutral(n)%T_K
   END DO
   CLOSE (9, STATUS = 'KEEP')
+
+  IF ( i_neutral_profile==1 ) nn_neutral_1 = nn_neutral_1/neutral(1)%N_m3 ! Normalize 
 
 !CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 !print *, "read init_neutrals.dat"
@@ -852,7 +855,7 @@ END SUBROUTINE SAVE_en_COLLISIONS
 REAL(8) FUNCTION neutral_density_normalized(n, x, y)
 
 !  USE CurrentProblemValues, ONLY : N_cells, delta_x_m
-   USE SetupValues, ONLY: i_neutral_profile
+   USE SetupValues, ONLY: i_neutral_profile, ys_neutral_1,ye_neutral_1,nn_neutral_1
 
    IMPLICIT NONE
 
@@ -865,13 +868,15 @@ REAL(8) FUNCTION neutral_density_normalized(n, x, y)
    IF ( i_neutral_profile==1 ) THEN
       
       ! in aperture and below
-      IF ( y< DBLE(677) .AND.y>DBLE(670) ) THEN
+      IF ( y< ys_neutral_1 ) THEN
          
-         ! Linear gradient
-         slope = (1.0_8-0.10_8)/(DBLE(677)-DBLE(670))
-         intersect = 1.0_8-slope*DBLE(677)
+         ! Linear gradient. 
+         slope = (1.0_8-nn_neutral_1)/(ys_neutral_1-ye_neutral_1)
+         intersect = 1.0_8-slope*ys_neutral_1
 
-         neutral_density_normalized = MAX(0.10_8,slope*y+intersect)
+         neutral_density_normalized = slope*y+intersect
+      ELSE IF (y< ye_neutral_1) THEN
+         neutral_density_normalized = nn_neutral_1
       END IF
    
    END IF

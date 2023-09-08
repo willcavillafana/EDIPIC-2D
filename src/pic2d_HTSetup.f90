@@ -307,10 +307,11 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    USE ClusterAndItsBoundaries, ONLY: c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
    USE SetupValues, ONLY: j_ion_source_start_ecr, j_ion_source_end_ecr, i_ion_source_start_ecr, i_ion_source_end_ecr, c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, &
                           c_i_ion_source_start_ecr, c_i_ion_source_end_ecr, i_neutral_profile, i_ionize_source_ecr, xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz, &
-                          ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr   
+                          ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr, ye_neutral_1, ys_neutral_1, nn_neutral_1
    USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell, delta_t_s, e_Cl, zero, N_subcycles
    USE mod_print, ONLY: print_parser_error, print_message
    USE ParallelOperationValues!, ONLY: Rank_of_process, cluster_rank_key
+   USE MCCollisions, ONLY: neutral
    
    CHARACTER(LEN=string_length) :: message, chaval,long_buf,line,separator, routine
    INTEGER :: i_found ! flag to decide if I found keyword or not.
@@ -379,7 +380,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
             IF ( TRIM(chaval)=="gradient_aperture_1" ) THEN 
                i_neutral_profile = 1
                ! Print message and inform user
-               WRITE( message, '(A)'), "ECR project: neutral profile is gradient_aperture_1"//achar(10)
+               WRITE( message, '(A)'), "ECR project: neutral profile is gradient_aperture_1. Gradient in Y direction."//achar(10)
             ELSE
                WRITE( message, '(A,A,A)'), "ECR project: selected neutral profile is incorrect. Expected: 'gradient_aperture_1'. Received: ",TRIM(chaval),ACHAR(10)
                CALL print_parser_error(message)            
@@ -392,7 +393,34 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
       IF ( i_found==0 ) THEN
          WRITE( message,'(A)') "neutral_profile keyword not present. I assume it is uniform"//achar(10)
          CALL print_message( message )    
-      END IF      
+      END IF  
+      
+      IF ( i_neutral_profile==1 ) THEN
+         ! positions y_start, y_end, Final density 
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="gradient_aperture_1_Y_start_Y_end_nn_final" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,ys_neutral_1,ye_neutral_1,nn_neutral_1
+               WRITE( message,'(A,ES10.3,ES10.3,A,ES10.3,A)') "Neutral profile gradient_aperture_1 y_start,y_end = ",ys_neutral_1,ye_neutral_1," [m]. Final density nn=",nn_neutral_1," [m-3] (density below y_end will be set to this value and will be uniform. Only first neutral species is considered)"//achar(10)
+               CALL print_message( message )  
+               
+               ! Normalize length
+               ys_neutral_1 = ys_neutral_1/delta_x_m
+               ye_neutral_1 = ye_neutral_1/delta_x_m
+
+               EXIT
+            END IF
+         END DO   
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "gradient_aperture_1_Y_start_Y_end_nn_final keyword not present. I need three doubles. Two first ones in m. Last one in m-3"
+            CALL print_parser_error(message)
+         END IF            
+      END IF
 
       ! Input for artificial ionization source term       
       i_found = 0
