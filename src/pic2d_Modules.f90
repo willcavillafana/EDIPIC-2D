@@ -196,6 +196,9 @@ MODULE CurrentProblemValues
   INTEGER :: i_no_poisson                                    ! Deactivate poisson   (no  e_field)
   INTEGER :: i_reflection_cyl_electron, i_reflection_cyl_ion ! Indicates if   we asked for a specular reflection for electrons and ions in cylindrical geometry. Inelastic collisions are not implemented for now (Dec 20, 2022)
   INTEGER :: i_empty_domain                                  ! Initialize domain with no particles (=1, 0 otherwise by default)
+  INTEGER :: i_one_particle                                  ! Initialize domain with one particle (=1, 0 otherwise by default)
+  REAL(8) :: vthx_factor,vthy_factor,vthz_factor             ! If one particle in domain, these are factor of of the thermal speed for each direction (you can choose the velocity of the imposed particle)
+  INTEGER :: i_velocity_one_particle                         ! I impose velocity of the only particle in domain (=1) or I do nothing(=0)
 
   REAL(8) :: LX, LY ! maximal dimensions of domain (dimensio)
 

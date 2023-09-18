@@ -160,6 +160,11 @@ SUBROUTINE INITIATE_PARAMETERS
   Delta_z = one
   i_no_poisson = 0
   i_empty_domain = 0
+  i_one_particle = 0
+  vthx_factor = one
+  vthy_factor = one
+  vthz_factor = one
+  i_velocity_one_particle = 0
   given_F_double_period_sys = 1000000.0_8        !
   i_given_F_double_period_sys = -7777777   ! should be sufficient to not to trigger accidentally the node with given potential
   j_given_F_double_period_sys = -7777777   ! for a double-periodic system without given potential metal boundaries
@@ -1418,7 +1423,7 @@ SUBROUTINE read_flexible_parameters
    
    USE ParallelOperationValues, ONLY: Rank_of_process
    USE mod_print, ONLY: print_message, print_parser_error
-   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain
+   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain, i_one_particle,vthx_factor,vthy_factor,vthz_factor, i_velocity_one_particle   
    USE IonParticles, ONLY: i_freeze_ions
    USE Snapshots, ONLY: work_dir_2d_map
    
@@ -1635,6 +1640,66 @@ SUBROUTINE read_flexible_parameters
       IF ( i_found==0 ) THEN
          WRITE( message,'(A)') "i_empty_domain keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
+      END IF          
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="i_one_particle" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            IF ( TRIM(caval)=="yes" ) THEN
+               IF ( i_empty_domain==1 ) THEN
+                  WRITE( message,'(A,A)') 'You specified i_empty_domain= yes and i_one_particle= yes. This is contradictory, you must choose either no to both or only one to yes. Received: ',achar(10)
+                  CALL print_parser_error( message )                  
+               END IF
+
+               i_one_particle = 1
+               WRITE( message,'(A)') "Domain will be initialized with one particle in whole domain (will be in proc=0)"//achar(10)
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_one_particle = 0
+               WRITE( message,'(A)') "Domain will be initialized with the specified density"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_one_particle is used. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO       
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "i_one_particle keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF        
+      
+      IF ( i_one_particle==1 ) THEN
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="i_velocity_one_particle" ) THEN ! found search string at beginning of line
+               i_velocity_one_particle = 1
+               i_found = 1
+               READ (line,*) long_buf,separator,vthx_factor,vthy_factor,vthz_factor       
+
+               WRITE( message,'(A,ES10.3,ES10.3,ES10.3,A)') "Velocity of one particle is proportional to thermal velocity. Factors for X, Y and Z directions are", &
+               vthx_factor,vthy_factor,vthz_factor," [-]."//achar(10)
+               CALL print_message( message )              
+
+               EXIT
+               
+            END IF
+         END DO       
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "i_velocity_one_particle keyword not present. I assume we do not want it"
+            CALL print_message( message,routine )       
+         END IF   
       END IF          
 
       i_found = 0
@@ -3809,6 +3874,7 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      IF ( i_cylindrical==2 ) THEN
          ! Get total number of particles in domain
          CALL MPI_ALLREDUCE(DBLE(N_electrons), N_electrons_total_cyl,1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, stattus, ierr)
+         
 
          ! Determine number of particles with radial linear increase. 
          ! Note that clusters from 0 to before last colum have a grid point difference. 
@@ -3826,6 +3892,11 @@ SUBROUTINE DISTRIBUTE_PARTICLES
                               (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
                               (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
                               pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m ) 
+         IF ( i_one_particle==1  ) THEN
+            N_electrons = 0
+            IF ( Rank_of_process==0 ) N_electrons = 1
+         ENDIF 
+
                              ! N_electrons =  INT( N_electrons_total_cyl*&
          !                     n_limit_y/(c_indx_y_max_total-c_indx_y_min_total)*&
          !                     (x_limit_right**2-x_limit_left**2)/(c_indx_x_max_total**2-c_indx_x_min_total**2)*&
@@ -3865,7 +3936,12 @@ SUBROUTINE DISTRIBUTE_PARTICLES
                            (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total)*&
                            (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total) )              
                            !   (y_limit_top-y_limit_bot)/(c_indx_y_max_total-c_indx_y_min_total-1)*&
-                           !   (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total-1) )                     
+                           !   (x_limit_right-x_limit_left)/(c_indx_x_max_total-c_indx_x_min_total-1) )    
+                           
+         IF ( i_one_particle==1  ) THEN
+            N_electrons = 0
+            IF ( Rank_of_process==0 ) N_electrons = 1
+         ENDIF                         
      END IF
      
      ! Print info on particles distribution
@@ -3964,6 +4040,11 @@ SUBROUTINE DISTRIBUTE_PARTICLES
         CALL GetMaxwellVelocity(v)
         electron(k)%VZ = v * factor_convert_Z + vz_drift
         electron(k)%tag = 0
+        IF (i_one_particle==1 .AND. i_velocity_one_particle==1) THEN
+         electron(k)%VX = factor_convert_X*vthx_factor
+         electron(k)%VY = factor_convert_X*vthy_factor
+         electron(k)%VZ = factor_convert_X*vthz_factor
+        ENDIF
 
      END DO
 
@@ -4031,6 +4112,11 @@ SUBROUTINE DISTRIBUTE_PARTICLES
            CALL GetMaxwellVelocity(v)
            ion(s)%part(k)%VZ = v * factor_convert
          !   ion(s)%part(k)%VZ = 0.0_8
+           IF (i_one_particle==1 .AND. i_velocity_one_particle==1) THEN
+            ion(s)%part(k)%VX = factor_convert*vthx_factor
+            ion(s)%part(k)%VY = factor_convert*vthy_factor
+            ion(s)%part(k)%VZ = factor_convert*vthz_factor
+           ENDIF           
            ion(s)%part(k)%tag = 0
         END DO
      END DO
