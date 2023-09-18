@@ -405,6 +405,12 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
      VY_plus = K21 * VX_minus + K22 * VY_minus + K23 * VZ_minus
      VZ_plus = K31 * VX_minus + K32 * VY_minus + K33 * VZ_minus
 
+     IF (i_cylindrical==2) THEN
+      VX_plus = K11 * VX_minus + K12 * VY_minus - K13 * VZ_minus
+      VY_plus = K21 * VX_minus + K22 * VY_minus - K23 * VZ_minus
+      VZ_plus = -K31 * VX_minus - K32 * VY_minus + K33 * VZ_minus
+    ENDIF
+
 ! velocity advance: second half-acceleration due to electric field
 
      electron(k)%VX = VX_plus - 0.5_8 * E_X
@@ -1249,6 +1255,12 @@ end if
      VX_plus = K11 * VX_minus + K12 * VY_minus + K13 * VZ_minus
      VY_plus = K21 * VX_minus + K22 * VY_minus + K23 * VZ_minus
      VZ_plus = K31 * VX_minus + K32 * VY_minus + K33 * VZ_minus
+
+     IF (i_cylindrical==2) THEN
+      VX_plus = K11 * VX_minus + K12 * VY_minus - K13 * VZ_minus
+      VY_plus = K21 * VX_minus + K22 * VY_minus - K23 * VZ_minus
+      VZ_plus = -K31 * VX_minus - K32 * VY_minus + K33 * VZ_minus
+    ENDIF     
 
 ! velocity advance: second half-acceleration due to electric field
 

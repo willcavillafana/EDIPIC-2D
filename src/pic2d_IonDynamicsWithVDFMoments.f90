@@ -421,6 +421,12 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
         VY_plus = K21 * VX_minus + K22 * VY_minus + K23 * VZ_minus
         VZ_plus = K31 * VX_minus + K32 * VY_minus + K33 * VZ_minus
 
+        IF (i_cylindrical==2) THEN
+         VX_plus = K11 * VX_minus + K12 * VY_minus - K13 * VZ_minus
+         VY_plus = K21 * VX_minus + K22 * VY_minus - K23 * VZ_minus
+         VZ_plus = -K31 * VX_minus - K32 * VY_minus + K33 * VZ_minus
+       ENDIF        
+
 ! velocity advance: second half-acceleration due to electric field
 
         ion(s)%part(k)%VX = VX_plus + QM2s(s) * E_X
@@ -1279,6 +1285,12 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
            VX_plus = K11 * VX_minus + K12 * VY_minus + K13 * VZ_minus
            VY_plus = K21 * VX_minus + K22 * VY_minus + K23 * VZ_minus
            VZ_plus = K31 * VX_minus + K32 * VY_minus + K33 * VZ_minus
+
+           IF (i_cylindrical==2) THEN
+            VX_plus = K11 * VX_minus + K12 * VY_minus - K13 * VZ_minus
+            VY_plus = K21 * VX_minus + K22 * VY_minus - K23 * VZ_minus
+            VZ_plus = -K31 * VX_minus - K32 * VY_minus + K33 * VZ_minus
+          ENDIF           
 
 ! velocity advance: second half-acceleration due to electric field
 
