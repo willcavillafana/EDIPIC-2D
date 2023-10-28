@@ -173,11 +173,11 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
      IF (R.LE.1.e-20) THEN 
         CosKsi = -1.0_8     
      ELSEIF (s_coll.LE.2.e-2) THEN
-             CosKsi = 1.0_8 + s_coll * LOG(R) !this will be the prevailing case 
+        CosKsi = 1.0_8 + s_coll * LOG(R) !this will be the prevailing case 
      ELSEIF (s_coll.ge.6.0_8) THEN 
         CosKsi = 2.0_8 * R - 1.0_8
      ELSE   
-     CosKsi = LOG( EXP(-A_norm) + 2.* R * SINH(A_norm)) / A_norm 
+        CosKsi = LOG( EXP(-A_norm) + 2.* R * SINH(A_norm)) / A_norm 
      END IF
 
      CosKsi = MAX(-1.0_8, MIN(CosKsi, 1.0_8))

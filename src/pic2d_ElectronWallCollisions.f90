@@ -661,7 +661,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
 
   IF (mcross.EQ.-1) THEN
      print*,'xorg,yorg,xnew,ynew,vx.vy.vz,vx_old,vy_old',xorg,yorg,x,y,vx,vy,vz,vx_old,vy_old
-     PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT. If this is a problem with cylindrical and specular reflection, remove specular walls behind inner object ",4(2x,f10.4))', xorg, yorg, x, y
+     PRINT '("Error-1 in TRY_ELECTRON_COLL_WITH_INNER_OBJECT. If this is a problem with cylindrical and specular reflection, remove specular walls behind inner object. Top and bottom right corner can sometimes present problems (including leaks). Might try to add some pace between inner objects and these corners as well. ",4(2x,f10.4))', xorg, yorg, x, y
      CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
   END IF
 
@@ -988,7 +988,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
           y_star = SIGN(one,vy_old)*SQRT(xseg**2-x_start**2)
           t_star = y_star/vy_old
       ELSE ! Line with finite slope 
-          sol_sign = SIGN(one,vx_old) ! This will determine which solution of the quadratice equation we retain
+          sol_sign = one!SIGN(one,vx_old) ! This will determine which solution of the quadratice equation we retain
 
           a = vy_old/vx_old
           b = -a*x_start
@@ -1011,14 +1011,14 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
       alpha_ang = DATAN2(y_star,x_star)
       vx_new =  COS(alpha_ang)*vx_old + SIN(alpha_ang)*vy_old
       vz_new = -SIN(alpha_ang)*vx_old + COS(alpha_ang)*vy_old ! theta
-       !IF (xorg > 1819.9999 .AND. xorg<1820.0) print*,'y_star,tnew,vy_old',y_star,(y_star)/vy_old,vy_old
+      !  IF (xorg > 1024.1077 .AND. xorg<1024.1079) print*,'xorg,y_star,tnew,vy_old,ycross,t_star,yorg,vz_axial,x_star,x_start',xorg,y_star,(y_star)/vy_old,vy_old,ycross,t_star,yorg,vz_axial,x_star,x_start
    END IF
 
   IF (.NOT.ieee_is_finite(ycross)) THEN
      mystatus = 1
      RETURN
   END IF
-
+!   IF (xorg > 1024.1077 .AND. xorg<1024.1079) print*,'xorg,ycross,yminseg,ymaxseg,yorg,y',xorg,ycross,yminseg,ymaxseg,yorg,y
   IF (ycross.LT.yminseg) RETURN
   IF (ycross.GT.ymaxseg) RETURN
   IF (ycross.LT.MIN(y,yorg)) RETURN  ! paranoidal failsafe check?
@@ -1392,7 +1392,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
        y_star = SIGN(one,vy)*SQRT(R_max**2-x_start**2)
        t_star = y_star/vy  
    ELSE ! Line with finite slope
-       sol_sign = SIGN(one,vx) ! This will determine which solution of the quadratice equation we retain    
+       sol_sign = one !SIGN(one,vx) ! This will determine which solution of the quadratice equation we retain    
        a = vy/vx
        b = -a*x_start
 
