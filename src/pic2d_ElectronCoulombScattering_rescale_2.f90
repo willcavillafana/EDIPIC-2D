@@ -278,11 +278,15 @@ SUBROUTINE INITIATE_COULOMB_SCATTERING
   LOGICAL exists
 
 ! Coulomb_flag is read in INITIATE_PARAMETERS to set the required arrays of velocity moments
+
+  REAL(8) :: factor_eps ! Remove scaling factor for Coulomb collisions. 
+
   IF (.NOT.Coulomb_flag) RETURN
 
 !   L_debye_0 = L_debye_m / sqrt(2.0_8)
-  base_plasma_param = N_plasma_m3 * L_debye_m**3 ! L_debye_m is correct (not off by a factor sqrt(2))
-  base_Coulomb_probab = W_plasma_s1 * delta_t_s / base_plasma_param * DBLE(N_subcycles)
+  factor_eps = eps_0_Fm/true_eps_0_Fm
+  base_plasma_param = N_plasma_m3 * L_debye_m**3 / factor_eps**1.5 ! L_debye_m is correct (not off by a factor sqrt(2))
+  base_Coulomb_probab = W_plasma_s1 * delta_t_s / base_plasma_param * DBLE(N_subcycles) * SQRT(factor_eps)
   L_ee_0 = pi * base_plasma_param   
   
 END SUBROUTINE INITIATE_COULOMB_SCATTERING         
