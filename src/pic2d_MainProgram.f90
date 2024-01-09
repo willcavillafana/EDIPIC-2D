@@ -56,6 +56,8 @@ PROGRAM MainProg
   T_cntr_cluster_load_balance = Start_T_cntr
 
   CALL INITIATE_PARAMETERS
+
+  CALL SET_PARTICLE_TRACING_e
 !print *, "did INITIATE_PARAMETERS"
 
   CALL ANALYZE_BOUNDARY_OBJECTS
@@ -459,7 +461,12 @@ PROGRAM MainProg
      CALL GATHER_SURFACE_CHARGE_DENSITY_INNER_OBJECTS   ! whole_object%surface_charge_variation=0 is done here
 
      CALL end_timer( gather_surface_charge_density_timer )
- 
+     CALL start_timer( ptcl_tracing_timer ) 
+     
+     CALL START_PARTICLE_TRACING_e
+
+     CALL SAVE_TRACED_PARTICLES_e     
+     CALL end_timer( ptcl_tracing_timer )
 
      !t20 = MPI_WTIME()
      ! Output time info

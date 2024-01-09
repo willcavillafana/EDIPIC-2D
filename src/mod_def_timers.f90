@@ -31,6 +31,7 @@ MODULE mod_def_timers
     TYPE(T_TIMER) :: add_electrons_after_emission_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: save_bo_particle_hits_emissions_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: gather_surface_charge_density_timer = t_timer( start=zero,end=zero,total=zero )
+    TYPE(T_TIMER) :: ptcl_tracing_timer = t_timer( start=zero,end=zero,total=zero )
 
     CONTAINS
 !--------------------------------------------------------------------------------------------------
@@ -90,6 +91,8 @@ MODULE mod_def_timers
         CALL print_timer( save_bo_particle_hits_emissions_timer,message )
         message = "Gather surface charge density"
         CALL print_timer( gather_surface_charge_density_timer,message )
+        message = "Particle tracing"
+        CALL print_timer( ptcl_tracing_timer,message )
         
     END SUBROUTINE 
     
@@ -101,7 +104,7 @@ MODULE mod_def_timers
 !-------------------------------------------------------------------------------------------------- 
     SUBROUTINE print_iteration_info ( time_counter )
         
-        USE CurrentProblemValues, ONLY: delta_t_s,one
+        USE CurrentProblemValues, ONLY: delta_t_s,one, Start_T_cntr
         USE mod_print, ONLY: print_message
     
         IMPLICIT NONE
@@ -115,7 +118,7 @@ MODULE mod_def_timers
         CHARACTER(LEN=string_length) :: message
     
         ! First iteration
-        IF ( time_counter==0 ) THEN
+        IF ( time_counter==Start_T_cntr ) THEN
           WRITE(message,'(A)') "Iteration #        Total_time [s]        Iteration/second [s-1]"//achar(10)
           CALL print_message(message)
         END IF

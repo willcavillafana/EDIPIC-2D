@@ -2121,3 +2121,125 @@ module carlson_elliptic_module
 !*******************************************************************************
 end module carlson_elliptic_module
 !*******************************************************************************
+
+!--------------------------------------------------------------------------------------------------
+!     MODULE print
+!>    @details Set up everything you need to perform particle tracing (electrons as of Jan 8 2024)
+!!    @authors W. Villafana
+!!    @date    Jan-8-2024
+!--------------------------------------------------------------------------------------------------
+
+MODULE ParticleTracing
+
+  INTEGER, PARAMETER :: maximal_N_cells_tracing = 50
+  INTEGER, PARAMETER :: maximal_N_part_to_trace_in_cell = 20
+
+  LOGICAL save_e_vz
+  LOGICAL save_e_irrEx
+  LOGICAL save_e_irrEy
+  LOGICAL save_e_extEz
+  LOGICAL save_e_solEx
+  LOGICAL save_e_solEy
+  LOGICAL save_e_solEz
+  LOGICAL save_e_solBx
+  LOGICAL save_e_solBy
+  LOGICAL save_e_solBz
+  LOGICAL save_e_extBx
+  LOGICAL save_e_extBy
+  LOGICAL save_e_extBz
+
+  INTEGER Tcntr_e_tracing_start
+  INTEGER Tcntr_e_tracing_end
+  INTEGER Tcntr_e_tracing_step
+  INTEGER T_cntr_save_traced_electrons
+
+  INTEGER e_record_length
+
+  INTEGER N_of_cells_e_tracing
+
+  TYPE ParticleTracingSetup
+     INTEGER icell
+     INTEGER jcell
+     INTEGER N_to_trace
+     LOGICAL choose_negative_VX
+     LOGICAL choose_positive_VX
+     LOGICAL choose_negative_VY
+     LOGICAL choose_positive_VY
+  END TYPE ParticleTracingSetup
+
+  TYPE(ParticleTracingSetup) cell_e_tracing(1:maximal_N_cells_tracing)
+
+END MODULE ParticleTracing
+
+!--------------------------------------------------------------------------------------------------
+!     MODULE print
+!>    @details Stuff needed for Darwin (some variables present by default in particle tracing)
+!!    @authors W. Villafana
+!!    @date    Jan-8-2024
+!--------------------------------------------------------------------------------------------------
+
+MODULE SolenoidalFields
+
+  REAL(8), ALLOCATABLE :: sol_EX(:,:)
+  REAL(8), ALLOCATABLE :: sol_EY(:,:)
+  REAL(8), ALLOCATABLE :: sol_EZ(:,:)
+
+  REAL(8), ALLOCATABLE :: sol_BX(:,:)
+  REAL(8), ALLOCATABLE :: sol_BY(:,:)
+  REAL(8), ALLOCATABLE :: sol_BZ(:,:)
+
+  REAL(8), ALLOCATABLE :: old_sol_EX(:,:)  ! these fields are used by master processes only
+  REAL(8), ALLOCATABLE :: old_sol_EY(:,:)  ! they are updated in CALCULATE_BC_FOR_BZ
+
+  REAL(8), ALLOCATABLE :: old_sol_BZ(:,:)
+
+  REAL(8), ALLOCATABLE :: delta_JX(:,:)
+  REAL(8), ALLOCATABLE :: delta_JY(:,:)
+  REAL(8), ALLOCATABLE :: delta_JZ(:,:)
+  
+  TYPE electric_current_patch
+     REAL(8) amplitude
+     REAL(8) omega
+     REAL(8) phase
+     INTEGER imin
+     INTEGER imax
+     INTEGER jmin
+     INTEGER jmax
+  END TYPE electric_current_patch
+
+  INTEGER N_of_JZ_patches
+  TYPE(electric_current_patch), ALLOCATABLE :: JZpatch(:)
+
+  TYPE contour_box
+     INTEGER imin
+     INTEGER jmin
+     INTEGER imax
+     INTEGER jmax
+  END TYPE contour_box
+
+  TYPE contour
+     INTEGER material_object_number
+!     INTEGER N_boxes ! presently 2, box 1 is the main contour, box 2 is the primed contour which has common side with the prime one but is smaller
+     TYPE(contour_box) box(1:2)
+  END TYPE contour
+
+  INTEGER N_Faraday_contours
+  TYPE(contour), ALLOCATABLE :: Faraday_contour(:)
+
+  REAL(8), ALLOCATABLE :: EXEY_circulation_contour_field(:,:)
+  REAL(8), ALLOCATABLE :: EXEY_circulation_primed_contour_field(:,:)
+
+  REAL(8), ALLOCATABLE :: sol_EX_1(:,:,:)
+  REAL(8), ALLOCATABLE :: sol_EY_1(:,:,:)
+
+  REAL(8), ALLOCATABLE :: A(:)
+  REAL(8), ALLOCATABLE :: B(:,:)
+
+  REAL(8), ALLOCATABLE :: sol_BX_partial(:,:,:)
+  REAL(8), ALLOCATABLE :: sol_BY_partial(:,:,:)
+
+  REAL(8), ALLOCATABLE :: integral_solBXBY_loop_field(:,:)
+
+  REAL(8), ALLOCATABLE :: sol_EZ_partial(:,:,:)
+
+END MODULE SolenoidalFields

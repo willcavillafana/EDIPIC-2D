@@ -97,7 +97,8 @@ OBJ := WELL19937a_new.o \
        pic2d_IonEmissions.o \
        pic2d_ExternalCircuits.o \
        pic2d_ExternalCircuit_PS_Voltages.o \
-       pic2d_ElectronCoulombScattering_rescale_2.o
+       pic2d_ElectronCoulombScattering_rescale_2.o\
+       pic2d_ParticleTracing.o
 
 edipic2d : version_info $(OBJ) 
 	$(FC) $(FFLAGS) -o $@ $(OBJ) $(LIBS)

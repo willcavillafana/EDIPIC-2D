@@ -1329,6 +1329,8 @@ SUBROUTINE ADD_ELECTRON_TO_BO_COLLS_LIST(coll_coord, vx, vy, vz, tag, nwo, nseg)
 
   k = e_colls_with_bo(nwo)%N_of_saved_parts
 
+  tag = tag - (tag/10000)*10000   ! to clear tracing increment if there is any
+
   e_colls_with_bo(nwo)%part(k)%token = tag + 100 * nseg
 
   e_colls_with_bo(nwo)%part(k)%coll_coord = coll_coord

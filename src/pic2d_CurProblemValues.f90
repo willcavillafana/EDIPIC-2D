@@ -4032,13 +4032,13 @@ SUBROUTINE DISTRIBUTE_PARTICLES
         END IF
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VX =  v * factor_convert_X + vx_drift
+        electron(k)%VX =  zero!v * factor_convert_X + vx_drift
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VY = v * factor_convert_Y + vy_drift
+        electron(k)%VY = zero!v * factor_convert_Y + vy_drift
 
         CALL GetMaxwellVelocity(v)
-        electron(k)%VZ = v * factor_convert_Z + vz_drift
+        electron(k)%VZ = zero!v * factor_convert_Z + vz_drift
         electron(k)%tag = 0
         IF (i_one_particle==1 .AND. i_velocity_one_particle==1) THEN
          electron(k)%VX = factor_convert_X*vthx_factor
