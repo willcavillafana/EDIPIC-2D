@@ -311,7 +311,7 @@ print '("proc ",i4," entered START_PARTICLE_TRACING_e")', Rank_of_process
 
   DO n = 1, N_of_cells_e_tracing
 
-print '(2x,i4,2x,i2,4x,3(2x,i4),4x,3(2x,i4))', Rank_of_process, n, c_indx_x_min, cell_e_tracing(n)%icell, i_limit_right, c_indx_y_min, cell_e_tracing(n)%jcell, j_limit_above
+! print '(2x,i4,2x,i2,4x,3(2x,i4),4x,3(2x,i4))', Rank_of_process, n, c_indx_x_min, cell_e_tracing(n)%icell, i_limit_right, c_indx_y_min, cell_e_tracing(n)%jcell, j_limit_above
 
 ! skip locations outside the cluster's domain
      IF (cell_e_tracing(n)%icell.LT.c_indx_x_min) CYCLE
@@ -639,7 +639,7 @@ SUBROUTINE SAVE_TRACED_PARTICLES_e
         bigbufsize = bigbufsize + N_to_save(m)
      END DO
 
-print '(16(2x,i4))', my_N_to_save, N_to_save
+! print '(16(2x,i4))', my_N_to_save, N_to_save
 
      bigbufsize = bigbufsize * e_record_length
      ALLOCATE(bigbufer(1:bigbufsize), STAT = ALLOC_ERR)
