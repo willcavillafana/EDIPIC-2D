@@ -357,13 +357,20 @@ REAL(8) FUNCTION Coeff_ii_EE_True(s, energy, theta, myobject)
   INTEGER s            ! ion species index
   REAL(8) energy       ! dim-less energy of incident ion
   REAL(8) theta        ! angle of incidence, with respect to the surface normal  (0 = normal incidence)
+  REAL(8) :: slope,y_intersect ! for linear emission model 
   TYPE(boundary_object) myobject
 
   Coeff_ii_EE_True = 0.0_8
 
-  IF ((energy.GT.myobject%minE_ii_ee_true(s)).AND.(energy.LE.myobject%maxE_ii_ee_true(s))) THEN
-     Coeff_ii_EE_True = myobject%setD_ii_ee_true(s)
-  END IF
+   IF ((energy.GT.myobject%minE_ii_ee_true(s)).AND.(energy.LE.myobject%maxE_ii_ee_true(s))) THEN
+      IF ( myobject%i_linear_model_ion_induced==1 ) THEN
+         slope = (myobject%max_yield_ion_induced_ee_linear_model(s) - myobject%min_yield_ion_induced_ee_linear_model(s))/( myobject%maxE_ii_ee_true(s)-myobject%minE_ii_ee_true(s) )
+         y_intersect = myobject%max_yield_ion_induced_ee_linear_model(s)-slope*myobject%maxE_ii_ee_true(s)
+         Coeff_ii_EE_True = slope*energy+y_intersect
+      ELSE
+         Coeff_ii_EE_True = myobject%setD_ii_ee_true(s)
+      END IF
+   END IF
 
 END FUNCTION Coeff_ii_EE_True
 

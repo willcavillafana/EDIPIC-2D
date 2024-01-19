@@ -23,7 +23,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
   
   CHARACTER(54) bosee_filename    ! _bo_NN_electron_induced_SEE_coefficients_vs_energy.dat
                                   ! ----x----I----x----I----x----I----x----I----x----I----
-  CHARACTER(48) boiiee_filename   ! _bo_NN_ion_induced_EE_coefficients_vs_energy.dat
+  CHARACTER(49) boiiee_filename   ! _bo_NN_ion_induced_EE_coefficients_vs_energy.dat
                                   ! ----x----I----x----I----x----I----x----I----x---
   INTEGER j
   REAL(8) energy, coef1, coef2, coef3, coefion(10)
@@ -56,6 +56,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
      whole_object(n)%reflects_all_ions = .FALSE.
      whole_object(n)%ion_induced_EE_enabled = .FALSE.
      whole_object(n)%Emitted_model = 0  ! sets to zero all electron-induced SEE coefficients
+     whole_object(n)%ion_thermalization = .FALSE.
 
      IF (whole_object(n)%object_type.EQ.VACUUM_GAP) THEN
         IF (Rank_of_process.EQ.0) PRINT '("### PREPARE_WALL_MATERIALS :: no material properties data file for VACUUM_GAP boundary object ",i2)', n
@@ -213,6 +214,8 @@ SUBROUTINE PREPARE_WALL_MATERIALS
 
      CLOSE (9, STATUS = 'KEEP')
 
+     CALL LOAD_LINEAR_EMISSION_INPUTS_ION_INDUCED_SEE( n,initmaterial_filename )
+
 ! make energy values dimensionless
 ! elastic reflection, model 1
      whole_object(n)%minE_see_elastic = whole_object(n)%minE_see_elastic / energy_factor_eV
@@ -330,3 +333,140 @@ SUBROUTINE PREPARE_WALL_MATERIALS
   END IF
 
 END SUBROUTINE PREPARE_WALL_MATERIALS
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE LOAD_LINEAR_EMISSION_INPUTS_ION_INDUCED_SEE
+!>    @details Load a linear model for ion-induced electron emission if requested 
+!!    @authors W. Villafana
+!!    @date    Jan-19-2024
+!!    @inputs  -material_file_name: name of the considered file
+!!    @outputs -lower and upper bounds of yield. Corresponding energies are assumed to be given in minE_ii_ee_true and maxE_ii_ee_true, respectively 
+!-------------------------------------------------------------------------------------------------- 
+SUBROUTINE LOAD_LINEAR_EMISSION_INPUTS_ION_INDUCED_SEE ( n, material_file_name )
+
+   USE IonParticles, ONLY : N_spec
+   USE CurrentProblemValues, ONLY: string_length, whole_object, zero, energy_factor_eV
+   USE mod_print, ONLY: print_debug,print_message,print_parser_error
+   USe ParallelOperationValues, ONLY: Rank_of_process
+   IMPLICIT NONE
+
+   !IN/OUT
+   INTEGER, INTENT(IN) :: n ! number of bo file name 
+   CHARACTER(24), INTENT(IN) :: material_file_name
+
+   ! LOCAL
+   CHARACTER(LEN=string_length) :: routine, message
+   INTEGER :: local_debug_level, ierr
+   LOGICAL :: exists
+   CHARACTER(LEN=string_length) :: long_buf,line,separator ! long   buffer for    string
+   CHARACTER(LEN=string_length) :: caval                   ! buffer for    string values
+   INTEGER :: i_found ! flag   to  decide  if I found keyword or not.
+   REAL(8) :: rval    ! buffer for real    values
+   INTEGER :: ival    ! buffer for integer values
+   INTEGER :: i_linear_model_ion_induced
+   INTEGER :: s
+   INTEGER ALLOC_ERR
+
+   
+   ! Defautl values
+   local_debug_level = 1
+   whole_object(n)%i_linear_model_ion_induced = 0
+   ALLOCATE(whole_object(n)%min_yield_ion_induced_ee_linear_model(1:N_spec), STAT=ALLOC_ERR)
+   ALLOCATE(whole_object(n)%max_yield_ion_induced_ee_linear_model(1:N_spec), STAT=ALLOC_ERR)
+   whole_object(n)%min_yield_ion_induced_ee_linear_model(1:N_spec) = zero
+   whole_object(n)%max_yield_ion_induced_ee_linear_model(1:N_spec) = zero
+
+   routine = 'LOAD_LINEAR_EMISSION_INPUTS_ION_INDUCED_SEE'
+   CALL print_debug(routine,local_debug_level)
+   
+   ! Open bo file and determine of any wave forms must be loaded
+   INQUIRE (FILE = material_file_name, EXIST = exists)
+   IF (exists) THEN   
+      OPEN (9, file=material_file_name)
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 .OR. i_found==1 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+         READ (line,*) long_buf ! read first word of line
+         
+         IF ( TRIM(long_buf)=="linear_model_ion_induced" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval             
+            IF ( TRIM(caval)=="yes" ) THEN
+               i_linear_model_ion_induced = 1
+               WRITE( message,'(A,I2)') "a linear model for electron ion-induced emissions will be used for object # ",n
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               i_linear_model_ion_induced = 0
+               WRITE( message,'(A,I2,A)') "no linear model for electron ion-induced emissions will be used for object # ",n,achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,I2,A,A)') 'You must specify "yes" or "no" if linear_model_ion_induced is used for object # ',n,'. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+            whole_object(n)%i_linear_model_ion_induced = i_linear_model_ion_induced
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         i_linear_model_ion_induced = 0
+         WRITE( message,'(A,I2,A)') "linear_model_ion_induced keyword not present for boundary object ",n,". I assume we do not want it"//achar(10)
+         CALL print_message( message,routine )       
+      END IF       
+
+      IF ( i_linear_model_ion_induced==1 .AND. .NOT.(whole_object(n)%ion_induced_EE_enabled) ) THEN
+         WRITE( message,'(A,I2,A)') 'Linear model for ion-induced SEE is requested  but ion-induced model has not been turned on for object # ',n,'. You must fix this first'
+         CALL print_parser_error( message )
+      END IF
+
+      IF (i_linear_model_ion_induced==1) THEN
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="linear_model_ion_induced_min_yield_arr" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,whole_object(n)%min_yield_ion_induced_ee_linear_model(1:N_spec)  
+
+               DO s = 1, N_spec
+                  WRITE( message,'(A,I2,A,ES10.3,A,ES10.3,A)') 'Ion species #',s,': minimum yield at ', whole_object(n)%minE_ii_ee_true(s)*energy_factor_eV,' eV is ',whole_object(n)%min_yield_ion_induced_ee_linear_model(s),achar(10)
+                  CALL print_message( message,routine )   
+               END DO             
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "linear_model_ion_induced_min_yield_arr keyword not present. You must use it."
+            CALL print_parser_error( message )       
+         END IF   
+
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="linear_model_ion_induced_max_yield_arr" ) THEN ! found search string at beginning of line
+               i_found = 1
+               ALLOCATE(whole_object(n)%max_yield_ion_induced_ee_linear_model(1:N_spec), STAT=ALLOC_ERR)
+               READ (line,*) long_buf,separator,whole_object(n)%max_yield_ion_induced_ee_linear_model(1:N_spec)  
+
+               DO s = 1, N_spec
+                  WRITE( message,'(A,I2,A,ES10.3,A,ES10.3,A)') 'Ion species #',s,': maximum yield at ', whole_object(n)%maxE_ii_ee_true(s)*energy_factor_eV,' eV is ',whole_object(n)%max_yield_ion_induced_ee_linear_model(s),achar(10)
+                  CALL print_message( message,routine )   
+               END DO             
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "linear_model_ion_induced_max_yield_arr keyword not present. You must use it."
+            CALL print_parser_error( message )       
+         END IF     
+      END IF       
+      CLOSE (9, STATUS = 'KEEP')
+   END IF
+
+END SUBROUTINE LOAD_LINEAR_EMISSION_INPUTS_ION_INDUCED_SEE

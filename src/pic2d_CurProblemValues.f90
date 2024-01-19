@@ -1455,6 +1455,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="cylindrical_type" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1483,6 +1484,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="Delta_z" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1502,6 +1504,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="Delta_r" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1521,6 +1524,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="delta_x" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1540,6 +1544,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="debug_level" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1560,6 +1565,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="freeze_ions" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1589,6 +1595,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="i_no_poisson" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1618,6 +1625,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="i_empty_domain" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1647,6 +1655,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="i_one_particle" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -1682,6 +1691,7 @@ SUBROUTINE read_flexible_parameters
          DO
             READ (9,"(A)",iostat=ierr) line ! read line into character variable
             IF ( ierr/=0 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
             READ (line,*) long_buf ! read first word of line
             IF ( TRIM(long_buf)=="i_velocity_one_particle" ) THEN ! found search string at beginning of line
                i_velocity_one_particle = 1
@@ -1707,6 +1717,7 @@ SUBROUTINE read_flexible_parameters
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="folder_save_2D" ) THEN ! found search string at beginning of line
             i_found = 1

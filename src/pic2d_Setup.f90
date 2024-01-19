@@ -193,6 +193,7 @@ SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM ( n,file_name_bo )
       DO
          READ (9,"(A)",iostat=ierr) line ! read line into character variable
          IF ( ierr/=0 .OR. i_found==1 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
          READ (line,*) long_buf ! read first word of line
          IF ( TRIM(long_buf)=="customized_waveform" ) THEN ! found search string at beginning of line
             i_found = 1
@@ -224,6 +225,7 @@ SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM ( n,file_name_bo )
          DO
             READ (9,"(A)",iostat=ierr) line ! read line into character variable
             IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
             READ (line,*) long_buf ! read first word of line
             IF ( TRIM(long_buf)=="customized_waveform_name" ) THEN ! found search string at beginning of line
                i_found = 1
@@ -250,6 +252,7 @@ SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM ( n,file_name_bo )
          DO
             READ (9,"(A)",iostat=ierr) line ! read line into character variable
             IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
             READ (line,*) long_buf ! read first word of line
             IF ( TRIM(long_buf)=="customized_waveform_potential" ) THEN ! found search string at beginning of line
                i_found = 1
@@ -269,6 +272,7 @@ SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM ( n,file_name_bo )
          DO
             READ (9,"(A)",iostat=ierr) line ! read line into character variable
             IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
             READ (line,*) long_buf ! read first word of line
             IF ( TRIM(long_buf)=="customized_waveform_frequency" ) THEN ! found search string at beginning of line
                i_found = 1
@@ -288,6 +292,7 @@ SUBROUTINE LOAD_CUSTOMIZED_WAVEFORM ( n,file_name_bo )
          DO
             READ (9,"(A)",iostat=ierr) line ! read line into character variable
             IF ( ierr/=0 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
             READ (line,*) long_buf ! read first word of line
             IF ( TRIM(long_buf)=="customized_waveform_nb_harmonics" ) THEN ! found search string at beginning of line
                i_found = 1

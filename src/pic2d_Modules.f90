@@ -308,6 +308,11 @@ MODULE CurrentProblemValues
      REAL(8) :: customized_waveform_phi ! phi_lf as in DOI 10.1088/1361-6463/abf229
      REAL(8) :: customized_waveform_freq ! freq as in DOI 10.1088/1361-6463/abf229
 
+     ! linear model for ion induced model
+     INTEGER :: i_linear_model_ion_induced ! 0 = no, 1 = yes
+     REAL(8), ALLOCATABLE :: min_yield_ion_induced_ee_linear_model(:)
+     REAL(8), ALLOCATABLE :: max_yield_ion_induced_ee_linear_model(:)
+
 ! waveform defines periodic non-harmonic variation of potential, the shape is defined by a user via data file
      LOGICAL use_waveform
      INTEGER N_wf_points                    ! number of waveform data points, must be no less than 2
