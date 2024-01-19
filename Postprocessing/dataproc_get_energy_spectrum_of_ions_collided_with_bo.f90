@@ -375,6 +375,10 @@ program get_energy_spectrum_of_ions_collided_with_walls
            read (19) vz
 
            token = rtoken
+           IF ( rtoken <0.0 ) THEN
+            print*,'Problem with token of this particle: k, rtoken, vx, vy, vz', k, rtoken, vx, vy, vz
+            CYCLE
+           ENDIF
 
            s = token / 10000
            N_part_of_spec(s) = N_part_of_spec(s) + 1
