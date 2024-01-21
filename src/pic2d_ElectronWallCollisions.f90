@@ -987,8 +987,9 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
           x_star = x_start
           y_star = SIGN(one,vy_old)*SQRT(xseg**2-x_start**2)
           t_star = y_star/vy_old
-      ELSE ! Line with finite slope 
-          sol_sign = one!SIGN(one,vx_old) ! This will determine which solution of the quadratice equation we retain
+      ELSE ! Line with finite slope  
+         sol_sign = SIGN(one,vx_old) ! By default we assume a wall on the right. The largest solution should be picked if we go to thr right in the circle. Otherwise it should be the smallest one.
+         IF (xseg<x_start) sol_sign = one ! if this is a wall on the left, then the largest solution of quadratic equation should be picked 
 
           a = vy_old/vx_old
           b = -a*x_start
@@ -1002,6 +1003,7 @@ SUBROUTINE CHECK_INTERSECTION_WITH_VERTICAL_SEGMENT( xorg, yorg, x, y, xseg, ymi
           
           ! Step 3: deduce spent time
           t_star = (x_star-x_start)/vx_old
+          IF (t_star<zero) print*,'Time is negative in collision with vertical wall: t_star,xseg,x_star,y_star,x_start,vx_old,vy_old',t_star,xseg,x_star,y_star,x_start,vx_old,vy_old
 
       END IF
       ! Step 4: compute axial location of intersection
@@ -1394,7 +1396,8 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
        y_star = SIGN(one,vy)*SQRT(R_max**2-x_start**2)
        t_star = y_star/vy  
    ELSE ! Line with finite slope
-       sol_sign = one !SIGN(one,vx) ! This will determine which solution of the quadratice equation we retain    
+      sol_sign = SIGN(one,vx) ! By default we assume a wall on the right. The largest solution should be picked if we go to thr right in the circle. Otherwise it should be the smallest one. 
+      ! sol_sign = one !SIGN(one,vx) ! This will determine which solution of the quadratice equation we retain    
        a = vy/vx
        b = -a*x_start
 
