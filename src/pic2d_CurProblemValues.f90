@@ -63,9 +63,9 @@ SUBROUTINE INITIATE_PARAMETERS
   USE ElectronParticles
   USE IonParticles
   USE LoadBalancing
-  USE BlockAndItsBoundaries, ONLY : block_row, block_column
+  USE BlockAndItsBoundaries, ONLY : block_row, block_column, work_dir_partition_and_fields_files
   USE ClusterAndItsBoundaries, ONLY : c_row, c_column, c_N_of_local_object_parts, c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
-  USE Diagnostics, ONLY : N_of_probes, N_of_probes_cluster
+  USE Diagnostics, ONLY : N_of_probes, N_of_probes_cluster, work_dir_probes
   USE BlockAndItsBoundaries, ONLY : indx_x_min, indx_x_max, indx_y_min, indx_y_max
   USE ExternalFields
   USE Checkpoints
@@ -172,6 +172,8 @@ SUBROUTINE INITIATE_PARAMETERS
   i_cylindrical = 0 ! By default this is Cartesian
   debug_level = 0 ! By default I print nothing
   work_dir_2d_map = './' ! Save 2D maps in current directory by default 
+  work_dir_partition_and_fields_files = './' 
+  work_dir_probes = './'
 
   Coulomb_flag = .FALSE.
   INQUIRE (FILE = 'init_CoulombScattering.dat', EXIST = exists)
@@ -789,6 +791,15 @@ SUBROUTINE INITIATE_PARAMETERS
 
 
   ! In any case I create a folder to store all of this:
+  WRITE( message,'(A)') "Probe files will be saved in "//TRIM(work_dir_probes)//achar(10)
+  CALL print_message( message ) 
+  IF ( Rank_of_process==0 ) CALL system('mkdir -p '//TRIM(work_dir_probes))  
+
+
+  WRITE( message,'(A)') "Partition and field files will be saved in "//TRIM(work_dir_partition_and_fields_files)//achar(10)
+  CALL print_message( message ) 
+  IF ( Rank_of_process==0 ) CALL system('mkdir -p '//TRIM(work_dir_partition_and_fields_files))  
+
   WRITE( message,'(A)') "2D maps will be saved in "//TRIM(work_dir_2d_map)//achar(10)
   CALL print_message( message ) 
   IF ( Rank_of_process==0 ) CALL system('mkdir -p '//TRIM(work_dir_2d_map))  
@@ -801,7 +812,7 @@ SUBROUTINE INITIATE_PARAMETERS
 !                      ----*----I----*----I----*----I--
         bo_filename(17:19) = convert_int_to_txt_string(nn, 3)
 
-        open (19, file = bo_filename)
+        open (19, file = TRIM(work_dir_partition_and_fields_files)//'/'//bo_filename, STATUS = 'REPLACE')
         write (19, '("# segments of boundary object ",i3)') nn
         write (19, '("# column 1 is x-index of the grid node in the segment end [dim-less]")')
         write (19, '("# column 2 is y-index of the grid node in the segment end [dim-less]")')
@@ -824,7 +835,7 @@ SUBROUTINE INITIATE_PARAMETERS
 !                         ----*----I----*----I----
         iobox_filename(14:16) = convert_int_to_txt_string(nio, 3)
 
-        open (19, file = iobox_filename)
+        open (19, file = iobox_filename, STATUS = 'REPLACE')
         write (19, '("# spatial box of inner boundary object ",i3)') nio
         write (19, '("# column 1 is x-index of the grid node in the box corner [dim-less]")')
         write (19, '("# column 2 is y-index of the grid node in the box corner [dim-less]")')
@@ -842,7 +853,7 @@ SUBROUTINE INITIATE_PARAMETERS
         iobox_filename = 'inner_object_NNN_map.dat'
 !                         ----*----I----*----I----
         iobox_filename(14:16) = convert_int_to_txt_string(nio, 3)
-        open (19, file = iobox_filename)
+        open (19, file = iobox_filename, STATUS = 'REPLACE')
         write (19, '("# map of covered/open surface cells of inner boundary object ",i3)') nio
 
         write (19, '("# column 1 is x-index of the middle of the cell, dimensionless, may be half-integer")')
@@ -1349,7 +1360,7 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
   IF (Rank_cluster.EQ.0) THEN
      BxBy_filename = 'proc_NNNN_BxBy_vs_xy.dat'
      BxBy_filename(6:9) = convert_int_to_txt_string(Rank_of_process,4)
-     OPEN (10, FILE = BxBy_filename)
+     OPEN (10, FILE = TRIM(work_dir_partition_and_fields_files)//'/'//BxBy_filename, STATUS = 'REPLACE')
      DO j = c_indx_y_min, c_indx_y_max
         DO i = c_indx_x_min, c_indx_x_max
            WRITE (10, '(2x,i5,2x,i5,2x,f12.9,2x,f12.9,2x,e14.7,2x,e14.7)') &
@@ -1426,7 +1437,9 @@ SUBROUTINE read_flexible_parameters
    USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain, i_one_particle,vthx_factor,vthy_factor,vthz_factor, i_velocity_one_particle   
    USE IonParticles, ONLY: i_freeze_ions
    USE Snapshots, ONLY: work_dir_2d_map
-   
+   USE BlockAndItsBoundaries, ONLY: work_dir_partition_and_fields_files
+   USE Diagnostics, ONLY: work_dir_probes 
+ 
    IMPLICIT NONE
    INCLUDE 'mpif.h'
    
@@ -1731,6 +1744,46 @@ SUBROUTINE read_flexible_parameters
          WRITE( message,'(A)') "folder_save_2D keyword not present. I assume we do not want it. It will be saved in './'"
          CALL print_message( message,routine )       
       END IF                     
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="wkdir_partition_and_fields_files" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            work_dir_partition_and_fields_files = TRIM(caval)
+
+         END IF
+      END DO  
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "wkdir_partition_and_fields_files keyword not present. I assume we do not want it. It will be saved in './'"
+         CALL print_message( message,routine )       
+      END IF                     
+      
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="wkdir_probes" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
+
+            work_dir_probes = TRIM(caval)
+
+         END IF
+      END DO  
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "wkdir_probes keyword not present. I assume we do not want it. It will be saved in './'"
+         CALL print_message( message,routine )       
+      END IF                     
       
       CLOSE (9, STATUS = 'KEEP')
    END IF
@@ -1761,7 +1814,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
   USE ParallelOperationValues
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
-  USE BlockAndItsBoundaries, ONLY : block_row, block_column, indx_x_min, indx_x_max, indx_y_min, indx_y_max
+  USE BlockAndItsBoundaries, ONLY : block_row, block_column, indx_x_min, indx_x_max, indx_y_min, indx_y_max, work_dir_partition_and_fields_files
 
   IMPLICIT NONE
 
@@ -1903,7 +1956,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
      boxproc_filename = 'mfield_calc_NNNN.dat'
      boxproc_filename(13:16) = convert_int_to_txt_string(Rank_of_process, 4)
      devid = 9+Rank_of_process
-     open (devid, file=boxproc_filename)
+     open (devid, file=TRIM(work_dir_partition_and_fields_files)//'/'//boxproc_filename, STATUS = 'REPLACE')
      write (devid, '(3(2x,i5))') indx_x_min, indx_y_min, Rank_of_process
      write (devid, '(3(2x,i5))') indx_x_min, indx_y_max, Rank_of_process
      write (devid, '(3(2x,i5))') indx_x_max, indx_y_max, Rank_of_process
@@ -1929,7 +1982,7 @@ SUBROUTINE SET_CLUSTER_STRUCTURE
      boxproc_filename = 'master_proc_NNNN.dat'
      boxproc_filename(13:16) = convert_int_to_txt_string(Rank_of_process, 4)
      devid = 9+Rank_of_process
-     open (devid, file=boxproc_filename)
+     open (devid, file=TRIM(work_dir_partition_and_fields_files)//'/'//boxproc_filename, STATUS = 'REPLACE')
      write (devid, '(3(2x,i5),2(2x,e14.7))') c_indx_x_min, c_indx_y_min, Rank_of_process, c_X_area_min * delta_x_m, c_Y_area_min * delta_x_m
      write (devid, '(3(2x,i5),2(2x,e14.7))') c_indx_x_min, c_indx_y_max, Rank_of_process, c_X_area_min * delta_x_m, c_Y_area_max * delta_x_m
      write (devid, '(3(2x,i5),2(2x,e14.7))') c_indx_x_max, c_indx_y_max, Rank_of_process, c_X_area_max * delta_x_m, c_Y_area_max * delta_x_m

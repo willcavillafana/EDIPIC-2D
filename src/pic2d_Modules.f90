@@ -741,6 +741,7 @@ END MODULE LoadBalancing
 !
 MODULE BlockAndItsBoundaries
 
+  USE CurrentProblemValues, ONLY: string_length
 !  INTEGER, PARAMETER :: VACUUM_GAP = 0
 !  INTEGER, PARAMETER :: METAL_WALL = 1
 
@@ -821,6 +822,8 @@ MODULE BlockAndItsBoundaries
 
   INTEGER process_above_left_bottom_inner_node
   INTEGER process_below_left_top_inner_node
+
+  CHARACTER(LEN=string_length) :: work_dir_partition_and_fields_files ! working directory for files used for partitionning and external fields
   
 END MODULE BlockAndItsBoundaries
 
@@ -828,6 +831,10 @@ END MODULE BlockAndItsBoundaries
 !----------------------------
 !
 MODULE Diagnostics
+
+  USE CurrentProblemValues, ONLY: string_length
+
+  CHARACTER(LEN=string_length) :: work_dir_probes  ! wkdir for probes
 
 ! diagnostic control
   INTEGER, PARAMETER :: Max_N_of_probes = 100
@@ -2248,3 +2255,40 @@ MODULE SolenoidalFields
   REAL(8), ALLOCATABLE :: sol_EZ_partial(:,:,:)
 
 END MODULE SolenoidalFields
+
+!--------------------------------------------------------------------------------------------------
+!     MODULE IOs
+!>    @details Deal with IOs subroutines
+!!    @authors W. Villafana
+!!    @date    Jan-29-2024
+!--------------------------------------------------------------------------------------------------
+
+MODULE mod_input_output
+    
+    USE CurrentProblemValues, ONLY: string_length
+    IMPLICIT NONE
+
+    CONTAINS
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE check_file_existence
+!>    @details check if file exists and deletes it if it does. 
+!!    @authors W. Villafana
+!!    @date    Dec-29-2024
+!-------------------------------------------------------------------------------------------------- 
+
+  SUBROUTINE check_file_existence  ( filename )
+        
+    IMPLICIT NONE
+    INCLUDE 'mpif.h'
+
+    !IN/OUT
+    CHARACTER(LEN=string_length), INTENT(IN) :: filename
+    
+    ! LOCAL
+    LOGICAL :: exists, ierr
+
+    INQUIRE (FILE = TRIM(filename), EXIST = exists)
+    IF (exists) CALL MPI_FILE_DELETE( TRIM(filename), MPI_INFO_NULL, ierr ) 
+
+  END SUBROUTINE check_file_existence
+ END MODULE mod_input_output

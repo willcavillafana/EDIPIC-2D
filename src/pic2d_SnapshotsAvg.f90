@@ -210,7 +210,7 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
      PRINT '("### The program will create ",i4," averaged snapshots ###")', N_of_all_avgsnaps
 
 ! write moments of snapshot creation into the file
-     OPEN (41, FILE = '_avg_snapmoments.dat')
+     OPEN (41, FILE = '_avg_snapmoments.dat', STATUS = 'REPLACE')
      WRITE (41, '(" number   start_time(ns)   end_time(ns)   start_T_cntr   end_T_cntr   N_of_avg_points,e/i")')
      DO n = 1, N_of_all_avgsnaps
         WRITE (41, '(2x,i4,2x,2(2x,f13.5),2x,2(2x,i9),2(4x,i6))') &

@@ -15,7 +15,7 @@ SUBROUTINE SAVE_CHECKPOINT_MPIIO_2(n_sub)
   USE ClusterAndItsBoundaries, ONLY : c_local_object_part, c_N_of_local_object_parts
   USE SetupValues, ONLY : total_cathode_N_e_to_inject
   USE ExternalCircuit
-
+  USE mod_input_output, ONLY: check_file_existence
   USE rng_wrapper
 
   IMPLICIT NONE
@@ -52,6 +52,7 @@ SUBROUTINE SAVE_CHECKPOINT_MPIIO_2(n_sub)
   CHARACTER(21) filename_report        ! report_TTTTTTTT.write
                                        ! ----x----I----x----I-
 
+  CHARACTER(LEN=string_length) :: file_to_test
   INTEGER myibufer(1)
 
   INTEGER, ALLOCATABLE :: jbufer(:)
@@ -199,6 +200,9 @@ SUBROUTINE SAVE_CHECKPOINT_MPIIO_2(n_sub)
 ! create filename
   filename_check = 'Tcntr_TTTTTTTT.check'
   filename_check(7:14) = convert_int_to_txt_string(T_cntr, 8)
+
+  file_to_test = filename_check
+  CALL check_file_existence(file_to_test)
 
   CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                     & filename_check,  &

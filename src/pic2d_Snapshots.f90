@@ -266,7 +266,7 @@ SUBROUTINE INITIATE_SNAPSHOTS
      PRINT '("### The program will create ",i4," snapshots ###")', N_of_all_snaps
 
 ! write moments of snapshot creation into the file
-     OPEN (41, FILE = '_snapmoments.dat')
+     OPEN (41, FILE = '_snapmoments.dat', STATUS = 'REPLACE')
 !                 "--****-----*******.*****----********----*----*----*----*----*"
      WRITE (41, '(" number       time(ns)       T_cntr    vdf  pp  ioniz icbo ecbo ")')
      DO i = 1, N_of_all_snaps
@@ -1214,6 +1214,7 @@ SUBROUTINE SAVE_GLOBAL_2D_ARRAY(arr, filename)
   USE ClusterAndItsBoundaries
   USE IonParticles
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
 
   IMPLICIT NONE
 
@@ -1222,6 +1223,7 @@ SUBROUTINE SAVE_GLOBAL_2D_ARRAY(arr, filename)
   REAL arr(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max)
 
   CHARACTER*(*) filename
+  CHARACTER(LEN=string_length) :: file_to_test
 
   INTEGER ierr
   INTEGER stattus(MPI_STATUS_SIZE)
@@ -1264,6 +1266,9 @@ SUBROUTINE SAVE_GLOBAL_2D_ARRAY(arr, filename)
   END DO
   recleny(1)            = recleny(1) + 1              ! include the bottom boundary point BUT doess NOT include the x-coordinate line
   recleny(N_clusters_y) = recleny(N_clusters_y) + 1   ! include the top boundary point
+
+  file_to_test = TRIM(work_dir_2d_map)//'/'//filename
+  CALL check_file_existence(file_to_test)
 
   CALL MPI_FILE_OPEN( COMM_HORIZONTAL, &
                     & TRIM(work_dir_2d_map)//'/'//filename,  &
@@ -1366,6 +1371,7 @@ SUBROUTINE SAVE_ALL_VDF1D
   USE ClusterAndItsBoundaries
   USE IonParticles
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
 
   IMPLICIT NONE
 
@@ -1374,6 +1380,7 @@ SUBROUTINE SAVE_ALL_VDF1D
   CHARACTER(15) filename      ! _NNNN_vdf1d.bin
                               ! ----x----I----x
 
+  CHARACTER(LEN=string_length) :: file_to_test
   REAL, ALLOCATABLE :: xsplit (:)
   REAL, ALLOCATABLE :: ysplit (:)
   INTEGER ALLOC_ERR
@@ -1434,6 +1441,9 @@ SUBROUTINE SAVE_ALL_VDF1D
 ! length of vdf record for one sub-domain (box)
 ! includes 4 real numbers (boundaries of the box) and the integer bufer with all distribution functions
   one_loc_rec_len = 4 + ibufsize
+
+  file_to_test = filename
+  CALL check_file_existence(file_to_test)
 
   CALL MPI_FILE_OPEN( COMM_HORIZONTAL, &
                     & filename,  &
@@ -1555,6 +1565,7 @@ SUBROUTINE SAVE_ALL_VDF2D
   USE ClusterAndItsBoundaries
   USE IonParticles
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
 
   IMPLICIT NONE
 
@@ -1562,7 +1573,7 @@ SUBROUTINE SAVE_ALL_VDF2D
 
   CHARACTER(15) filename      ! _NNNN_vdf2d.bin
                               ! ----x----I----x
-
+  CHARACTER(LEN=string_length) :: file_to_test
   REAL, ALLOCATABLE :: xsplit (:)
   REAL, ALLOCATABLE :: ysplit (:)
   INTEGER ALLOC_ERR
@@ -1621,6 +1632,9 @@ SUBROUTINE SAVE_ALL_VDF2D
 ! length of vdf record for one sub-domain (box)
 ! includes 4 real numbers (boundaries of the box) and the integer bufer with the distribution function
   one_loc_rec_len = 4 + ibufsize
+  
+  file_to_test = filename
+  CALL check_file_existence(file_to_test)    
 
   CALL MPI_FILE_OPEN( COMM_HORIZONTAL, &
                     & filename,  &
@@ -1715,6 +1729,7 @@ SUBROUTINE SAVE_ELECTRON_PHASE_PLANES
   USE CurrentProblemValues
   USE ElectronParticles
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
   
   IMPLICIT NONE
 
@@ -1738,7 +1753,7 @@ SUBROUTINE SAVE_ELECTRON_PHASE_PLANES
 
   CHARACTER(13) filename_epp      ! _NNNN_epp.bin
                                   ! ----x----I---
-
+  CHARACTER(LEN=string_length) :: file_to_test
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
        CHARACTER*(length_of_string) convert_int_to_txt_string
@@ -1791,6 +1806,9 @@ SUBROUTINE SAVE_ELECTRON_PHASE_PLANES
   filename_epp(2:5) = convert_int_to_txt_string(current_snap, 4)
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+  file_to_test = filename_epp
+  CALL check_file_existence(file_to_test)
 
   CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                     & filename_epp,  &
@@ -1853,6 +1871,7 @@ SUBROUTINE SAVE_ION_PHASE_PLANES
   USE CurrentProblemValues
   USE IonParticles
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
   
   IMPLICIT NONE
 
@@ -1877,7 +1896,7 @@ SUBROUTINE SAVE_ION_PHASE_PLANES
 
   CHARACTER(13) filename_ipp      ! _NNNN_ipp.bin
                                   ! ----x----I---
-
+  CHARACTER(LEN=string_length) :: file_to_test
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
        CHARACTER*(length_of_string) convert_int_to_txt_string
@@ -1916,6 +1935,9 @@ SUBROUTINE SAVE_ION_PHASE_PLANES
   filename_ipp(2:5) = convert_int_to_txt_string(current_snap, 4)
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+
+  file_to_test = filename_ipp
+  CALL check_file_existence(file_to_test)
 
   CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                     & filename_ipp,  &
@@ -2292,6 +2314,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
                                  & delta_x_m, V_scale_ms, N_scale_part_m3, ion_colls_with_bo, whole_object
   USE IonParticles, ONLY : N_spec, M_i_amu
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
 
   IMPLICIT NONE
 
@@ -2308,6 +2331,7 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
   CHARACTER(34) filename      ! _NNNN_ions_collided_with_bo_NN.bin
                               ! ----x----I----x----I----x----I----
+  CHARACTER(LEN=string_length) :: file_to_test
   INTEGER file_handle
 
   INTEGER n, pos, bufsize, ibufsize, m, s, k
@@ -2363,6 +2387,10 @@ SUBROUTINE SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
                                                                ! ion masses, total number of particles (from all processes), and record time
      rbufer(1:(bufsize+4+N_spec+2)) = 0.0
      IF (start_new_bo_coll_file) THEN
+
+        file_to_test = filename
+        CALL check_file_existence(file_to_test)
+
         CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                           & filename,  &
                           & MPI_MODE_WRONLY + MPI_MODE_CREATE, & 
@@ -2454,6 +2482,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
   USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_of_boundary_and_inner_objects, delta_t_s, &
                                  & delta_x_m, V_scale_ms, N_scale_part_m3, e_colls_with_bo, whole_object
   USE Snapshots
+  USE mod_input_output, ONLY: check_file_existence
 
   IMPLICIT NONE
 
@@ -2470,6 +2499,7 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
   CHARACTER(31) filename      ! _NNNN_e_collided_with_bo_NN.bin
                               ! ----x----I----x----I----x----I-
+  CHARACTER(LEN=string_length) :: file_to_test
   INTEGER file_handle
 
   INTEGER n, pos, bufsize, ibufsize, m, k
@@ -2536,6 +2566,10 @@ SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
                                                       ! (reserved fora an improbable case when one process has to save everything)
      rbufer(1:(bufsize+6)) = 0.0
      IF (start_new_bo_coll_file) THEN
+
+        file_to_test = filename
+        CALL check_file_existence(file_to_test)
+ 
         CALL MPI_FILE_OPEN( MPI_COMM_WORLD, &
                           & filename,  &
                           & MPI_MODE_WRONLY + MPI_MODE_CREATE, & 

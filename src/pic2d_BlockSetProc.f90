@@ -91,7 +91,7 @@ SUBROUTINE IDENTIFY_BLOCK_NEIGHBOURS
 
   devid = 9+Rank_of_process
 
-  open (devid, file=boxproc_filename)
+  open (devid, file=TRIM(work_dir_partition_and_fields_files)//'/'//boxproc_filename, STATUS = 'REPLACE')
   write (devid, '(3(2x,i5),2(2x,e14.7))') indx_x_min, indx_y_min, Rank_of_process, X_area_min * delta_x_m, Y_area_min * delta_x_m
   write (devid, '(3(2x,i5),2(2x,e14.7))') indx_x_min, indx_y_max, Rank_of_process, X_area_min * delta_x_m, Y_area_max * delta_x_m
   write (devid, '(3(2x,i5),2(2x,e14.7))') indx_x_max, indx_y_max, Rank_of_process, X_area_max * delta_x_m, Y_area_max * delta_x_m

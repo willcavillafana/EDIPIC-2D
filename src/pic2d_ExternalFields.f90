@@ -6,6 +6,7 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
   USE ExternalFields
   USE CurrentProblemValues, ONLY : E_scale_Vm, B_scale_T, delta_x_m, global_maximal_j, pi, mu_0_Hm
   USE IonParticles, ONLY : ions_sense_magnetic_field, ions_sense_EZ
+  USE BlockAndItsBoundaries, ONLY: work_dir_partition_and_fields_files
 
   IMPLICIT NONE
 
@@ -99,7 +100,7 @@ SUBROUTINE PREPARE_EXTERNAL_FIELDS
 
 
      IF (Rank_of_process.EQ.0) THEN
-        OPEN (10, FILE = 'external_Bz_vs_y.dat')
+        OPEN (10, FILE = TRIM(work_dir_partition_and_fields_files)//'/'//'external_Bz_vs_y.dat', STATUS = 'REPLACE')
         WRITE (10, '("# column 1 is the y-node number [dim-less]")')
         WRITE (10, '("# column 2 is the y-node coordinate [cm]")')
         WRITE (10, '("# column 3 is the BZ [Gauss]")')

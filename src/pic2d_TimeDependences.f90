@@ -204,7 +204,7 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
      PRINT '("### In total, there is ",i3," valid probe locations ###")', N_of_probes
 
 ! save probe positions
-     OPEN (20, FILE = '_probelocs.dat')
+     OPEN (20, FILE = '_probelocs.dat', STATUS = 'REPLACE')
      WRITE (20, '("# col  1 is the global probe number")')
      WRITE (20, '("# col  2 is index i of probe position in computational grid (along x)")')
      WRITE (20, '("# col  3 is index j of probe position in computational grid (along y)")')
@@ -315,7 +315,7 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
         clusterprobes_filename(20:24) = convert_int_to_txt_string(Rank_of_process, 5)
         clusterprobes_filename(26:30) = convert_int_to_txt_string(Rank_horizontal, 5)
 
-        OPEN (20, FILE = clusterprobes_filename)
+        OPEN (20, FILE = TRIM(work_dir_probes)//'/'//clusterprobes_filename, STATUS = 'REPLACE')
         WRITE (20, '("# col  1 is the global probe number")')
         WRITE (20, '("# col  2 is index i of probe position in computational grid (along x)")')
         WRITE (20, '("# col  3 is index j of probe position in computational grid (along y)")')
@@ -518,9 +518,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            start_time_ns = (DBLE(Start_T_cntr) - 0.5_8) * (delta_t_s * 1.0d9)  ! -0.5 to avoid uncertainty due to possible round off error
 
 ! electric field EX 
-           INQUIRE (FILE = 'dim_EX_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_EX_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_EX_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_EX_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -532,9 +532,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electric field EY
-           INQUIRE (FILE = 'dim_EY_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_EY_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_EY_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_EY_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -546,9 +546,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electrostatic potential F 
-           INQUIRE (FILE = 'dim_F_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_F_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_F_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_F_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -560,9 +560,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! full electric current density JXsum
-           INQUIRE (FILE = 'dim_JXsum_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_JXsum_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_JXsum_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JXsum_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -574,9 +574,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! full electric current density JYsum
-           INQUIRE (FILE = 'dim_JYsum_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_JYsum_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_JYsum_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JYsum_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -588,9 +588,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! full electric current density JZsum
-           INQUIRE (FILE = 'dim_JZsum_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_JZsum_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_JZsum_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JZsum_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -602,9 +602,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron density Ne 
-           INQUIRE (FILE = 'dim_Ne_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_Ne_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_Ne_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_Ne_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -616,9 +616,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron flow velocity VXe 
-           INQUIRE (FILE = 'dim_VXe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_VXe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_VXe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VXe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -630,9 +630,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron flow velocity VYe 
-           INQUIRE (FILE = 'dim_VYe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_VYe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_VYe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VYe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -644,9 +644,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron flow velocity VZe 
-           INQUIRE (FILE = 'dim_VZe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_VZe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_VZe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VZe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -658,9 +658,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electric current density due to electrons JXe 
-           INQUIRE (FILE = 'dim_JXe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_JXe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_JXe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JXe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -672,9 +672,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electric current density due to electrons JYe 
-           INQUIRE (FILE = 'dim_JYe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_JYe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_JYe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JYe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -686,9 +686,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electric current density due to electrons JZe 
-           INQUIRE (FILE = 'dim_JZe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_JZe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_JZe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JZe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -700,7 +700,7 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! average electron energy WXe 
-           INQUIRE (FILE = 'dim_WXe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_WXe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
               OPEN (21, FILE = 'dim_WXe_vst.dat', STATUS = 'OLD')          
               DO
@@ -714,9 +714,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! average electron energy WYe 
-           INQUIRE (FILE = 'dim_WYe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_WYe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_WYe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WYe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -728,9 +728,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! average electron energy WZe 
-           INQUIRE (FILE = 'dim_WZe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_WZe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_WZe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WZe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -742,9 +742,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron temperature TXe
-           INQUIRE (FILE = 'dim_TXe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_TXe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_TXe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TXe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -756,9 +756,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron temperature TYe 
-           INQUIRE (FILE = 'dim_TYe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_TYe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_TYe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TYe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -770,9 +770,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron temperature TZe 
-           INQUIRE (FILE = 'dim_TZe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_TZe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_TZe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TZe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -784,9 +784,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron heat flow QXe
-           INQUIRE (FILE = 'dim_QXe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_QXe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_QXe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QXe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -798,17 +798,17 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
            END IF
 
 ! electron heat flow QYe
-           INQUIRE (FILE = 'dim_QYe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_QYe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_QYe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QYe_vst.dat', STATUS = 'OLD')          
               ENDFILE 21       
               CLOSE (21, STATUS = 'KEEP')        
            END IF
 
 ! electron heat flow QZe
-           INQUIRE (FILE = 'dim_QZe_vst.dat', EXIST = exists)
+           INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_QZe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_QZe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QZe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
@@ -825,9 +825,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! density
               Nis_filename = 'dim_Ni_S_vst.dat'
               Nis_filename(8:8) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = Nis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//Nis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = Nis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//Nis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -841,9 +841,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! flow velocity VX
               NNis_filename = 'dim_VXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -857,9 +857,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! flow velocity VY
               NNis_filename = 'dim_VYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -873,9 +873,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! flow velocity VZ
               NNis_filename = 'dim_VZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -889,9 +889,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! electric curent density due to ions JX
               NNis_filename = 'dim_JXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -905,9 +905,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! electric curent density due to ions JY
               NNis_filename = 'dim_JYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -921,9 +921,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! electric curent density due to ions JZ
               NNis_filename = 'dim_JZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -937,9 +937,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! average ion energy WX
               NNis_filename = 'dim_WXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -953,9 +953,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! average ion energy WY
               NNis_filename = 'dim_WYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -969,9 +969,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! average ion energy WZ
               NNis_filename = 'dim_WZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -985,9 +985,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! ion temperature TX
               NNis_filename = 'dim_TXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -1001,9 +1001,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! ion temperature TY
               NNis_filename = 'dim_TYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -1017,9 +1017,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! ion temperature TZ
               NNis_filename = 'dim_TZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -1033,9 +1033,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! ion heat flow QX
               NNis_filename = 'dim_QXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -1049,9 +1049,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! ion heat flow QY
               NNis_filename = 'dim_QYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -1065,9 +1065,9 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! ion heat flow QZ
               NNis_filename = 'dim_QZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              INQUIRE (FILE = NNis_filename, EXIST = exists)
+              INQUIRE (FILE = TRIM(work_dir_probes)//'/'//NNis_filename, EXIST = exists)
               IF (exists) THEN                                                       
-                 OPEN (21, FILE = NNis_filename, STATUS = 'OLD')          
+                 OPEN (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'OLD')          
                  DO
                     READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                     IF (ios.NE.0) EXIT
@@ -1084,91 +1084,91 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! fresh start, empty files, remove old files if there are any
 
 ! electric field EX 
-           OPEN  (21, FILE = 'dim_EX_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_EX_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electric field EY
-           OPEN  (21, FILE = 'dim_EY_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_EY_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electrostatic potential F 
-           OPEN  (21, FILE = 'dim_F_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_F_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! full electric current density JXsum
-           OPEN  (21, FILE = 'dim_JXsum_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JXsum_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! full electric current density JYsum
-           OPEN  (21, FILE = 'dim_JYsum_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JYsum_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! full electric current density JZsum
-           OPEN  (21, FILE = 'dim_JZsum_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JZsum_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron density Ne 
-           OPEN  (21, FILE = 'dim_Ne_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_Ne_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron flow velocity VXe 
-           OPEN  (21, FILE = 'dim_VXe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VXe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron flow velocity VYe 
-           OPEN  (21, FILE = 'dim_VYe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VYe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron flow velocity VZe 
-           OPEN  (21, FILE = 'dim_VZe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VZe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electric current density due to electrons JXe 
-           OPEN  (21, FILE = 'dim_JXe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JXe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electric current density due to electrons JYe 
-           OPEN  (21, FILE = 'dim_JYe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JYe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electric current density due to electrons JZe 
-           OPEN  (21, FILE = 'dim_JZe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JZe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! average electron energy WXe 
-           OPEN  (21, FILE = 'dim_WXe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WXe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! average electron energy WYe 
-           OPEN  (21, FILE = 'dim_WYe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WYe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! average electron energy WZe 
-           OPEN  (21, FILE = 'dim_WZe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WZe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron temperature TXe 
-           OPEN  (21, FILE = 'dim_TXe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TXe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron temperature TYe 
-           OPEN  (21, FILE = 'dim_TYe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TYe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron temperature TZe 
-           OPEN  (21, FILE = 'dim_TZe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TZe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron heat flow QXe 
-           OPEN  (21, FILE = 'dim_QXe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QXe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron heat flow QYe 
-           OPEN  (21, FILE = 'dim_QYe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QYe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! electron heat flow QZe 
-           OPEN  (21, FILE = 'dim_QZe_vst.dat', STATUS = 'REPLACE')          
+           OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QZe_vst.dat', STATUS = 'REPLACE')          
            CLOSE (21, STATUS = 'KEEP')
 
 ! ion species data
@@ -1177,97 +1177,97 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! density
               Nis_filename = 'dim_Ni_S_vst.dat'
               Nis_filename(8:8) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = Nis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//Nis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! flow velocity VX
               NNis_filename = 'dim_VXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! flow velocity VY
               NNis_filename = 'dim_VYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! flow velocity VZ
               NNis_filename = 'dim_VZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! electric curent density due to ions JX
               NNis_filename = 'dim_JXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! electric curent density due to ions JY
               NNis_filename = 'dim_JYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! electric curent density due to ions JZ
               NNis_filename = 'dim_JZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! average ion energy WX
               NNis_filename = 'dim_WXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! average ion energy WY
               NNis_filename = 'dim_WYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! average ion energy WZ
               NNis_filename = 'dim_WZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! ion temperature TX
               NNis_filename = 'dim_TXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! ion temperature TY
               NNis_filename = 'dim_TYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! ion temperature TZ
               NNis_filename = 'dim_TZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! ion heat flow QX
               NNis_filename = 'dim_QXi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! ion heat flow QY
               NNis_filename = 'dim_QYi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
 ! ion heat flow QZ
               NNis_filename = 'dim_QZi_S_vst.dat'
               NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-              OPEN  (21, FILE = NNis_filename, STATUS = 'REPLACE')          
+              OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, STATUS = 'REPLACE')          
               CLOSE (21, STATUS = 'KEEP')
 
            END DO
@@ -1671,97 +1671,97 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_e_DATA
      time_ns = REAL(T_cntr * delta_t_s * 1.0d9)
 
 ! electric field EX 
-     OPEN  (21, FILE = 'dim_EX_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_EX_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_EX
      CLOSE (21, STATUS = 'KEEP')
 
 ! electric field EY 
-     OPEN  (21, FILE = 'dim_EY_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_EY_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_EY
      CLOSE (21, STATUS = 'KEEP')
 
 ! electrostatic potential
-     OPEN  (21, FILE = 'dim_F_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_F_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_F
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron density Ne 
-     OPEN  (21, FILE = 'dim_Ne_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_Ne_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_Ne
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron flow velocity VXe 
-     OPEN  (21, FILE = 'dim_VXe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VXe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_VXe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron flow velocity VYe 
-     OPEN  (21, FILE = 'dim_VYe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VYe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_VYe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron flow velocity VZe 
-     OPEN  (21, FILE = 'dim_VZe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_VZe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_VZe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electric current density due to electrons JXe 
-     OPEN  (21, FILE = 'dim_JXe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JXe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JXe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electric current density due to electrons JYe 
-     OPEN  (21, FILE = 'dim_JYe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JYe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JYe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electric current density due to electrons JZe 
-     OPEN  (21, FILE = 'dim_JZe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JZe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JZe
      CLOSE (21, STATUS = 'KEEP')
 
 ! average electron energy WXe 
-     OPEN  (21, FILE = 'dim_WXe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WXe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_WXe
      CLOSE (21, STATUS = 'KEEP')
 
 ! average electron energy WYe 
-     OPEN  (21, FILE = 'dim_WYe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WYe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_WYe
      CLOSE (21, STATUS = 'KEEP')
 
 ! average electron energy WZe 
-     OPEN  (21, FILE = 'dim_WZe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WZe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_WZe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron temperature TXe 
-     OPEN  (21, FILE = 'dim_TXe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TXe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_TXe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron temperature TYe 
-     OPEN  (21, FILE = 'dim_TYe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TYe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_TYe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron temperature TZe 
-     OPEN  (21, FILE = 'dim_TZe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_TZe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_TZe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron heat flow QXe 
-     OPEN  (21, FILE = 'dim_QXe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QXe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_QXe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron heat flow QYe 
-     OPEN  (21, FILE = 'dim_QYe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QYe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_QYe
      CLOSE (21, STATUS = 'KEEP')
 
 ! electron heat flow QZe 
-     OPEN  (21, FILE = 'dim_QZe_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_QZe_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_QZe
      CLOSE (21, STATUS = 'KEEP')
 
@@ -2184,17 +2184,17 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_i_DATA
      time_ns = REAL((T_cntr - N_subcycles/2) * delta_t_s * 1.0d9)
 
 ! full electric current density JXsum 
-     OPEN  (21, FILE = 'dim_JXsum_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JXsum_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JXsum
      CLOSE (21, STATUS = 'KEEP')
 
 ! full electric current density JYsum 
-     OPEN  (21, FILE = 'dim_JYsum_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JYsum_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JYsum
      CLOSE (21, STATUS = 'KEEP')
 
 ! full electric current density JZsum 
-     OPEN  (21, FILE = 'dim_JZsum_vst.dat', POSITION = 'APPEND')
+     OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//'dim_JZsum_vst.dat', POSITION = 'APPEND')
      WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JZsum
      CLOSE (21, STATUS = 'KEEP')
 
@@ -2211,105 +2211,105 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_i_DATA
 ! flow velocity VX
         NNis_filename = 'dim_VXi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_VXi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! flow velocity VY
         NNis_filename = 'dim_VYi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_VYi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! flow velocity VZ
         NNis_filename = 'dim_VZi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_VZi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! electric curent density due to ions JX
         NNis_filename = 'dim_JXi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JXi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! electric curent density due to ions JY
         NNis_filename = 'dim_JYi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JYi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! electric curent density due to ions JZ
         NNis_filename = 'dim_JZi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_JZi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! average ion energy WX
         NNis_filename = 'dim_WXi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_WXi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! average ion energy WY
         NNis_filename = 'dim_WYi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_WYi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! average ion energy WZ
         NNis_filename = 'dim_WZi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_WZi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! ion temperature TX
         NNis_filename = 'dim_TXi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_TXi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! ion temperature TY
         NNis_filename = 'dim_TYi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_TYi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! ion temperature TY
         NNis_filename = 'dim_TZi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_TZi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! ion heat flow QX
         NNis_filename = 'dim_QXi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_QXi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! ion heat flow QY
         NNis_filename = 'dim_QYi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_QYi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
 ! ion heat flow QZ
         NNis_filename = 'dim_QZi_S_vst.dat'
         NNis_filename(9:9) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = NNis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//NNis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_QZi(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 

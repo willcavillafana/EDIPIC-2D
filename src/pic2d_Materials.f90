@@ -292,7 +292,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
 ! save data file with emission coefficients
           bosee_filename = '_bo_NN_electron_induced_SEE_coefficients_vs_energy.dat'
           bosee_filename(5:6) = convert_int_to_txt_string(n, 2)
-          OPEN (20, FILE = bosee_filename)
+          OPEN (20, FILE = bosee_filename, STATUS = 'REPLACE')
           WRITE (20, '("# col 1 is the primary electron energy [eV]")')
           WRITE (20, '("# col 2 is the total electron-induced secondary electron emission coefficient")')
           WRITE (20, '("# col 3 is the emission coefficient for elastically reflected electrons")')
@@ -315,7 +315,7 @@ SUBROUTINE PREPARE_WALL_MATERIALS
 ! save data file with emission coefficients
           boiiee_filename = '_bo_NN_ion_induced_SEE_coefficients_vs_energy.dat'
           boiiee_filename(5:6) = convert_int_to_txt_string(n, 2)
-          OPEN (20, FILE = boiiee_filename)
+          OPEN (20, FILE = boiiee_filename, STATUS = 'REPLACE')
           WRITE (20, '("# col  1 is the primary ion energy [eV]")')
           DO s = 1, N_spec
              WRITE (20, '("# col ",i2," is the ion-induced electron emission coefficient for ion species ",i2)') s+1, s
