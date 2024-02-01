@@ -242,6 +242,8 @@ PROGRAM MainProg
      CALL end_timer( compute_averaged_snapshot_timer )
      CALL start_timer( create_instantaneous_snapshot_timer )    
      !t8 = MPI_WTIME()
+    
+     IF (T_cntr==1) CALL SAVE_en_COLLISIONS_2D ! I want to get first 2d map for easier postprocessing after
 
      CALL CREATE_SNAPSHOT
 
