@@ -2204,7 +2204,7 @@ SUBROUTINE DO_PROBE_DIAGNOSTICS_i_DATA
 ! density
         Nis_filename = 'dim_Ni_S_vst.dat'
         Nis_filename(8:8) = convert_int_to_txt_string(s, 1)
-        OPEN  (21, FILE = Nis_filename, POSITION = 'APPEND')
+        OPEN  (21, FILE = TRIM(work_dir_probes)//'/'//Nis_filename, POSITION = 'APPEND')
         WRITE (21, '(1x,f15.6,100(1x,e14.7))') time_ns, probe_Ni(1:N_of_probes, s)
         CLOSE (21, STATUS = 'KEEP')
 
