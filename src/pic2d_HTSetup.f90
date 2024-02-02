@@ -540,6 +540,12 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                ys_ioniz = ys_ioniz/delta_x_m
                ye_ioniz = ye_ioniz/delta_x_m
 
+               IF ( INT(ye_ioniz)-INT(ys_ioniz)==0 .OR. INT(xe_ioniz)-INT(xs_ioniz)==0 ) THEN 
+                  WRITE( message,'(A,I8,A,I8,A)') "Volume for imposed ionization source is too small. It must be at least 1 cell wide or high. &
+                   I have xe/dx-xs/dx = ", INT(xe_ioniz)-INT(xs_ioniz)," cells and ye/dx-ys/dx = ", INT(ye_ioniz)-INT(ys_ioniz)," cells"//achar(10)
+                  CALL print_parser_error(message)
+               END IF 
+
                EXIT
             END IF
          END DO   
