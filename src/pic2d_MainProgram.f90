@@ -243,7 +243,7 @@ PROGRAM MainProg
      CALL start_timer( create_instantaneous_snapshot_timer )    
      !t8 = MPI_WTIME()
     
-     IF (T_cntr==1) CALL SAVE_en_COLLISIONS_2D ! I want to get first 2d map for easier postprocessing after
+     IF (T_cntr==0) CALL SAVE_en_COLLISIONS_2D ! I want to get first 2d map for easier postprocessing after
 
      CALL CREATE_SNAPSHOT
 
