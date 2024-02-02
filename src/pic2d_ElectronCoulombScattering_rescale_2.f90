@@ -124,7 +124,7 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
       v2_loc = MAX(v2_loc / nb_ptcl_loc - (vx_loc**2 + vy_loc**2 + vz_loc**2),zero) ! Make sure I have positive temperature. Because of numerical precision, it could be negative in rare cases. 
       T_loc_eV  = 0.6666666667_8 * v2_loc * (N_max_vel ** 2) * T_e_eV 
       ! normalized density and temperature:
-      dens_ratio = n_loc / DBLE(N_of_particles_cell)
+      dens_ratio = n_loc / N_of_particles_cell_dble
       temp_ratio = T_loc_eV / T_e_eV
 
      Vx = electron(k)%VX

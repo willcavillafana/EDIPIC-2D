@@ -101,7 +101,7 @@ program get_particle_wall_fluxes
 
   dt_ns = delta_t_s * 1.0e9
 
-  factor_avgJ_A = (e_Cl * N_plasma_m3 * delta_x_m * delta_x_m) / (delta_t_s * N_of_particles_cell * navgi * N_subcycles)
+  factor_avgJ_A = (e_Cl * N_plasma_m3 * delta_x_m * delta_x_m) / (delta_t_s * DBLE(N_of_particles_cell) * navgi * N_subcycles)
 
 !-------------------------
 

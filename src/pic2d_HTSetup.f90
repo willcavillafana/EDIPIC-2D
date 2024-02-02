@@ -161,7 +161,7 @@ SUBROUTINE PREPARE_HT_SETUP_VALUES
      N_part_outflow = INT( DBLE(N_subcycles) * &
                          & (N_i_outflow_m3 / N_plasma_m3) * &
                          & (SQRT(ABS(whole_object(2)%phi) * F_scale_V  / (Ms(s) * T_e_eV)) / DBLE(N_max_vel)) * &
-                         & DBLE(N_of_particles_cell) * &
+                         & N_of_particles_cell_dble * &
                          & DBLE(whole_object(2)%L))
 
      IF (Rank_of_process.EQ.0) THEN
@@ -308,7 +308,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    USE SetupValues, ONLY: j_ion_source_start_ecr, j_ion_source_end_ecr, i_ion_source_start_ecr, i_ion_source_end_ecr, c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, &
                           c_i_ion_source_start_ecr, c_i_ion_source_end_ecr, i_neutral_profile, i_ionize_source_ecr, xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz, &
                           ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr, ye_neutral_1, ys_neutral_1, nn_neutral_1
-   USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell, delta_t_s, e_Cl, zero, N_subcycles, &
+   USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell_dble, delta_t_s, e_Cl, zero, N_subcycles, &
                                     B_scale_T
    USE mod_print, ONLY: print_parser_error, print_message
    USE ParallelOperationValues!, ONLY: Rank_of_process, cluster_rank_key
@@ -505,7 +505,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                CALL print_message( message,routine ) 
                
                ! Normalize current 
-               weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+               weight_ptcl = N_plasma_m3*delta_x_m**2/(N_of_particles_cell_dble)
                ! Deduce how many particles we should inject 
                coeff_J = delta_t_s*N_subcycles / ( e_Cl*weight_ptcl ) 
                ioniz_ecr_vol_I_injected = ioniz_ecr_vol_I_injected*coeff_J ! This a number of macroparticles
@@ -1553,7 +1553,7 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_HT_SETUP_ZERO_GRAD_F
         ALLOCATE(myeq(1:global_maximal_j-2), STAT=ALLOC_ERR)
 
         DO j = 1, global_maximal_j-2
-           rhs(j) = -rho_avg_x(j) / DBLE(N_of_particles_cell) 
+           rhs(j) = -rho_avg_x(j) /N_of_particles_cell_dble
         END DO
         rhs(1)                  = rhs(1)                  - (global_maximal_i-1) * whole_object(4)%phi !potential_of_bottom_y_boundary_avg_x   ! ??????
         rhs(global_maximal_j-2) = rhs(global_maximal_j-2) - (global_maximal_i-1) * whole_object(2)%phi !potential_of_top_y_boundary_avg_x      ! ??????
@@ -1575,14 +1575,14 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_HT_SETUP_ZERO_GRAD_F
 
 !       density_corr_avg_x = -rho_avg_x(global_maximal_j-1) + potential_of_top_y_boundary_avg_x - potenial_at_global_maximal_j_m_2_avg_x
 
-        density_corr_avg_x = -rho_avg_x(global_maximal_j-1) / DBLE(N_of_particles_cell) + (global_maximal_i-1) * whole_object(2)%phi - rhs(global_maximal_j-2)
+        density_corr_avg_x = -rho_avg_x(global_maximal_j-1) / N_of_particles_cell_dble + (global_maximal_i-1) * whole_object(2)%phi - rhs(global_maximal_j-2)
 
         total_cathode_N_e_to_inject = 0
         IF (density_corr_avg_x.LT.0.0_8) THEN
-           total_cathode_N_e_to_inject = ABS(density_corr_avg_x * DBLE(N_of_particles_cell))
+           total_cathode_N_e_to_inject = ABS(density_corr_avg_x * N_of_particles_cell_dble)
         END IF
 
-print '(" total number of electron macroparticles to inject from cathode is ",i8,2x,i8)', total_cathode_N_e_to_inject, INT(density_corr_avg_x * DBLE(N_of_particles_cell))
+print '(" total number of electron macroparticles to inject from cathode is ",i8,2x,i8)', total_cathode_N_e_to_inject, INT(density_corr_avg_x * N_of_particles_cell_dble)
 
      END IF    !### IF (Rank_horizontal.EQ.0) THEN
 

@@ -591,7 +591,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 !???  USE ParallelOperationValues, ONLY : Rank_of_process
   USE ExternalCircuit
   USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_and_inner_objects, METAL_WALL, delta_t_s, F_scale_V, pi &
-                                   & ,delta_x_m, e_Cl, N_of_particles_cell, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi, string_length
+                                   & ,delta_x_m, e_Cl, N_of_particles_cell_dble, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi, string_length
   USE BlockAndItsBoundaries
    USE mod_print, ONLY: print_message, print_parser_error
 
@@ -724,7 +724,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
         CALL print_message(message)
       END DO
      IF (i_cylindrical==0) THEN   
-         coeff_J = delta_t_s * DBLE(N_of_particles_cell) / (e_Cl * N_plasma_m3 * delta_x_m**2) 
+         coeff_J = delta_t_s * N_of_particles_cell_dble / (e_Cl * N_plasma_m3 * delta_x_m**2) 
      ELSE IF (i_cylindrical==2) THEN   
          ! Compute actual weight of particles in cylindrical coordinate 
          ! Note that N_of_particles_cell = Nppc_input_file / (pi*R) here. This has been modified while reading the configuration file to make sure the density is correct.
@@ -733,7 +733,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
          ! So w_cyl = pi*R*n_scale*dx**2/(N_ppc_input_file) 
          ! So w_cyl = n_scale*dx**2/(N_ppc_input_file/(pi*R)) 
          ! So w_cyl = n_scale*dx**2/(N_of_particles_cell) 
-         weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+         weight_ptcl = N_plasma_m3*delta_x_m**2/(N_of_particles_cell_dble)
          ! Deduce how many particles we should inject 
          coeff_J = delta_t_s / ( e_Cl*weight_ptcl ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
      END IF

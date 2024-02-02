@@ -2020,7 +2020,7 @@ END SUBROUTINE SAVE_ION_PHASE_PLANES
 SUBROUTINE SAVE_en_COLLISIONS_2D
 
   USE ParallelOperationValues
-  USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_plasma_m3, N_of_particles_cell, delta_t_s
+  USE CurrentProblemValues, ONLY : N_subcycles, T_cntr, N_plasma_m3, N_of_particles_cell_dble, delta_t_s
   USE ClusterAndItsBoundaries
 !  USE IonParticles
   USE MCCollisions
@@ -2074,7 +2074,7 @@ SUBROUTINE SAVE_en_COLLISIONS_2D
      T_start = N_subcycles * (Tcntr_snapshot(current_snap-1) / N_subcycles)-1  ! timestep when ions were advanced before the previous snapshot
   END IF
   conversion_factor_m3s = 0.0
-  IF (T_cntr.GT.T_start) conversion_factor_m3s = REAL(N_plasma_m3 / (N_of_particles_cell * (T_cntr - T_start) * delta_t_s))
+  IF (T_cntr.GT.T_start) conversion_factor_m3s = REAL(N_plasma_m3 / (N_of_particles_cell_dble * (T_cntr - T_start) * delta_t_s))
 
   n1 = c_indx_y_max - c_indx_y_min + 1
   n3 = c_indx_x_max - c_indx_x_min + 1

@@ -182,6 +182,7 @@ MODULE CurrentProblemValues
   REAL(8) eps_0_Fm
 
   INTEGER, PARAMETER :: string_length = 300
+  INTEGER, PARAMETER :: dble_precision = selected_real_kind(15, 307)
 
   CHARACTER(len=string_length), PARAMETER :: GIT_BRANCH="GIT_BRANCH"
   CHARACTER(len=string_length), PARAMETER :: GIT_HASH="GIT_HASH"
@@ -228,6 +229,7 @@ MODULE CurrentProblemValues
   INTEGER N_grid_block_y  ! number of cells along the Y-direction in a block
 
   INTEGER N_of_particles_cell  ! number of macroparticles per cell for the scale density
+  REAL(KIND=dble_precision) :: N_of_particles_cell_dble
 
   INTEGER cluster_N_blocks_x  ! number of blocks along the X-direction in a cluster
   INTEGER cluster_N_blocks_y  ! number of blocks along the Y-direction in a cluster

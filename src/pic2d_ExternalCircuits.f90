@@ -194,23 +194,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_ishifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_ishifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
 
@@ -227,15 +227,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -265,11 +265,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     END SELECT
 
@@ -298,23 +298,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_ishifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_ishifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
 
@@ -331,15 +331,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -369,11 +369,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     END SELECT
 
@@ -397,11 +397,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_ishifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                  END DO   !### DO j = jstart, jend
 
@@ -438,23 +438,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_ishifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_ishifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
 
@@ -471,15 +471,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -509,11 +509,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     END SELECT
 
@@ -542,23 +542,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_ishifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_ishifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_ishifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_ishifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
                           CALL GET_EPS_IN_POINT(DBLE(i)-0.5_8, DBLE(j) - 0.25_8, eps_shifted_4)          ! i-1/2, j-1/4, eps_D
@@ -574,15 +574,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -612,11 +612,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     END SELECT
 
@@ -640,11 +640,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_ishifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                  END DO   !### DO j = jstart, jend
 
@@ -725,23 +725,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_jshifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_jshifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)                    
 
@@ -758,15 +758,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -796,11 +796,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     END SELECT
 
@@ -836,23 +836,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_jshifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_jshifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
 
@@ -869,15 +869,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -907,11 +907,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     END SELECT
 
@@ -940,11 +940,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_jshifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                  END DO   !### DO i = istart, iend
 
@@ -982,23 +982,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_jshifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_jshifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
 
@@ -1015,15 +1015,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -1053,11 +1053,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     END SELECT
 
@@ -1093,23 +1093,23 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (8.0_8 * eps_shifted_4 + 3.0_8 * eps_jshifted) / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted * 3.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted * 3.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i+1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) *  eps_jshifted / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble *  eps_jshifted / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(4) = i
                           object_charge_calculation(nn)%control(pos)%use_j(4) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -DBLE(N_of_particles_cell) *  eps_shifted_4 * 6.0_8 / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(4) = -N_of_particles_cell_dble *  eps_shifted_4 * 6.0_8 / 16.0_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(5) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(5) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  DBLE(N_of_particles_cell) *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(5) =  N_of_particles_cell_dble *  (eps_jshifted - 2.0_8 * eps_shifted_4) / 16.0_8
 
                        CASE (END_CORNER_CONCAVE)
 
@@ -1126,15 +1126,15 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_shifted_4 * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_shifted_4 * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.375_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_shifted_4 * 0.375_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(3) = i-1
                           object_charge_calculation(nn)%control(pos)%use_j(3) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -DBLE(N_of_particles_cell) * eps_shifted_4 * 0.125_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(3) = -N_of_particles_cell_dble * eps_shifted_4 * 0.125_8
 
                        CASE (CONCAVE_CORNER)
 
@@ -1164,11 +1164,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                           object_charge_calculation(nn)%control(pos)%use_i(1) = i
                           object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                           object_charge_calculation(nn)%control(pos)%use_i(2) = i
                           object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                          object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     END SELECT
 
@@ -1197,11 +1197,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_jshifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                  END DO   !### DO j = jstart, jend
 
@@ -1272,11 +1272,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     jstart = jstart + 1
                  END IF
@@ -1301,11 +1301,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     jend = jend - 1
                  END IF
@@ -1327,11 +1327,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_ishifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i-1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                  END DO   !### DO j = jstart, jend
 
@@ -1380,11 +1380,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     istart = istart + 1
                  END IF
@@ -1412,11 +1412,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     iend = iend - 1
                  END IF
@@ -1443,11 +1443,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_jshifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j+1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                  END DO   !### DO i = istart, iend
 
@@ -1496,11 +1496,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     jstart = jstart + 1
                  END IF
@@ -1525,11 +1525,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                     jend = jend - 1
                  END IF
@@ -1551,11 +1551,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_ishifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i+1
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_ishifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_ishifted
 
                  END DO   !### DO j = jstart, jend
 
@@ -1604,11 +1604,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     istart = istart + 1
                  END IF
@@ -1639,11 +1639,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * (eps_ishifted + eps_jshifted) * 0.5_8
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * (eps_ishifted + eps_jshifted) * 0.5_8
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                     iend = iend - 1
                  END IF
@@ -1669,11 +1669,11 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIAL_CHARGE_COEFFS
 
                     object_charge_calculation(nn)%control(pos)%use_i(1) = i
                     object_charge_calculation(nn)%control(pos)%use_j(1) = j
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(1) =  N_of_particles_cell_dble * eps_jshifted
 
                     object_charge_calculation(nn)%control(pos)%use_i(2) = i
                     object_charge_calculation(nn)%control(pos)%use_j(2) = j-1
-                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -DBLE(N_of_particles_cell) * eps_jshifted
+                    object_charge_calculation(nn)%control(pos)%use_alpha_phi(2) = -N_of_particles_cell_dble * eps_jshifted
 
                  END DO   !### DO j = jstart, jend
 
@@ -1970,7 +1970,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
 ! one rf electrode connected in series to rf voltage source, capacitor, ground
 ! one electrode grounded
 
-           factor_C = eps_0_Fm / (capacitor_C_F(1) * DBLE(N_of_particles_cell))
+           factor_C = eps_0_Fm / (capacitor_C_F(1) * N_of_particles_cell_dble)
 
            a(1,1) = 1.0_8 + factor_C * object_charge_coeff(1,1)
 
@@ -2070,8 +2070,8 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
           & charge_of_object(1), &                      ! 5
           & dQ_full(1), &                               ! 6
           & dQ_plasma_of_object(1), &                             ! 7
-          & (dQ_full(1) - dQ_plasma_of_object(1)) * (e_Cl * N_plasma_m3 * delta_x_m**2 / (DBLE(N_of_particles_cell) * delta_t_s)), &    ! 8 ! current in external circuit
-          &             - dQ_plasma_of_object(1)  * (e_Cl * N_plasma_m3 * delta_x_m**2 / (DBLE(N_of_particles_cell) * delta_t_s))       ! 9 ! current in plasma
+          & (dQ_full(1) - dQ_plasma_of_object(1)) * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s)), &    ! 8 ! current in external circuit
+          &             - dQ_plasma_of_object(1)  * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s))       ! 9 ! current in plasma
      CLOSE (21, STATUS = 'KEEP')
 
   END IF   !### IF (Rank_of_process.EQ.0) THEN

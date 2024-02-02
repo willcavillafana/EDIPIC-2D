@@ -245,6 +245,7 @@ SUBROUTINE INITIATE_PARAMETERS
 
   config_inconsistent = .FALSE.
 
+  N_of_particles_cell_dble = DBLE(N_of_particles_cell)
   IF (N_of_processes.NE.(N_blocks_x*N_blocks_y)) THEN
      config_inconsistent = .TRUE.
      IF (Rank_of_process.EQ.0) PRINT '("@@@ INCONSISTENT CONFIGURATION ERROR-1, N_blocks_x * N_blocks_y .NE. N_of_processes :: ",i4," * ",i4," = ",i4," instead of ",i4," @@@")', &
@@ -1079,7 +1080,7 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
    ! CALL MPI_ALLREDUCE(c_indx_y_max, c_indx_y_max_total,1, MPI_INT, MPI_MAX, COMM_HORIZONTAL, stattus, ierr)
    ! CALL MPI_ALLREDUCE(c_indx_y_min, c_indx_y_min_total,1, MPI_INT, MPI_MIN, COMM_HORIZONTAL, stattus, ierr)  
 
-   N_of_particles_cell = INT(N_of_particles_cell/(pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m)) 
+   N_of_particles_cell_dble = N_of_particles_cell_dble/(pi*(c_indx_x_max_total-c_indx_x_min_total)*delta_x_m) 
    ! I need to modify this because otherwise the number of ptcl in cylindrical will not lead to the correcrt density. V_tot_cyl = pi*Nr* V_tot_cart
    ! In the whole domain, Nppc will be in average the number I put in the init file as Nppc_cyl = N_tot_cyl/V_tot_cyl
    ! I implicity changen the statistical weight: w_cyl = pi*R*w_cart = pi*R*n_scale*dx**2/(N_ppc_cart)
@@ -1095,11 +1096,11 @@ if (Rank_of_process.eq.0) print *, "CALCULATE_BLOCK_OFFSET done"
   CALL print_message(message)    
 
   ! Print statistical weight of particles
-  weight_ptcl = N_plasma_m3*delta_x_m**2/(DBLE(N_of_particles_cell))
+  weight_ptcl = N_plasma_m3*delta_x_m**2/N_of_particles_cell_dble
   WRITE( message,'(A,ES10.3)') "Statistical weight of particles is w_stat = ",weight_ptcl
   CALL print_message(message)    
 
-  N_scale_part_m3 = N_plasma_m3 / N_of_particles_cell
+  N_scale_part_m3 = N_plasma_m3 / N_of_particles_cell_dble
   current_factor_Am2 = e_Cl * V_scale_ms * N_scale_part_m3
   energy_factor_eV = 0.5_8 * m_e_kg * V_scale_ms**2 / e_Cl
 
@@ -3916,14 +3917,14 @@ SUBROUTINE DISTRIBUTE_PARTICLES
      IF ( i_empty_domain==1 ) THEN
          N_electrons = 0
      ELSE
-         N_electrons =  INT( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y)!*Rmax*Delta_z_max )
+         N_electrons =  INT( N_of_particles_cell_dble * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y)!*Rmax*Delta_z_max )
      END IF
 
      ! Quick check if I have not exceed greatest available integer
-     IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max>DBLE(HUGE(int_test)) ) THEN
+     IF ( N_of_particles_cell_dble * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max>DBLE(HUGE(int_test)) ) THEN
    !   IF ( DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y>DBLE(HUGE(int_test)) ) THEN
       ! WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y," is too big for integer precision. Max available integer =",HUGE(int_test)
-        WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",DBLE(N_of_particles_cell) * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max," is too big for integer precision. Max available integer =",HUGE(int_test)
+        WRITE( message ,'(A,ES10.3,A,I15)') "N_electrons =",N_of_particles_cell_dble * (init_Ne_m3 / N_plasma_m3) * n_limit_x * n_limit_y*Rmax*Delta_z_max," is too big for integer precision. Max available integer =",HUGE(int_test)
         CALL print_error ( message,routine )
         CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
      END IF
