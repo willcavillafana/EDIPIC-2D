@@ -702,7 +702,7 @@ SUBROUTINE INITIATE_PROBE_DIAGNOSTICS
 ! average electron energy WXe 
            INQUIRE (FILE = TRIM(work_dir_probes)//'/'//'dim_WXe_vst.dat', EXIST = exists)
            IF (exists) THEN                                                       
-              OPEN (21, FILE = 'dim_WXe_vst.dat', STATUS = 'OLD')          
+              OPEN (21, FILE = TRIM(work_dir_probes)//'/'//'dim_WXe_vst.dat', STATUS = 'OLD')          
               DO
                  READ (21, '(1x,f15.6,100(1x,e14.7))', iostat = ios) time_ns
                  IF (ios.NE.0) EXIT
