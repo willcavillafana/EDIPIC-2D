@@ -7,7 +7,7 @@ SUBROUTINE INITIATE_SNAPSHOTS
   USE Snapshots
   USE Diagnostics,          ONLY : Save_probes_data_T_cntr_rff, Save_probes_data_step
   USE CurrentProblemValues, ONLY : delta_t_s, Max_T_cntr
-  USE Checkpoints, ONLY : use_checkpoint, current_snap_check
+  USE Checkpoints, ONLY : use_checkpoint, current_snap_check, T_cntr_to_continue
   USE MCCollisions
   USE ClusterAndItsBoundaries
 
@@ -51,6 +51,8 @@ SUBROUTINE INITIATE_SNAPSHOTS
   INTEGER ALLOC_ERR
 
   INTEGER p
+
+  INTEGER :: T_cntr_snap_before_checkpoint, T_cntr_snap_after_checkpoint ! determines between which snaps the checkpoints is. Adjust the current snap to consider accordingly 
 
 ! default values
   N_of_all_snaps = 0
@@ -197,10 +199,8 @@ SUBROUTINE INITIATE_SNAPSHOTS
 
   CLOSE (9, STATUS = 'KEEP')
 
-!  current_snap = 1   ! default value
-
 ! overrite if the system is initialized using a checkpoint
-  IF (use_checkpoint.EQ.1) current_snap = 1 !current_snap_check ! Temporary fix 
+  IF (use_checkpoint.EQ.1) current_snap = current_snap_check 
 
 ! report about the general status of snapshot creation
   IF (N_of_all_snaps.EQ.0) THEN
@@ -282,6 +282,21 @@ SUBROUTINE INITIATE_SNAPSHOTS
      END DO
      CLOSE (41, STATUS = 'KEEP')
   END IF
+
+   IF ( use_checkpoint==1 ) THEN
+      T_cntr_snap_before_checkpoint = Tcntr_snapshot(1)
+      T_cntr_snap_after_checkpoint = Tcntr_snapshot(N_of_all_snaps)
+      DO i = 1, N_of_all_snaps
+         IF ( T_cntr_to_continue>=Tcntr_snapshot(i) ) THEN 
+            T_cntr_snap_before_checkpoint = Tcntr_snapshot(i)
+         ELSE
+            T_cntr_snap_after_checkpoint = Tcntr_snapshot(i)
+            EXIT
+         END IF
+      END DO
+      current_snap = i ! make sure the enxt snap will be effectively produced (useful if 2D maps are added during a run after one or several checkpoints )
+   END IF
+
   IF (en_collisions_turned_off) RETURN
   IF (cluster_rank_key.NE.0) RETURN
 
