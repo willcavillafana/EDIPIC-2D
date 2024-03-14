@@ -646,55 +646,65 @@ SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, col
          CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
          RETURN
       END IF
-   ELSE IF ( i_reflection_cyl_ion==1 ) THEN
-      ! Left or right
-      IF ( coll_direction_flag==1 .OR. coll_direction_flag==3 ) THEN
+   ELSE IF ( i_cylindrical==2 ) THEN
 
-         IF ( coll_direction_flag==1 ) THEN
-            R_object = xmax
-         ELSE IF ( coll_direction_flag==3 ) THEN
-            R_object = xmin
-         ENDIF
-         CALL REFLECT_CYLINDRICAL( x_old,vx_old,vy_old,vz,R_object,x_reflected,y_reflected,vx_reflected,vy_reflected, N_subcycles )
+      ! I want specular reflection I need to be careful
+      IF ( myobject%reflects_all_ions ) THEN
+         ! Left or right
+         IF ( coll_direction_flag==1 .OR. coll_direction_flag==3 ) THEN
 
-         ! Adjust position in local Cartesian frame after collision
-         x_cart = x_reflected
-         z_cart = y_reflected
-         radius = SQRT( x_cart**2+z_cart**2 )
+            IF ( coll_direction_flag==1 ) THEN
+               R_object = xmax
+            ELSE IF ( coll_direction_flag==3 ) THEN
+               R_object = xmin
+            ENDIF
+            CALL REFLECT_CYLINDRICAL( x_old,vx_old,vy_old,vz,R_object,x_reflected,y_reflected,vx_reflected,vy_reflected, N_subcycles )
 
-         ! Velocity in local cartesian frame
-         vx = vx_reflected
-         vz = vy_reflected  ! theta direction in z  
+            ! Adjust position in local Cartesian frame after collision
+            x_cart = x_reflected
+            z_cart = y_reflected
+            radius = SQRT( x_cart**2+z_cart**2 )
 
-         ! Then compute increment angle alpha
-         alpha_ang = DATAN2(z_cart,x_cart)         
+            ! Velocity in local cartesian frame
+            vx = vx_reflected
+            vz = vy_reflected  ! theta direction in z  
 
-         ! Update radius (X). 
-         ! IF ( radius>c_X_area_max) print*,'x_wil',x
-         radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
-         x = radius
-         
-         ! Get Final velocities in cylindrical system. (z speed has already been update above)
-         vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
-         vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
+            ! Then compute increment angle alpha
+            alpha_ang = DATAN2(z_cart,x_cart)         
 
-         vx = vx_temp
-         vz = vz_temp        
-         
-         ! print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
-         ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
-         ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+            ! Update radius (X). 
+            ! IF ( radius>c_X_area_max) print*,'x_wil',x
+            radius = MIN(c_X_area_max,radius) ! SAftey because of error precision
+            x = radius
+            
+            ! Get Final velocities in cylindrical system. (z speed has already been update above)
+            vx_temp =   COS(alpha_ang)*vx + SIN(alpha_ang)*vz
+            vz_temp = - SIN(alpha_ang)*vx + COS(alpha_ang)*vz
 
-         CALL ADD_ION_TO_ADD_LIST(s, x, y, vx, vy, vz, tag)
-      ! For other directions, I need to check
-      ELSE
-         IF (myobject%reflects_all_ions) THEN
+            vx = vx_temp
+            vz = vz_temp        
+            
+            ! print*,'x_old,x_cart,z_cart,x',x_old,x_cart,z_cart,x
+            ! print*,'vx_old,vy_old,vx,vy',vx_old,vy_old,vx,vy
+            ! print*,'ec_before,after',vx_old**2+vy_old**2+vy**2,vx**2+vz**2+vy**2
+
+            CALL ADD_ION_TO_ADD_LIST(s, x, y, vx, vy, vz, tag)
+         ! For other directions, I can proceed normally
+         ELSE
             CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
-            RETURN
-         END IF         
-      ENDIF
-      RETURN
+         END IF
+         RETURN ! specular reflection has been acheived, I can safely exit (no dielectric to be done)
+      END IF 
+      ! ELSE
+      !    IF (myobject%reflects_all_ions) THEN
+      !       CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
+      !       RETURN
+      !    END IF         
+      ! ENDIF
+      ! RETURN
    ENDIF
+
+   ! No specular reflection in either cylindrical or cartesian
 
   IF (myobject%object_type.EQ.DIELECTRIC) THEN
 ! update the surface charge

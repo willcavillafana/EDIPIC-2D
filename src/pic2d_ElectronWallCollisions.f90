@@ -1397,6 +1397,7 @@ SUBROUTINE REFLECT_CYLINDRICAL ( x_start,vx,vy,vz_axial,R_max ,xf,yf,dot_prod_i,
        t_star = y_star/vy  
    ELSE ! Line with finite slope
       sol_sign = SIGN(one,vx) ! By default we assume a wall on the right. The largest solution should be picked if we go to thr right in the circle. Otherwise it should be the smallest one. 
+      IF (R_max<x_start) sol_sign = one ! if this is a wall on the left, then the largest solution of quadratic equation should be picked 
       ! sol_sign = one !SIGN(one,vx) ! This will determine which solution of the quadratice equation we retain    
        a = vy/vx
        b = -a*x_start
