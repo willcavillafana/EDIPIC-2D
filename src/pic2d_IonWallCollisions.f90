@@ -640,7 +640,7 @@ SUBROUTINE DO_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, myobject, col
 
   myobject%ion_hit_count(s) = myobject%ion_hit_count(s) + 1
 
-  ! General case not cylindrical
+  ! General case not cylindrical and no reflection
   IF ( i_reflection_cyl_ion==0 ) THEN
       IF (myobject%reflects_all_ions) THEN
          CALL INJECT_REFLECTED_ION(s, x, y, vx, vy, vz, tag, myobject, -1, coll_direction_flag)
