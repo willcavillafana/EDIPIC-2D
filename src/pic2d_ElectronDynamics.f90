@@ -2223,7 +2223,7 @@ SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE ( x_old, y_old, x,y,vx,vy,vz,tag,speci
    DO idx=1,num_plane_x_locations
       ! Check if ptcl has crossed the plane or not
       IF ( (x-plane_x_cuts_location(idx))*(x_old-plane_x_cuts_location(idx))<zero ) THEN
-         flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) + 1.0*SIGN(1.0,x-x_old)
+         flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) + 1.0*SIGN(one,x-x_old)
          i_flux_measure = 1
       ENDIF
    ENDDO
@@ -2231,7 +2231,7 @@ SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE ( x_old, y_old, x,y,vx,vy,vz,tag,speci
    DO idx=num_plane_x_locations+1,num_plane_y_locations+num_plane_x_locations
       ! Check if ptcl has crossed the plane or not
       IF ( (y-plane_y_cuts_location(idx-num_plane_x_locations))*(y_old-plane_y_cuts_location(idx-num_plane_x_locations))<zero ) THEN
-         flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) + 1.0*SIGN(1.0,y-y_old)
+         flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) + 1.0*SIGN(one,y-y_old)
          i_flux_measure = 1
       ENDIF
    ENDDO
@@ -2274,14 +2274,14 @@ SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN ( number_object, x_old, y_old, x,y,sp
       ! Check if plane intersects with inner object
       IF ( plane_x_cuts_location(idx)>whole_object(number_object)%Xmax .OR. plane_x_cuts_location(idx)<whole_object(number_object)%Xmin ) CYCLE
       ! Check if ptcl has crossed the plane or not
-      IF ( (x-plane_x_cuts_location(idx))*(x_old-plane_x_cuts_location(idx))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(1.0,x-x_old)
+      IF ( (x-plane_x_cuts_location(idx))*(x_old-plane_x_cuts_location(idx))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(one,x-x_old)
    ENDDO
    
    DO idx=num_plane_x_locations+1,num_plane_y_locations+num_plane_x_locations
       ! Check if plane intersects with inner object
       IF ( plane_y_cuts_location(idx-num_plane_x_locations)>whole_object(number_object)%Ymax .OR. plane_y_cuts_location(idx-num_plane_x_locations)<whole_object(number_object)%Ymin ) CYCLE      
       ! Check if ptcl has crossed the plane or not
-      IF ( (y-plane_y_cuts_location(idx-num_plane_x_locations))*(y_old-plane_y_cuts_location(idx-num_plane_x_locations))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(1.0,y-y_old)
+      IF ( (y-plane_y_cuts_location(idx-num_plane_x_locations))*(y_old-plane_y_cuts_location(idx-num_plane_x_locations))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(one,y-y_old)
    ENDDO
 
 END SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN   
