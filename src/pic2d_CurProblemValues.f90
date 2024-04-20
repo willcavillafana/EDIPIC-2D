@@ -1440,6 +1440,7 @@ SUBROUTINE read_flexible_parameters
    USE Snapshots, ONLY: work_dir_2d_map
    USE BlockAndItsBoundaries, ONLY: work_dir_partition_and_fields_files
    USE Diagnostics, ONLY: work_dir_probes 
+   USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location,num_plane_x_locations, num_plane_y_locations
  
    IMPLICIT NONE
    INCLUDE 'mpif.h'
@@ -1453,9 +1454,14 @@ SUBROUTINE read_flexible_parameters
    CHARACTER(LEN=string_length) :: caval ! buffer for string values
    CHARACTER(LEN=string_length) :: message, routine  
    LOGICAL :: exists
+   INTEGER :: idx
    
    ! Declare routine name and debug level
    routine = 'read_flexible_parameters'
+
+   separator = '='
+   num_plane_x_locations = 0
+   num_plane_y_locations = 0
 
   ! Implement new parser for geometry 
    INQUIRE (FILE = 'init_params.dat', EXIST = exists)
@@ -1785,7 +1791,77 @@ SUBROUTINE read_flexible_parameters
          WRITE( message,'(A)') "wkdir_probes keyword not present. I assume we do not want it. It will be saved in './'"
          CALL print_message( message,routine )       
       END IF                     
+
+      ! i_found = 0
+      ! REWIND(9)
+      ! DO
+      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      !    IF ( ierr/=0 ) EXIT
+      !    IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+      !    READ (line,*) long_buf ! read first word of line
+      !    IF ( TRIM(long_buf)=="planes_X_locations_to_measure_net_flux" ) THEN ! found search string at beginning of line
+      !       i_found = 1
+
+      !       CALL count_number_of_inputs(line,long_buf,separator,num_plane_x_locations)
+      !       IF (num_plane_x_locations > 0) THEN
+      !          ALLOCATE(plane_x_cuts_location(num_plane_x_locations))
+      !       ELSE
+      !          WRITE(message, '(A,A)') 'No values found in the line: ',line
+      !          CALL print_parser_error(message)
+      !       END IF            
+            
+      !       READ (line,*) long_buf,separator,plane_x_cuts_location(1:num_plane_x_locations)
+
+      !       WRITE( message,'(A)') "planes_X_locations_to_measure_net_flux keyword present. Will generate fluxes on for cuts at X = ... if averaged snaphots are turned on"
+      !       CALL print_message( message,routine )    
+            
+      !       DO idx=1,num_plane_x_locations
+      !          WRITE( message,'(A,ES10.3,A,I10,A,I10)') "Plane cut at X = ",plane_x_cuts_location(idx)," [m] between grid node i = ",FLOOR(plane_x_cuts_location(idx)/delta_x_m)," and i = ",FLOOR(plane_x_cuts_location(idx)/delta_x_m)+1
+      !          plane_x_cuts_location(idx) = plane_x_cuts_location(idx)/delta_x_m
+      !          CALL print_message( message )    
+      !       END DO            
+
+      !    END IF
+      ! END DO  
+      ! IF ( i_found==0 ) THEN
+      !    WRITE( message,'(A)') "planes_X_locations_to_measure_net_flux keyword not present. I assume we do not want it. "
+      !    CALL print_message( message,routine )       
+      ! END IF                          
       
+      ! i_found = 0
+      ! REWIND(9)
+      ! DO
+      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      !    IF ( ierr/=0 ) EXIT
+      !    IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+      !    READ (line,*) long_buf ! read first word of line
+      !    IF ( TRIM(long_buf)=="planes_Y_locations_to_measure_net_flux" ) THEN ! found search string at beginning of line
+      !       i_found = 1
+      !       CALL count_number_of_inputs(line,long_buf,separator,num_plane_y_locations)
+      !       IF (num_plane_y_locations > 0) THEN
+      !          ALLOCATE(plane_y_cuts_location(num_plane_y_locations))
+      !       ELSE
+      !          WRITE(message, '(A,A)') 'No values found in the line: ',line
+      !          CALL print_parser_error(message)
+      !       END IF                   
+      !       READ (line,*) long_buf,separator,plane_y_cuts_location(1:num_plane_y_locations)
+
+      !       WRITE( message,'(A)') "planes_Y_locations_to_measure_net_flux keyword present. Will generate fluxes on for cuts at Y = ... if averaged snaphots are turned on."
+      !       CALL print_message( message,routine )    
+            
+      !       DO idx=1,num_plane_y_locations
+      !          WRITE( message,'(A,ES10.3,A,I10,A,I10)') "Plane cut at Y = ",plane_y_cuts_location(idx)," [m] between grid node j = ",FLOOR(plane_y_cuts_location(idx)/delta_x_m)," and j = ",FLOOR(plane_y_cuts_location(idx)/delta_x_m)+1
+      !          plane_y_cuts_location(idx) = plane_y_cuts_location(idx)/delta_x_m
+      !          CALL print_message( message )    
+      !       END DO            
+
+      !    END IF
+      ! END DO  
+      ! IF ( i_found==0 ) THEN
+      !    WRITE( message,'(A)') "planes_Y_locations_to_measure_net_flux keyword not present. I assume we do not want it. "
+      !    CALL print_message( message,routine )       
+      ! END IF             
+
       CLOSE (9, STATUS = 'KEEP')
    END IF
 
@@ -1793,6 +1869,56 @@ SUBROUTINE read_flexible_parameters
    CALL print_message( message )
 
  END SUBROUTINE read_flexible_parameters       
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE prepare_values_array
+!>    @details Calculate how many inputs need to be read on a line. Returns correctly allocated array with REAL(8)
+!!    @authors W. Villafana
+!!    @date    Apr-15-2024
+!-------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE count_number_of_inputs(line, long_buffer, separator , num_values)
+   
+   USE CurrentProblemValues, ONLY: string_length
+   USE mod_print, ONLY: print_debug, print_parser_error
+   IMPLICIT NONE
+
+   ! IN/OUT
+   CHARACTER(LEN=1000), INTENT(IN) :: line
+   CHARACTER(LEN=1000), INTENT(IN) :: long_buffer
+   CHARACTER(LEN=1000), INTENT(IN) :: separator
+   ! REAL(8), ALLOCATABLE, INTENT(INOUT) :: values(:)
+   INTEGER, INTENT(INOUT) :: num_values
+
+   ! LOCAL
+   CHARACTER(LEN=string_length) :: word
+   INTEGER :: iostat
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level
+   CHARACTER(LEN=string_length) :: message
+   INTEGER :: read_pos
+
+   ! Declare routine name and debug level
+   routine = 'prepare_values_array'
+   local_debug_level = 1
+
+   CALL print_debug( routine,local_debug_level)   
+
+   ! Initialize the number of values
+   num_values = 0
+
+   ! First, count the number of values in the line
+   read_pos = 1
+
+   ! Loop to count words in the line
+   DO
+       READ (line(read_pos:), *, IOSTAT=iostat) word
+       IF (iostat /= 0) EXIT  ! Exit loop on read error or end of data
+       IF ( TRIM(word)/=TRIM(long_buffer) .AND. TRIM(word)/=TRIM(separator) ) num_values = num_values + 1
+       read_pos = read_pos + LEN(TRIM(word)) + 1  ! Update position to start of next word
+   END DO
+
+END SUBROUTINE count_number_of_inputs
 
 !--------------------------------------------------------
 INTEGER FUNCTION convert_logical_to_int(logvar)

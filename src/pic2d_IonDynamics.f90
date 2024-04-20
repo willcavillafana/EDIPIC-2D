@@ -28,7 +28,7 @@ SUBROUTINE ADVANCE_IONS
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
-  REAL(8) :: x_old,vx_old,vy_old
+  REAL(8) :: x_old,y_old,vx_old,vy_old
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
@@ -164,15 +164,17 @@ SUBROUTINE ADVANCE_IONS
 
         END IF
 
+        x_old =  ion(s)%part(k)%X
+        y_old =  ion(s)%part(k)%Y
         ! Cartesian case
-        IF ( i_cylindrical==0 ) THEN
+         IF ( i_cylindrical==0 ) THEN
 
             ! Advance ptcl
             ion(s)%part(k)%X = ion(s)%part(k)%X + ion(s)%part(k)%VX * N_subcycles
             ion(s)%part(k)%Y = ion(s)%part(k)%Y + ion(s)%part(k)%VY * N_subcycles
  
         ! In cyclindrical coordinates we must convert Cartesian velocities in Cylindrical form (Delzanno 2013)
-        ELSEIF ( i_cylindrical==1 ) THEN ! r_theta case ie r=X and theta=Y
+         ELSEIF ( i_cylindrical==1 ) THEN ! r_theta case ie r=X and theta=Y
  
             ! First compute intermediate position (X = radius)
             x_cart = ion(s)%part(k)%X + ion(s)%part(k)%VX * N_subcycles
@@ -201,7 +203,6 @@ SUBROUTINE ADVANCE_IONS
             radius =  SQRT( x_cart**2 + z_cart**2 )
 
             ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
-            x_old =  ion(s)%part(k)%X
             vx_old = ion(s)%part(k)%VX
             vy_old = ion(s)%part(k)%VZ                
    

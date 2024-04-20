@@ -471,7 +471,7 @@ END SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
 
 !-----------------------------------------
 !
-SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
+SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, n_obj_collision)
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
@@ -491,6 +491,7 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
   REAL(8) :: r_old, vx_old, vy_old, x_cart, z_cart ! old radius, readial and axial velocity in r-z
   REAL(8) :: alpha_ang  
   REAL(8) :: vx_new, vy_new, vz_new
+  INTEGER, INTENT(OUT) :: n_obj_collision
 !  TYPE(boundary_object) myobject
 
   REAL(8) xorg, yorg
@@ -600,6 +601,7 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag)
   END SELECT
 
   CALL ADD_ION_TO_BO_COLLS_LIST(s, coll_coord, REAL(vx_new), REAL(vy_new), REAL(vz_new), tag, n_do, mcross)
+  n_obj_collision = n_do
 
   CALL DO_ION_COLL_WITH_INNER_OBJECT(s, xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag,xorg,vx_old,vy_old)
 

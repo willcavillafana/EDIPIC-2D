@@ -3,12 +3,14 @@
 SUBROUTINE ADVANCE_ELECTRONS_PLUS
 
   USE ParallelOperationValues, ONLY : cluster_rank_key, Rank_of_process
-  USE CurrentProblemValues, ONLY : T_cntr
+  USE CurrentProblemValues, ONLY : T_cntr, zero
   USE Snapshots, ONLY : cs_N, cs_VX, cs_VY, cs_VZ, cs_WX, cs_WY, cs_WZ, cs_VXVY, cs_VXVZ, cs_VYVZ, cs_QX, cs_QY, cs_QZ
-  USE AvgSnapshots, ONLY : current_avgsnap, N_of_all_avgsnaps, avgsnapshot, save_avg_data
+  USE AvgSnapshots, ONLY : current_avgsnap, N_of_all_avgsnaps, avgsnapshot, save_avg_data, num_plane_x_locations, num_plane_y_locations,&
+                           flux_through_plane_over_one_period, cluster_flux_through_plane_over_one_period
   USE ClusterAndItsBoundaries, ONLY : c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
   USE Diagnostics, ONLY : Save_probes_e_data_T_cntr
   USE ElectronParticles, ONLY :  electron_to_add
+  USE IonParticles, ONLY: N_spec
 
   IMPLICIT NONE
 
@@ -39,7 +41,8 @@ SUBROUTINE ADVANCE_ELECTRONS_PLUS
            & save_avg_data(19).OR. &
            & save_avg_data(20).OR. &
            & save_avg_data(21).OR. &
-           & save_avg_data(22) ) collect_electron_moments_now = .TRUE.
+           & save_avg_data(22).OR. &
+           & num_plane_x_locations+num_plane_y_locations>0 ) collect_electron_moments_now = .TRUE.
      END IF
   END IF
 
@@ -114,10 +117,17 @@ SUBROUTINE ADVANCE_ELECTRONS_PLUS
      cs_QY = 0.0
      cs_QZ = 0.0
 
+      IF (num_plane_x_locations+num_plane_y_locations>0) THEN
+         IF (ALLOCATED(flux_through_plane_over_one_period)) DEALLOCATE(flux_through_plane_over_one_period)
+         ALLOCATE(flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations))
+         flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations) = 0.0
+         IF (.NOT. ALLOCATED(cluster_flux_through_plane_over_one_period)) ALLOCATE(cluster_flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations))
+         cluster_flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations) = 0.0
+      END IF
+
      CALL ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
    !   IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_advance_2',electron_to_add(1707)%X
      IF (cluster_rank_key.EQ.0) CALL COLLECT_ELECTRON_DATA_FOR_AVERAGED_SNAPSHOT
-
 ! cleanup
 
      DEALLOCATE(cs_N, STAT = ALLOC_ERR)
@@ -137,6 +147,8 @@ SUBROUTINE ADVANCE_ELECTRONS_PLUS
      DEALLOCATE(cs_QX, STAT = ALLOC_ERR)
      DEALLOCATE(cs_QY, STAT = ALLOC_ERR)
      DEALLOCATE(cs_QZ, STAT = ALLOC_ERR)
+
+     IF (num_plane_x_locations+num_plane_y_locations>0) DEALLOCATE(flux_through_plane_over_one_period)
 
 ! arrays cs_* will be deallocated later, in COLLECT_DATA_FOR_AVERAGED_SNAPSHOT
 
@@ -165,6 +177,8 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
 
 !------------------------------------------>>>
   USE Snapshots, ONLY : cs_N, cs_VX, cs_VY, cs_VZ, cs_WX, cs_WY, cs_WZ, cs_VXVY, cs_VXVZ, cs_VYVZ, cs_QX, cs_QY, cs_QZ
+  USE AvgSnapshots, ONLY: flux_through_plane_over_one_period, cluster_flux_through_plane_over_one_period, num_plane_x_locations, num_plane_y_locations
+  USE IonParticles, ONLY: N_spec
   USE Diagnostics
 !------------------------------------------<<<
 
@@ -195,7 +209,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system  
-  REAL(8) :: x_old,vx_old,vy_old
+  REAL(8) :: x_old,y_old,vx_old,vy_old
   REAL(8) :: vx_new,vy_new,vz_new
    
 
@@ -236,6 +250,7 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
   REAL rvx3, rvy3, rvz3
 
   INTEGER npc, npa
+  INTEGER :: n_obj_collision, i_flux_measure
 
   REAL inv_N, rtemp
 !------------------------------------------<<<
@@ -424,6 +439,8 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
      
 !------------------------------------------->>>
      ! Coordinate advance
+      x_old = electron(k)%X
+      y_old = electron(k)%Y      
    ! Cartesian case
      IF ( i_cylindrical==0 ) THEN
 
@@ -460,7 +477,6 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
       radius =  SQRT( x_cart**2 + z_cart**2 )
 
       ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
-      x_old =  electron(k)%X
       vx_old = electron(k)%VX
       vy_old = electron(k)%VZ      
 
@@ -587,7 +603,9 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
         END IF
      END IF
 
-! check whether a collision with an inner object occurred
+     CALL MEASURE_NET_FLUX_THROUGH_PLANE(x_old, y_old, electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag,1, i_flux_measure)
+
+     ! check whether a collision with an inner object occurred
      collision_with_inner_object_occurred = .FALSE.
      DO n = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
         IF (electron(k)%X.LE.whole_object(n)%Xmin) CYCLE
@@ -595,7 +613,8 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
         IF (electron(k)%Y.LE.whole_object(n)%Ymin) CYCLE
         IF (electron(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag) !, whole_object(n))
+        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, n_obj_collision) !, whole_object(n))
+        IF (i_flux_measure==1) CALL CORRECT_MEASURED_FLUX_IN_DOMAIN( n_obj_collision,x_old, y_old,  electron(k)%X, electron(k)%Y, 1)
         CALL REMOVE_ELECTRON(k)  ! this subroutine does  N_electrons = N_electrons - 1 and k = k-1
         collision_with_inner_object_occurred = .TRUE.
         EXIT
@@ -960,6 +979,11 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_2D
   CALL MPI_REDUCE(rbufer_vy3, cs_QY, bufsize, MPI_REAL, MPI_SUM, 0, COMM_CLUSTER, ierr)
   CALL MPI_REDUCE(rbufer_vz3, cs_QZ, bufsize, MPI_REAL, MPI_SUM, 0, COMM_CLUSTER, ierr)
 
+   
+   CALL MPI_REDUCE(flux_through_plane_over_one_period, cluster_flux_through_plane_over_one_period, &
+                  (1+N_spec)*(num_plane_x_locations+num_plane_y_locations), MPI_REAL, MPI_SUM, 0, COMM_CLUSTER, ierr)
+   
+
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
   DEALLOCATE(rbufer_n, STAT=ALLOC_ERR)
@@ -1127,8 +1151,9 @@ SUBROUTINE ADVANCE_ELECTRONS_AND_CALCULATE_MOMENTS_PROBES
   REAL(8) :: x_cart, y_cart, z_cart ! intermediate cartesian coordinates for cylindrical 
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
-  REAL(8) :: x_old,vx_old,vy_old
+  REAL(8) :: x_old,y_old,vx_old,vy_old
   REAL(8) :: vx_new,vy_new,vz_new
+  INTEGER :: n_obj_collision
 !------------------------------------------>>>
   REAL(8) updVX, updVY, updVZ
   LOGICAL no_probe_in_cell_corner
@@ -1281,6 +1306,8 @@ end if
 
 !--------------------------------->>>
       ! Coordinate advance
+     x_old = electron(k)%X
+     y_old = electron(k)%Y     
      ! Cartesian case
      IF ( i_cylindrical==0 ) THEN
 
@@ -1317,7 +1344,6 @@ end if
       radius =  SQRT( x_cart**2 + z_cart**2 )
 
       ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
-      x_old =  electron(k)%X
       vx_old = electron(k)%VX
       vy_old = electron(k)%VZ
 
@@ -1440,7 +1466,7 @@ end if
         IF (electron(k)%Y.LE.whole_object(n)%Ymin) CYCLE
         IF (electron(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag) !, whole_object(n))
+        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, n_obj_collision) !, whole_object(n))
         CALL REMOVE_ELECTRON(k)  ! this subroutine does  N_electrons = N_electrons - 1 and k = k-1
         collision_with_inner_object_occurred = .TRUE.
         EXIT

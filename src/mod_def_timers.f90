@@ -128,7 +128,7 @@ MODULE mod_def_timers
         old_time = single_pic_loop_timer%start
         speed_loop = one/(new_time-old_time)
     
-        WRITE(message,'(I10,9x,ES12.4,9x,ES12.4)') time_counter,DBLE(time_counter)*delta_t_s,speed_loop
+        WRITE(message,'(I10,9x,ES18.7,9x,ES12.4)') time_counter,DBLE(time_counter)*delta_t_s,speed_loop
         CALL print_message(message)
     
       END SUBROUTINE        

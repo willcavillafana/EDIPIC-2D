@@ -1400,6 +1400,11 @@ MODULE AvgSnapshots
   REAL, ALLOCATABLE :: cs_Npart_coll(:,:)    ! electron densities (in units of macroparticles) immediately before the e-neutral collisions are applied
                                              ! is used to calculate e-neutral collision frequencies
 
+  INTEGER :: num_plane_x_locations, num_plane_y_locations
+  REAL, ALLOCATABLE :: flux_through_plane_over_one_period(:,:), cluster_flux_through_plane_over_one_period(:,:), total_flux_through_plane_over_one_period(:,:) ! For electrons and s species of ions (first dim) and N planes X or Y (second dim)
+  REAL(8), ALLOCATABLE :: plane_x_cuts_location(:), plane_y_cuts_location(:)
+
+
 END MODULE AvgSnapshots
 
 !--------------------------------------------------------------------------------------------------

@@ -550,7 +550,7 @@ END SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
 
 !-----------------------------------------
 !
-SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobject)
+SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, n_obj_collision) !, myobject)
 
   USE ParallelOperationValues
   USE ClusterAndItsBoundaries
@@ -568,6 +568,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
   REAL(8) :: r_old, vx_old, vy_old, x_cart, z_cart ! old radius, readial and axial velocity in r-z
   REAL(8) :: alpha_ang
   REAL(8) :: vx_new, vy_new, vz_new
+  INTEGER, INTENT(OUT) :: n_obj_collision
   !  TYPE(boundary_object) myobject
 
   REAL(8) xorg, yorg
@@ -681,6 +682,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag) !, myobjec
   END SELECT
 
   CALL ADD_ELECTRON_TO_BO_COLLS_LIST(coll_coord, REAL(vx_new), REAL(vy_new), REAL(vz_new), tag, n_do, mcross)
+  n_obj_collision = n_do
 
   CALL DO_ELECTRON_COLL_WITH_INNER_OBJECT(xcross, ycross, vx_new, vy_new, vz_new, tag, whole_object(n_do), coll_direction_flag,xorg,vx_old,vy_old)
 

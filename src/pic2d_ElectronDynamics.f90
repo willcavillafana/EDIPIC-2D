@@ -29,10 +29,11 @@ SUBROUTINE ADVANCE_ELECTRONS
   REAL(8) :: alpha_ang ! increment angle for azimuthal coordinate in cylindrical
   REAL(8) :: radius ! radius angle for intermediate calculation in cylindrical system
 !   REAL(8) :: x_reflected,y_reflected,vx_reflected,vy_reflected ! position and veloicty in local Cartesian frame after specular reflection in Cylindrical
-  REAL(8) :: x_old,vx_old,vy_old
+  REAL(8) :: x_old, y_old, vx_old, vy_old
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
+  INTEGER :: n_obj_collision
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -162,6 +163,8 @@ end if
 !        CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
 !###     END IF
 
+     x_old = electron(k)%X
+     y_old = electron(k)%Y
      ! Cartesian case
      IF ( i_cylindrical==0 ) THEN
 
@@ -201,7 +204,6 @@ end if
         radius =  SQRT( x_cart**2 + z_cart**2 )
 
         ! Remember just in case starting positions and originally computed velcoities in local Cartesian frame
-        x_old =  electron(k)%X
         vx_old = electron(k)%VX
         vy_old = electron(k)%VZ
 
@@ -240,7 +242,7 @@ end if
         IF (electron(k)%Y.LE.whole_object(n)%Ymin) CYCLE
         IF (electron(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag) !, whole_object(n))
+        CALL TRY_ELECTRON_COLL_WITH_INNER_OBJECT(electron(k)%X, electron(k)%Y, electron(k)%VX, electron(k)%VY, electron(k)%VZ, electron(k)%tag, n_obj_collision) !, whole_object(n))
         CALL REMOVE_ELECTRON(k)  ! this subroutine does  N_electrons = N_electrons - 1 and k = k-1
         collision_with_inner_object_occurred = .TRUE.
         EXIT
@@ -1487,6 +1489,7 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
   REAL(8) xorg, yorg
   REAL(8) x, y, vx, vy, vz
   CHARACTER(LEN=string_length) :: message, routine
+  INTEGER :: n_obj_collision
 
   IF (N_of_inner_objects.EQ.0) RETURN
 
@@ -1552,7 +1555,7 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
                                                       & electron_to_add(k)%VX, &
                                                       & electron_to_add(k)%VY, &
                                                       & electron_to_add(k)%VZ, &
-                                                      & electron_to_add(k)%tag) !, &
+                                                      & electron_to_add(k)%tag, n_obj_collision) !, &
       !                                                & whole_object(n) )
             CALL REMOVE_ELECTRON_FROM_ADD_LIST(k)  ! this subroutine does  N_e_to_add = N_e_to_add - 1 and k = k-1
             EXIT
@@ -2183,3 +2186,102 @@ END IF ! cluster_rank_key selection
   END IF
   IF (ALLOCATED(c_rho_ext)) DEALLOCATE(c_rho_ext, STAT=ALLOC_ERR) ! not needed after charge density and accumulated moments are obtained
 END SUBROUTINE GATHER_ELECTRON_CHARGE_DENSITY
+
+! --------------------------------------------------------------------------------------------------
+!     SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE
+! >    @details Measures net flux of particles through a plane defined by X= or Y=. Positive flux means from left to right or from bottom to top 
+! !    @authors W. Villafana
+! !    @date    Apr-15-2024
+! -------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE ( x_old, y_old, x,y,vx,vy,vz,tag,species, i_flux_measure )
+   
+   USE mod_print, ONLY: print_debug
+   USE CurrentProblemValues, ONLY: string_length, one, zero
+   USE ParallelOperationValues, ONLY: Rank_of_process
+   USE AvgSnapshots, ONLY: num_plane_x_locations, num_plane_y_locations, plane_x_cuts_location, plane_y_cuts_location, flux_through_plane_over_one_period
+   IMPLICIT NONE
+
+   !IN/OUT
+   REAL(8), INTENT(IN) :: x_old, y_old, x, y 
+   REAL(8), INTENT(IN) :: vx, vy, vz 
+   INTEGER, INTENT(IN) :: tag 
+   INTEGER, INTENT(IN) :: species
+   INTEGER, INTENT(OUT) :: i_flux_measure
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level
+   INTEGER :: idx
+
+   routine = "MEASURE_NET_FLUX_THROUGH_PLANE"
+   local_debug_level = 5
+
+   CALL print_debug( routine,local_debug_level)
+
+   i_flux_measure = 0
+   DO idx=1,num_plane_x_locations
+      ! Check if ptcl has crossed the plane or not
+      IF ( (x-plane_x_cuts_location(idx))*(x_old-plane_x_cuts_location(idx))<zero ) THEN
+         flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) + 1.0*SIGN(1.0,x-x_old)
+         i_flux_measure = 1
+      ENDIF
+   ENDDO
+   
+   DO idx=num_plane_x_locations+1,num_plane_y_locations+num_plane_x_locations
+      ! Check if ptcl has crossed the plane or not
+      IF ( (y-plane_y_cuts_location(idx-num_plane_x_locations))*(y_old-plane_y_cuts_location(idx-num_plane_x_locations))<zero ) THEN
+         flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) + 1.0*SIGN(1.0,y-y_old)
+         i_flux_measure = 1
+      ENDIF
+   ENDDO
+
+END SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE       
+
+! --------------------------------------------------------------------------------------------------
+!     SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN
+! >    @details Measures net flux of particles through a plane defined by X= or Y=. Positive flux means from left to right or from bottom to top 
+!               If a collision with an inner object is detected, I need to correct flux if the plane line interescts with the inner object. 
+!               It would mean I am very close to boundary and the ptcl should not be recored in flux as it collides with inner object first 
+! !    @authors W. Villafana
+! !    @date    Apr-15-2024
+! -------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN ( number_object, x_old, y_old, x,y,species )
+   
+   USE mod_print, ONLY: print_debug
+   USE CurrentProblemValues, ONLY: string_length, one, zero, whole_object
+   USE ParallelOperationValues, ONLY: Rank_of_process
+   USE AvgSnapshots, ONLY: num_plane_x_locations, num_plane_y_locations, plane_x_cuts_location, plane_y_cuts_location, flux_through_plane_over_one_period
+   IMPLICIT NONE
+
+   !IN/OUT
+   REAL(8), INTENT(IN) :: x_old, y_old, x, y 
+   INTEGER, INTENT(IN) :: species
+   INTEGER, INTENT(IN) :: number_object
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level
+   INTEGER :: idx
+
+   routine = "CORRECT_MEASURED_FLUX_IN_DOMAIN"
+   local_debug_level = 5
+
+   CALL print_debug( routine,local_debug_level)
+
+   DO idx=1,num_plane_x_locations
+      ! Check if plane intersects with inner object
+      IF ( plane_x_cuts_location(idx)>whole_object(number_object)%Xmax .OR. plane_x_cuts_location(idx)<whole_object(number_object)%Xmin ) CYCLE
+      ! Check if ptcl has crossed the plane or not
+      IF ( (x-plane_x_cuts_location(idx))*(x_old-plane_x_cuts_location(idx))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(1.0,x-x_old)
+   ENDDO
+   
+   DO idx=num_plane_x_locations+1,num_plane_y_locations+num_plane_x_locations
+      ! Check if plane intersects with inner object
+      IF ( plane_y_cuts_location(idx-num_plane_x_locations)>whole_object(number_object)%Ymax .OR. plane_y_cuts_location(idx-num_plane_x_locations)<whole_object(number_object)%Ymin ) CYCLE      
+      ! Check if ptcl has crossed the plane or not
+      IF ( (y-plane_y_cuts_location(idx-num_plane_x_locations))*(y_old-plane_y_cuts_location(idx-num_plane_x_locations))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(1.0,y-y_old)
+   ENDDO
+
+END SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN   
