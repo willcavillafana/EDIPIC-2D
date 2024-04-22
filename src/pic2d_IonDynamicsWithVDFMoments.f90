@@ -1178,6 +1178,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
+  INTEGER :: n_obj_collision
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -1481,7 +1482,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
            IF (ion(s)%part(k)%Y.LE.whole_object(n)%Ymin) CYCLE
            IF (ion(s)%part(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-           CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag) !, whole_object(n))
+           CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, n_obj_collision) !, whole_object(n))
            CALL REMOVE_ION(s, k)  ! this subroutine does  N_ions(s) = N_ions(s) - 1 and k = k-1
            collision_with_inner_object_occurred = .TRUE.
            EXIT

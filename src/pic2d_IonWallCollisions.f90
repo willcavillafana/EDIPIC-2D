@@ -509,6 +509,8 @@ SUBROUTINE TRY_ION_COLL_WITH_INNER_OBJECT(s, x, y, vx, vy, vz, tag, n_obj_collis
   REAL(8) :: t_star, R_max
   REAL coll_coord   ! coordinate of collision point, y/x for collisions with vertical/horizontal segments, respectively
   
+  n_obj_collision = 0
+  
   IF (i_cylindrical==0) THEN
       xorg = x - vx*N_subcycles
       yorg = y - vy*N_subcycles

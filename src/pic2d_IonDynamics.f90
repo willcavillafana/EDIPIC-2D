@@ -32,6 +32,7 @@ SUBROUTINE ADVANCE_IONS
 
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
+  INTEGER :: n_obj_collision
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -239,7 +240,7 @@ SUBROUTINE ADVANCE_IONS
            IF (ion(s)%part(k)%Y.LE.whole_object(n)%Ymin) CYCLE
            IF (ion(s)%part(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
-           CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag) !, whole_object(n))
+           CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, n_obj_collision) !, whole_object(n))
            CALL REMOVE_ION(s, k)  ! this subroutine does  N_ions(s) = N_ions(s) - 1 and k = k-1
            collision_with_inner_object_occurred = .TRUE.
            EXIT
@@ -1509,7 +1510,8 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ION_ADD_LIST
   REAL(8) :: vx_new, vy_new, vz_new  
   REAL(8) xorg, yorg
   REAL(8) x, y, vx, vy, vz
-  CHARACTER(LEN=string_length) :: message, routine  
+  CHARACTER(LEN=string_length) :: message, routine 
+  INTEGER :: n_obj_collision 
 
   IF (N_of_inner_objects.EQ.0) RETURN
 
@@ -1577,7 +1579,7 @@ SUBROUTINE FIND_INNER_OBJECT_COLL_IN_ION_ADD_LIST
                                                    & ion_to_add(s)%part(k)%VX, &
                                                    & ion_to_add(s)%part(k)%VY, &
                                                    & ion_to_add(s)%part(k)%VZ, &
-                                                   & ion_to_add(s)%part(k)%tag )  !, &
+                                                   & ion_to_add(s)%part(k)%tag, n_obj_collision )  !, &
       !                                                  & whole_object(n) )
                CALL REMOVE_ION_FROM_ADD_LIST(s, k)  ! this subroutine does  N_ions_to_add(s) = N_ions_to_add(s) - 1 and k = k-1
                EXIT

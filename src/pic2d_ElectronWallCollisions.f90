@@ -587,6 +587,7 @@ SUBROUTINE TRY_ELECTRON_COLL_WITH_INNER_OBJECT(x, y, vx, vy, vz, tag, n_obj_coll
 
   REAL coll_coord   ! coordinate of collision point, y/x for collisions with vertical/horizontal segments, respectively
 
+  n_obj_collision = 0
   ! Find previous position
   IF (i_cylindrical==0) THEN
       xorg = x - vx
