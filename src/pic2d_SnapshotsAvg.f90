@@ -279,21 +279,23 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
   CALL ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
 
-   DO idx=1,num_plane_x_locations+num_plane_y_locations
-      WRITE( file_name,'(A,I3.3,A)') "Flux_through_plane_",idx,".dat"
-      OPEN (21, FILE = file_name, STATUS = 'REPLACE')      
-      IF ( idx<=num_plane_x_locations ) THEN
-         WRITE( plane_name,'(A,ES15.7,A)') "X = ",plane_x_cuts_location(idx)*delta_x_m ," [m]"
-      ELSE 
-         WRITE( plane_name,'(A,ES15.7,A)') "Y = ",plane_y_cuts_location(idx-num_plane_x_locations)*delta_x_m," [m]"
-      END IF
-      WRITE (21,'(A)' ) plane_name
-      WRITE( 21,'(A)', ADVANCE='no' ) "Time_counter,Time[s],electrons[s-1]"
-      DO species=2,N_spec+1
-         WRITE (21, '(A,I1,A)', ADVANCE='no' ) ",ions_species_",idx,"[s-1]"
-      END DO       
-      CLOSE (21, STATUS = 'KEEP')
-   ENDDO 
+   IF ( use_checkpoint/=1 ) THEN ! Fresh start 
+      DO idx=1,num_plane_x_locations+num_plane_y_locations
+         WRITE( file_name,'(A,I3.3,A)') "Flux_through_plane_",idx,".dat"
+         OPEN (21, FILE = file_name, STATUS = 'REPLACE')      
+         IF ( idx<=num_plane_x_locations ) THEN
+            WRITE( plane_name,'(A,ES15.7,A)') "X = ",plane_x_cuts_location(idx)*delta_x_m ," [m]"
+         ELSE 
+            WRITE( plane_name,'(A,ES15.7,A)') "Y = ",plane_y_cuts_location(idx-num_plane_x_locations)*delta_x_m," [m]"
+         END IF
+         WRITE (21,'(A)' ) plane_name
+         WRITE( 21,'(A)', ADVANCE='no' ) "Time_counter,Time[s],electrons[s-1]"
+         DO species=2,N_spec+1
+            WRITE (21, '(A,I1,A)', ADVANCE='no' ) ",ions_species_",idx,"[s-1]"
+         END DO       
+         CLOSE (21, STATUS = 'KEEP')
+      ENDDO 
+   END IF 
 
 END SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
