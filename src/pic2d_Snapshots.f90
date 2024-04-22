@@ -2669,6 +2669,7 @@ END SUBROUTINE SAVE_ELECTRONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 SUBROUTINE FINISH_SNAPSHOTS
 
   USE Snapshots
+  USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location
   IMPLICIT NONE
 
   INTEGER DEALLOC_ERR
@@ -2679,5 +2680,7 @@ SUBROUTINE FINISH_SNAPSHOTS
   IF (ALLOCATED(save_ionization_rates_2d)) DEALLOCATE(save_ionization_rates_2d, STAT=DEALLOC_ERR)
   IF (ALLOCATED(save_ions_collided_with_bo)) DEALLOCATE(save_ions_collided_with_bo, STAT=DEALLOC_ERR)
   IF (ALLOCATED(save_e_collided_with_bo)) DEALLOCATE(save_e_collided_with_bo, STAT=DEALLOC_ERR)
+  IF (ALLOCATED(plane_x_cuts_location)) DEALLOCATE(plane_x_cuts_location, STAT=DEALLOC_ERR)
+  IF (ALLOCATED(plane_y_cuts_location)) DEALLOCATE(plane_y_cuts_location, STAT=DEALLOC_ERR)
 
 END SUBROUTINE FINISH_SNAPSHOTS
