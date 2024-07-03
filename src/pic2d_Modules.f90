@@ -179,6 +179,7 @@ MODULE CurrentProblemValues
   REAL(8), PARAMETER :: two = 2.0_8
   REAL(8), PARAMETER :: three = 3.0_8
   REAL(8), PARAMETER :: four = 4.0_8
+  REAL(8), PARAMETER :: five = 5.0_8
   REAL(8) eps_0_Fm
 
   INTEGER, PARAMETER :: string_length = 300
@@ -1392,6 +1393,9 @@ MODULE AvgSnapshots
   REAL, ALLOCATABLE :: cs_avg_QXi(:,:,:)  ! 36
   REAL, ALLOCATABLE :: cs_avg_QYi(:,:,:)  ! 37
   REAL, ALLOCATABLE :: cs_avg_QZi(:,:,:)  ! 38
+
+  REAL, ALLOCATABLE :: cs_avg_coulomb_ee(:,:)  
+  LOGICAL :: save_collision_freq_ee 
 
 ! flags for turning output of various parameters on/off (see above)
 

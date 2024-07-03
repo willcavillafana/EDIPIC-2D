@@ -308,7 +308,7 @@ END SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
 
    USE mod_print, ONLY: print_message, print_parser_error
-   USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location,num_plane_x_locations, num_plane_y_locations
+   USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location,num_plane_x_locations, num_plane_y_locations, save_collision_freq_ee
    USE CurrentProblemValues, ONLY: string_length, delta_x_m
 
    IMPLICIT NONE
@@ -331,6 +331,7 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
    separator = '='
    num_plane_x_locations = 0
    num_plane_y_locations = 0
+   save_collision_freq_ee = .FALSE.
    
    WRITE( message, '(A)'), "Reading additional parameters for averaged snapshots"//achar(10)
    CALL print_message(message,routine)   
@@ -406,7 +407,38 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
    IF ( i_found==0 ) THEN
       WRITE( message,'(A)') "planes_Y_locations_to_measure_net_flux keyword not present. I assume we do not want it. "
       CALL print_message( message,routine )       
-   END IF             
+   END IF     
+   
+   i_found = 0
+   REWIND(9)
+   DO
+      READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      IF ( ierr/=0 ) EXIT
+      IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+      READ (line,*) long_buf ! read first word of line
+      IF ( TRIM(long_buf)=="coulomb_collision_ee_freq" ) THEN ! found search string at beginning of line
+         i_found = 1
+
+         READ (line,*) long_buf,separator,caval            
+         
+         IF (TRIM(caval)=='yes') THEN
+            save_collision_freq_ee = .TRUE.
+            WRITE( message, '(A)'), "Coulomb collision frequency 2D maps are saved and averaged on the fly."//achar(10)
+         ELSE IF (TRIM(caval)=='no') THEN
+            save_collision_freq_ee = .FALSE.
+            WRITE( message, '(A)'), "Coulomb collision frequency 2D maps are NOT saved."//achar(10)
+         ELSE 
+            WRITE( message, '(A,A,A)'), "No sure if you want to save Coulomb collision frequency. For keyword 'coulomb_collision_ee_freq' I received: ",TRIM(caval),". Expected:'yes' or 'no'. Case sensitive"//achar(10)
+            CALL print_parser_error(message)
+         END IF
+         CALL print_message( message )
+
+      END IF
+   END DO  
+   IF ( i_found==0 ) THEN
+      WRITE( message,'(A)') "coulomb_collision_ee_freq keyword not present. I assume we do not want it. "
+      CALL print_message( message,routine )       
+   END IF                    
 
    CLOSE (9, STATUS = 'KEEP')   
 
@@ -638,6 +670,11 @@ SUBROUTINE COLLECT_F_EX_EY_FOR_AVERAGED_SNAPSHOT
            END DO
         END DO
      END IF
+
+      IF ( save_collision_freq_ee ) THEN
+         ALLOCATE(cs_avg_coulomb_ee(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT = ALLOC_ERR)
+         cs_avg_coulomb_ee = 0.0
+      ENDIF
 
       IF ( num_plane_x_locations+num_plane_y_locations>0 ) THEN
          IF (ALLOCATED(cluster_flux_through_plane_over_one_period)) DEALLOCATE(cluster_flux_through_plane_over_one_period)
@@ -1083,6 +1120,8 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
   CHARACTER(26) filename_Qi       ! _NNNN_avg_QXi_s_Wm2_2D.bin
 !                                   ----x----I----x----I----x----I----x----I----x
   CHARACTER(45) filename_encoll   ! _NNNN_avg_frequency_e_n_AAAAAA_coll_id_NN.bin
+
+  CHARACTER(LEN=string_length) :: filename_generic
 
   INTEGER s, i, j, n, p
 
@@ -1716,6 +1755,21 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
         END DO
      END DO
   END IF
+
+   IF (save_collision_freq_ee) THEN
+      filename_generic = '_NNNN_avg_frequency_e_e_coll.bin'
+      filename_generic(2:5) = convert_int_to_txt_string(current_avgsnap, 4)
+      avg_factor = 1.0 / REAL(N_averaged_timesteps)
+      ! avg_factor = 1.0 / REAL(delta_t_s * N_averaged_timesteps)
+      DO j = c_indx_y_min, c_indx_y_max
+         DO i = c_indx_x_min, c_indx_x_max
+            cs_avg_coulomb_ee(i,j) = cs_avg_coulomb_ee(i,j) * avg_factor
+         END DO
+      END DO
+      CALL SAVE_GLOBAL_2D_ARRAY(cs_avg_coulomb_ee, filename_generic)
+      CALL MPI_BARRIER(COMM_HORIZONTAL, ierr)
+      DEALLOCATE(cs_avg_coulomb_ee, STAT = ALLOC_ERR)
+   END IF
 
    IF (num_plane_x_locations+num_plane_y_locations>0) THEN
       ALLOCATE(final_flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations))

@@ -6,10 +6,19 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
   USE ElectronParticles
   USE ClusterAndItsBoundaries
   USE rng_wrapper
+  USE AvgSnapshots, ONLY: save_collision_freq_ee
   
   IMPLICIT NONE
 
   INCLUDE 'mpif.h'
+
+  ! Interface needed to help the com[iler (seg fault otherwise)
+  INTERFACE
+    SUBROUTINE PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY(buffer_local,buffer_global,n1, n2, n3, bufsize_freq_calculation)
+      REAL, ALLOCATABLE, INTENT(OUT) :: buffer_local(:), buffer_global(:)
+      INTEGER, INTENT(OUT) :: n1, n2, n3, bufsize_freq_calculation
+    END SUBROUTINE PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY
+  END INTERFACE  
 
   INTEGER ierr
 
@@ -25,12 +34,23 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
   REAL(8) L_ee, A_norm, s_coll, CosKsi, SinKsi, Fi, CosFi, SinFi, R
   REAL(8) N_tot, energy_before, energy_after, alpha
   REAL(8) vx_avg_before, vy_avg_before, vz_avg_before, vx_avg_after, vy_avg_after, vz_avg_after
+  REAL :: freq_collision_coulomb
+
+  REAL, ALLOCATABLE :: rbuffer_local(:), rbuffer_global(:)
+  INTEGER :: indx1, indx2, indx3
+  INTEGER :: bufsize_freq_calculation
 
   INTEGER m, bufsize
+
+  INTEGER :: pos_i_j, pos_ip1_j, pos_i_jp1, pos_ip1_jp1
+  REAL :: vij, vip1j, vijp1    
 
   INTEGER :: local_debug_level
 !  write (*, *) "enter Coulomb", Rank_of_process
   IF (.NOT.Coulomb_flag) RETURN
+
+
+  IF (save_collision_freq_ee) CALL PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY(rbuffer_local,rbuffer_global,indx1, indx2, indx3,bufsize_freq_calculation)
 
   local_debug_level = 1
 
@@ -161,7 +181,7 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
      L_ee = L_ee_0 * (temp_ratio / dens_ratio)**0.5 * (3.0_8 * temp_ratio + Wsq_scaled) ! try to account for possible high-energy electrons
     !     L_ee = L_ee_0 * (temp_ratio / dens_ratio)**0.5 * (6.0_8 * temp_ratio)
      IF (U_scaled.GE.1.e-5) THEN
-        s_coll = LOG(L_ee) / pi * base_Coulomb_probab * dens_ratio / U_scaled**3
+        s_coll = LOG(L_ee) / pi * base_Coulomb_probab * dens_ratio / U_scaled**3 ! s small for thermal electorns and even smaller for beam electrons 
      ELSE
         s_coll = 10.0_8 ! results in isotropic scattering
      END IF  
@@ -212,7 +232,44 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
     electron(k)%VY = Vframe_y + Vy_s
     electron(k)%VZ = Vframe_z + Vz_s
 
+    IF ( save_collision_freq_ee .AND. Usq * N_max_vel**2>five ) THEN 
+      freq_collision_coulomb = REAL(s_coll/delta_t_s)
+      ! freq_collision_coulomb = REAL(n_loc*N_scale_part_m3*LOG(L_ee)*7.7e-6/(half*m_e_kg*Usq**2*V_scale_ms**2)**(1.5)*e_Cl**(1.5))
+      ! freq_collision_coulomb = REAL(one/100.0_8*s_coll/delta_t_s) ! frequency for s = 0.5
+      CALL INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID(electron(k)%X,electron(k)%Y,indx2,indx3,rbuffer_local,bufsize_freq_calculation,freq_collision_coulomb)
+    END IF
+      ! IF ( save_collision_freq_ee ) THEN !CALL INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID(indx2)
+      ! IF (  save_collision_freq_ee ) CALL INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID(electron(k)%X,electron(k)%Y,indx2,indx3,rbuffer_local,bufsize_freq_calculation,ptcl_collision_freq)
+
+      ! i = INT(electron(k)%X)
+      ! j = INT(electron(k)%Y)
+      ! IF (electron(k)%X==c_X_area_max) i = c_indx_x_max-1
+      ! IF (electron(k)%Y==c_Y_area_max) j = c_indx_y_max-1
+      
+      ! pos_i_j     = i + j * indx2 + indx3
+      ! pos_ip1_j   = pos_i_j + 1
+      ! pos_i_jp1   = pos_i_j + indx2
+      ! pos_ip1_jp1 = pos_i_jp1 + 1
+    
+      ! ax_ip1 = REAL(x) - REAL(i)
+      ! ax_i   = 1.0 - ax_ip1
+    
+      ! ay_jp1 = REAL(y) - REAL(j)
+      ! ay_j   = 1.0 - ay_jp1
+    
+      ! vij   = ax_i   * ay_j
+      ! vip1j = ax_ip1 * ay_j
+      ! vijp1 = ax_i   * ay_jp1
+    
+      ! rbuffer_local(pos_i_j)     = rbuffer_local(pos_i_j)     + vij*REAL(factor_cyl_vol(i))                         !ax_i   * ay_j
+      ! rbuffer_local(pos_ip1_j)   = rbuffer_local(pos_ip1_j)   + vip1j*REAL(factor_cyl_vol(i+1))                       !ax_ip1 * ay_j
+      ! rbuffer_local(pos_i_jp1)   = rbuffer_local(pos_i_jp1)   + vijp1*REAL(factor_cyl_vol(i))                       !ax_i   * ay_jp1
+      ! rbuffer_local(pos_ip1_jp1) = rbuffer_local(pos_ip1_jp1) + (1.0 - vij - vip1j - vijp1)*REAL(factor_cyl_vol(i+1))   !ax_ip1 * ay_jp1    
+    ! ENDIF
+
   END DO ! particle loop
+
+  IF ( save_collision_freq_ee ) CALL SYNCHRONIZE_EE_COLLISION_EVENTS_OVER_GLOBAL_GRID(rbuffer_local,rbuffer_global,bufsize_freq_calculation)
 
   call get_global_electron_moments
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -239,6 +296,167 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
 !  print '("Coulomb scattering done ",i4)', Rank_of_process
   
 END SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID
+!>    @details Interpolate e particles that have undergone a Coulonb e-e collision onto the grid. Will be used to compute collision frequency 
+!!    @authors W. Villafana
+!!    @date    May-24-2024
+!-------------------------------------------------------------------------------------------------- 
+
+! SUBROUTINE INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID(indx2)
+SUBROUTINE INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID(x,y,indx2,indx3,buffer_local,bufsize,collision_frequency_ptcl)
+  USE mod_print, ONLY: print_debug
+  USE CurrentProblemValues, ONLY: string_length
+  USE ClusterAndItsBoundaries, ONLY: c_indx_x_max, c_indx_y_max, factor_cyl_vol, c_X_area_max, c_Y_area_max
+  IMPLICIT NONE  
+
+  !IN/OUT
+  INTEGER, INTENT(IN) :: bufsize
+  REAL, DIMENSION(bufsize), INTENT(INOUT) :: buffer_local
+  REAL(8), INTENT(IN) :: x, y
+  REAL :: collision_frequency_ptcl
+  INTEGER, INTENT(IN) ::  indx2, indx3
+
+  !LOCAL   
+  CHARACTER(LEN=string_length) :: routine
+  INTEGER :: local_debug_level
+  INTEGER :: i, j
+  INTEGER :: pos_i_j, pos_ip1_j, pos_i_jp1, pos_ip1_jp1
+  REAL :: ax_ip1, ax_i, ay_jp1, ay_j
+  REAL :: vij, vip1j, vijp1  
+
+  routine = "INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID"
+  local_debug_level = 3
+
+  ! CALL print_debug( routine,local_debug_level)    
+
+  i = INT(x)
+  j = INT(y)
+  IF (x==c_X_area_max) i = c_indx_x_max-1
+  IF (y==c_Y_area_max) j = c_indx_y_max-1
+  
+  pos_i_j     = i + j * indx2 + indx3
+  pos_ip1_j   = pos_i_j + 1
+  pos_i_jp1   = pos_i_j + indx2
+  pos_ip1_jp1 = pos_i_jp1 + 1
+
+  ax_ip1 = REAL(x) - REAL(i)
+  ax_i   = 1.0 - ax_ip1
+
+  ay_jp1 = REAL(y) - REAL(j)
+  ay_j   = 1.0 - ay_jp1
+
+  vij   = ax_i   * ay_j
+  vip1j = ax_ip1 * ay_j
+  vijp1 = ax_i   * ay_jp1
+
+  buffer_local(pos_i_j)     = buffer_local(pos_i_j)     + vij*REAL(factor_cyl_vol(i))*collision_frequency_ptcl                         !ax_i   * ay_j
+  buffer_local(pos_ip1_j)   = buffer_local(pos_ip1_j)   + vip1j*REAL(factor_cyl_vol(i+1))*collision_frequency_ptcl                      !ax_ip1 * ay_j
+  buffer_local(pos_i_jp1)   = buffer_local(pos_i_jp1)   + vijp1*REAL(factor_cyl_vol(i))*collision_frequency_ptcl                      !ax_i   * ay_jp1
+  buffer_local(pos_ip1_jp1) = buffer_local(pos_ip1_jp1) + (1.0 - vij - vip1j - vijp1)*REAL(factor_cyl_vol(i+1))*collision_frequency_ptcl   !ax_ip1 * ay_jp1
+
+  ! print*,'buffer_local(pos_ip1_jp1)',buffer_local(pos_ip1_jp1)
+END SUBROUTINE INTERPOLATE_SUM_OF_EE_COLLISION_EVENTS_ONTO_GRID
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY
+!>    @details Prepare allocations of arrays necessary to compute Coulomb collision frequency 
+!!    @authors W. Villafana
+!!    @date    May-24-2024
+!-------------------------------------------------------------------------------------------------- 
+SUBROUTINE PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY(buffer_local,buffer_global,n1,n2,n3,bufsize)
+
+  USE mod_print, ONLY: print_debug
+  USE CurrentProblemValues, ONLY: string_length
+  USE ClusterAndItsBoundaries, ONLY: c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
+  USE ParallelOperationValues, ONLY: Rank_cluster
+  IMPLICIT NONE
+
+  !IN/OUT
+  REAL, ALLOCATABLE, INTENT(OUT) :: buffer_local(:), buffer_global(:)
+  INTEGER, INTENT(OUT) :: n1, n2, n3, bufsize
+
+  !LOCAL   
+  CHARACTER(LEN=string_length) :: routine
+  INTEGER :: local_debug_level
+
+  routine = "PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY"
+  local_debug_level = 3
+
+  CALL print_debug( routine,local_debug_level)  
+
+  n1 = c_indx_y_max - c_indx_y_min + 1
+  n2 = c_indx_x_max - c_indx_x_min + 1
+  bufsize = n1 * n2
+  n3 = -c_indx_x_min + 1 - c_indx_y_min * n2
+  
+  IF  (ALLOCATED( buffer_local ))  DEALLOCATE(buffer_local)
+  IF  (ALLOCATED( buffer_global )) DEALLOCATE(buffer_global)
+  ALLOCATE(buffer_local(1:bufsize))
+  IF (Rank_cluster==0) THEN
+     ALLOCATE(buffer_global(1:bufsize))
+  ELSE
+     ALLOCATE(buffer_global(1))
+  END IF  
+
+  buffer_local  = 0.0
+  buffer_global = 0.0
+
+END SUBROUTINE PREPARE_ARRAYS_TO_SAVE_COLLISION_FREQUENCY
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE SYNCHRONIZE_EE_COLLISION_EVENTS_OVER_GLOBAL_GRID
+!>    @details Syncronize sum of collisions event interpolated onto the grid. 
+!!    @authors W. Villafana
+!!    @date    May-24-2024
+!-------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE SYNCHRONIZE_EE_COLLISION_EVENTS_OVER_GLOBAL_GRID(buffer_local,buffer_global,bufsize)
+  USE mod_print, ONLY: print_debug
+  USE CurrentProblemValues, ONLY: string_length, acc_rho_e
+  USE ClusterAndItsBoundaries, ONLY: c_indx_x_min, c_indx_y_min, c_indx_x_max, c_indx_y_max
+  USE ParallelOperationValues, ONLY: COMM_CLUSTER, cluster_rank_key
+  USE AvgSnapshots, ONLY: cs_avg_coulomb_ee
+  IMPLICIT NONE  
+
+  INCLUDE 'mpif.h'
+
+  !IN/OUT
+  INTEGER, INTENT(IN) :: bufsize
+  REAL, DIMENSION(bufsize), INTENT(INOUT) :: buffer_local
+  REAL, DIMENSION(bufsize), INTENT(INOUT) :: buffer_global
+  
+
+  !LOCAL   
+  CHARACTER(LEN=string_length) :: routine
+  INTEGER :: local_debug_level
+  INTEGER :: pos
+  INTEGER :: ierr
+  INTEGER :: i,j
+
+  routine = "SYNCHRONIZE_EE_COLLISION_EVENTS_OVER_GLOBAL_GRID"
+  local_debug_level = 3
+
+  CALL print_debug( routine,local_debug_level)    
+
+
+  CALL MPI_REDUCE(buffer_local, buffer_global, bufsize, MPI_REAL, MPI_SUM, 0, COMM_CLUSTER, ierr)
+
+  IF (cluster_rank_key==0) THEN
+    CALL SYNCHRONIZE_REAL_ARRAY_IN_OVERLAP_NODES(buffer_global)
+    pos=1
+    DO j = c_indx_y_min, c_indx_y_max
+        DO i = c_indx_x_min, c_indx_x_max
+          IF (acc_rho_e(0,i,j)>0.0) THEN
+            cs_avg_coulomb_ee(i,j) = cs_avg_coulomb_ee(i,j) + buffer_global(pos)/acc_rho_e(0,i,j)
+          END IF
+          pos=pos+1
+        END DO
+     END DO
+  END IF
+
+END SUBROUTINE SYNCHRONIZE_EE_COLLISION_EVENTS_OVER_GLOBAL_GRID
 
 SUBROUTINE CLEAR_COULOMB_ARRAYS
 
