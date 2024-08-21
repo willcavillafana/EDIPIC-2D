@@ -10,6 +10,7 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
   USE MCCollisions, ONLY : N_neutral_spec, collision_e_neutral, en_collisions_turned_off
   USE mod_print, ONLY: print_parser_error
   USE IonParticles, ONLY: N_spec
+  USE mod_print, ONLY: print_message
 
   IMPLICIT NONE
 
@@ -46,6 +47,8 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
   N_of_all_avgsnaps = 0
   current_avgsnap = 1
   save_avg_data = .FALSE.
+  time_begin = 0
+  time_end = 0
 !  avg_data_collection_offset = -1
 
 ! read / write the data file 
@@ -172,7 +175,11 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
      large_step = (T2 - T1) / Rqst_n_of_snaps
      large_step = (large_step / N_subcycles) * N_subcycles
-     IF (large_step.LE.N_subcycles) CYCLE
+     IF (large_step.LE.N_subcycles) THEN
+      WRITE( message,'(A,I0,A,I0,A)') "Time step for averaged snapshots is less then the ion cycle. Reduce number of snapshots. No average snapshots will be generated: large_step =  ",large_step," vs N_subcycles",N_subcycles,achar(10)
+      CALL print_message(message)      
+      CYCLE
+     END IF
 
 ! for all possible snapshots of the current set
      DO n = 1, Rqst_n_of_snaps  !Fact_n_of_snaps
@@ -196,6 +203,8 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
   IF (N_of_all_avgsnaps.EQ.0) THEN
      IF (Rank_of_process.EQ.0) PRINT '("### Time-averaged snapshots will NOT be created ... ###")'
+     WRITE( message,'(A,I0,A,I0,A,I0,A,I0,A,I0,A)') "Debugging Large step = ",large_step," T1 = ",T1," and T2 = ",T2," time_begin = ",time_begin," time_end = ",time_end,achar(10)
+     CALL print_message(message)
 ! cleanup
      DEALLOCATE(timestep_begin, STAT = ALLOC_ERR)
      DEALLOCATE(timestep_end, STAT = ALLOC_ERR)
