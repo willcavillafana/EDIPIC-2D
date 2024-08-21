@@ -4150,10 +4150,17 @@ SUBROUTINE DISTRIBUTE_PARTICLES
 
      WRITE( message,'(A,ES10.3)') achar(10)//"Minimal average number of particles per cell in a cluster (no inner object):",N_ppc_min
      CALL print_output( message )
-     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in first colum of cells (no inner object):",DBLE(N_electron_tot*1/((c_indx_x_max_total-c_indx_x_min_total)**2*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two/(c_indx_x_max_total+c_indx_x_min_total))
-     CALL print_output( message )     
-     WRITE( message,'(A,ES10.3)') "Average number of particles per cell in last colum of cells (no inner object):",DBLE(N_electron_tot*(2*(c_indx_x_max_total-c_indx_x_min_total)+1)/((c_indx_x_max_total-c_indx_x_min_total)**2*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two*(c_indx_x_max_total-1)/(c_indx_x_max_total+c_indx_x_min_total))
-     CALL print_output( message )          
+     IF (i_cylindrical==2) THEN
+         WRITE( message,'(A,ES10.3)') "Average number of particles per cell in first column of cells (no inner object):",DBLE(N_electron_tot*1/((c_indx_x_max_total-c_indx_x_min_total)**2*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two/(c_indx_x_max_total+c_indx_x_min_total))
+         CALL print_output( message )     
+         WRITE( message,'(A,ES10.3)') "Average number of particles per cell in last column of cells (no inner object):",DBLE(N_electron_tot*(2*(c_indx_x_max_total-c_indx_x_min_total)+1)/((c_indx_x_max_total-c_indx_x_min_total)**2*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two*(c_indx_x_max_total-1)/(c_indx_x_max_total+c_indx_x_min_total))
+         CALL print_output( message )          
+     ELSE IF (i_cylindrical==0) THEN
+         WRITE( message,'(A,ES10.3)') "Average number of particles per cell in first column of cells (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two/(c_indx_x_max_total+c_indx_x_min_total))
+         CALL print_output( message )     
+         WRITE( message,'(A,ES10.3)') "Average number of particles per cell in last column of cells (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))!DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total))*two*(c_indx_x_max_total-1)/(c_indx_x_max_total+c_indx_x_min_total))
+         CALL print_output( message )          
+     END IF      
      WRITE( message,'(A,ES10.3)') "Mean average number of particles per cell in whole domain (no inner object):",DBLE(N_electron_tot/((c_indx_x_max_total-c_indx_x_min_total)*(c_indx_y_max_total-c_indx_y_min_total)))
      CALL print_output( message )
      WRITE( message,'(A,ES10.3,A)') "Maximal average number of particles per cell in a cluster (no inner object):",N_ppc_max,achar(10)
