@@ -51,8 +51,8 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
 !   Lr = (index_maxi_r)*delta_x_m !0.03009999915957451!0.030028263106942177!0.003025328740477562
 !   Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
 !   print*,'Lr,Lz,index_maxi_r,index_maxi_z',Lr,Lz,index_maxi_r,index_maxi_z
-!   k_test_r = 11./4*two*pi/Lr
-!   k_test_z = 5.0*two*pi/Lz
+!   k_test_r = 11./4*two*pi/Lr ! Basic test 
+!   k_test_z = 5.0*two*pi/Lz ! Basic test
 !   alpha_r = 18.071063967910924/Lr ! sixth root
    ! k_x_cart = (pi+5.0_8*pi)/Lr ! Test in Cartesian coordinates
    ! k_x_cart_neumann_right = (pi/2.0_8+7.0_8*pi)/Lr ! Test in Cartesian coordinates. Neumann right only
@@ -198,7 +198,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
         ELSE !IF (whole_object(nobj)%object_type.EQ.SYMMETRY_PLANE) THEN
            rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))
          !   rhsvalue(nn) = (-(k_test_r_neumann_right**2+k_test_z_neumann_right**2)*(one)*SIN(k_test_z_neumann_right*DBLE(j)*delta_x_m)-k_test_r_neumann_right**2*SIN(k_test_z_neumann_right*delta_x_m*j))/ F_scale_V*delta_x_m**2!/two ! Test cylidnrical. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at bottom/top and neumann at right. symmetry axis also
-         !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_z*delta_x_m*j)-k_test_r**2*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
+         !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_z*delta_x_m*j)-k_test_r**2*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical basic test. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
          !   rhsvalue(nn) = -(k_test_r+(k_test_r**2+k_test_z**2))*SIN(k_test_z*delta_x_m*j)/ F_scale_V*delta_x_m**2!/two ! Ttest cylindrical with double Neumann
            !   rhsvalue(nn) = zero
          !   rhsvalue(nn) = -(k_test_r**2+(k_test_r**2+k_test_z**2))*SIN(k_test_z_dirichlet*delta_x_m*j)/ F_scale_V*delta_x_m**2 !phi = cos(kr*r)*sin(kz*z)
@@ -212,7 +212,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
          !      !! If bottom dielectric
          !      IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -(k_test_z*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
          !    !   IF ( j<index_maxi_z/2 ) rhsvalue(nn) = -((k_test_z+one*10000)*delta_x_m/two)/ F_scale_V ! Field will have Bessel*sinh variations inside dielectric
-         !      !! If top dielectric
+         !      !! If top dielectric  
          !      IF ( j>index_maxi_z/2 ) rhsvalue(nn) = (k_test_z*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
          !    !   IF ( j>index_maxi_z/2 ) rhsvalue(nn) = ((k_test_z+one*10000)*delta_x_m/two)/ F_scale_V ! Field will be zero inside dielectric
          !   ELSE ! I am inside inner object: no charge
@@ -227,7 +227,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
         rhsvalue(nn) = factor_rho * (rho_i(i,j) - rho_e(i,j))
       !   rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*COS(k_x_cart_neumann_right*DBLE(i)*delta_x_m)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2 ! Test cartesian. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at top/bottom/right and neumann at left
       !   rhsvalue(nn) = -(k_test_r*SIN(delta_x_m*k_test_r_dirichlet*i)/(delta_x_m*i)+(k_test_r**2+k_test_z**2)*COS(delta_x_m*k_test_r_dirichlet*i))*SIN(k_test_z_dirichlet*delta_x_m*j)/ F_scale_V*delta_x_m**2 !Solution phi= cos(k_r*r)*sin(k_z*z). Dirichlet 
-      !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
+      !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*COS(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2  ! CYlindrical. Basic test. SOlution phi = cos(kr*r)*cos(kz*z). Left is Neumann, bottom is Neumann. Dirichlet top and right
       !   rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2 
         !  rhsvalue(nn) = (-(k_test_r**2+k_test_z**2)*COS(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j)-k_test_r/(DBLE(i)*delta_x_m)*SIN(k_test_r*delta_x_m*i)*SIN(k_test_z*delta_x_m*j))/ F_scale_V*delta_x_m**2
       !   rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*SIN(k_x_cart_neumann_right*DBLE(i)*delta_x_m)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2 ! Test cartesian. Solution phi = sin(kx*x)*sin(ky*y). Dirichlet 0 at left/bottom/top and neumann at right
