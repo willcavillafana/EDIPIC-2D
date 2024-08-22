@@ -592,7 +592,7 @@ SUBROUTINE CREATE_SNAPSHOT
         ALLOCATE(cs_JZsum(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
         DO j = c_indx_y_min, c_indx_y_max
            DO i = c_indx_x_min, c_indx_x_max
-              cs_JZsum(i,j) = -cs_N(i,j) * cs_VY(i,j)
+              cs_JZsum(i,j) = -cs_N(i,j) * cs_VZ(i,j)
            END DO
         END DO
      END IF
