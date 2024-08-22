@@ -1976,7 +1976,7 @@ contains
 ! here ksp is location where to put KSP context
     call KSPCreate(parComm, ksp, ierr)
 
-   !  call KSPSetInitialGuessNonzero(ksp, PETSC_TRUE, ierr)
+    call KSPSetInitialGuessNonzero(ksp, PETSC_TRUE, ierr)
 
 
 ! Sets the matrix associated with the linear system and a (possibly) different one associated with the preconditioner
@@ -2005,7 +2005,7 @@ contains
 ! creates a new vector of the same type as an existing vector
     call VecDuplicate(bvec, xvec, ierr)
 
-   ! CALL VecSet(xvec,zero,ierr)
+   CALL VecSet(xvec,zero,ierr)
     
     ! Done with setting up vectors and matrices!
     return
