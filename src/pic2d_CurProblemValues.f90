@@ -1163,6 +1163,12 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
   DO n = 1, N_of_boundary_and_inner_objects
      ALLOCATE(whole_object(n)%ion_hit_count(1:N_spec), STAT = ALLOC_ERR)
      whole_object(n)%ion_hit_count(1:N_spec) = 0
+     
+     whole_object(n)%electron_hit_flux_avg_per_s = zero
+     whole_object(n)%electron_emission_flux_avg_per_s = zero
+     ALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s(1:N_spec), STAT = ALLOC_ERR)
+     whole_object(n)%ion_hit_flux_avg_per_s(1:N_spec) = zero
+
   END DO
 
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)

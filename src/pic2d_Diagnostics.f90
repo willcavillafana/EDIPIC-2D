@@ -324,6 +324,7 @@ subroutine report_total_number_of_particles
   USE CurrentProblemValues
   USE ElectronParticles, ONLY : N_electrons, electron
   USE IonParticles, ONLY : N_spec, N_ions, ion, Ms
+  USE AvgSnapshots, ONLY: avg_flux_and_history, current_avgsnap
 
   IMPLICIT NONE
 
@@ -349,6 +350,8 @@ subroutine report_total_number_of_particles
                                     ! ----x----I----x
   CHARACTER(15) history_i_filename  ! history_i_S.dat
 
+  INTEGER :: avg_output_flag
+
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
        CHARACTER*(length_of_string) convert_int_to_txt_string
@@ -356,6 +359,12 @@ subroutine report_total_number_of_particles
        INTEGER length_of_string
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
+
+  IF (avg_flux_and_history) THEN
+      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap)
+      IF (avg_output_flag==0) RETURN
+  END IF
+  
 
   ALLOCATE(    rbufer(1:4*(N_spec+1)), STAT = ALLOC_ERR)
   ALLOCATE(   pwbufer(1:4*(N_spec+1)), STAT = ALLOC_ERR)

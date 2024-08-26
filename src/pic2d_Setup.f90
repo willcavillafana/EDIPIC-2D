@@ -822,6 +822,10 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   DO nn = 1, N_of_object_potentials_to_solve
      potential_of_object(nn) = ECPS_Voltage(1, 0) !source_U * SIN(source_phase)
   END DO
+  potential_of_object_avg = zero
+  charge_of_object_avg = zero
+  dQ_full_avg = zero
+  dQ_plasma_of_object_avg = zero
   RETURN
 
 END SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
@@ -836,6 +840,7 @@ SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 !  USE Diagnostics, ONLY : N_of_saved_records
   USE SetupValues, ONLY : ht_use_e_emission_from_cathode, ht_use_e_emission_from_cathode_zerogradf, ht_emission_constant
   USE ExternalCircuit, ONLY : N_of_object_potentials_to_solve
+  USE AvgSnapshots, ONLY: avg_flux_and_history
 
   IMPLICIT NONE
 
@@ -849,26 +854,41 @@ SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 
   IF (N_of_object_potentials_to_solve.LE.0) RETURN
 
-  IF (use_checkpoint.EQ.1) THEN
-! start from checkpoint, must trim the time dependences
+   IF (use_checkpoint.EQ.1) THEN
+   ! start from checkpoint, must trim the time dependences
 
-     INQUIRE (FILE = 'history_ext_circuit.dat', EXIST = exists)
-     IF (exists) THEN                                                       
-        OPEN (21, FILE = 'history_ext_circuit.dat', STATUS = 'OLD')          
-        DO i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
-           READ (21, '(2x,i9,8(2x,e14.7))') i_dummy
-        END DO
-        ENDFILE 21       
-        CLOSE (21, STATUS = 'KEEP')        
-     END IF
+      IF (avg_flux_and_history) THEN
+         INQUIRE (FILE = 'history_ext_circuit_avg.dat', EXIST = exists)
+         IF (exists) THEN                                                       
+            OPEN (21, FILE = 'history_ext_circuit_avg.dat', STATUS = 'OLD')          
+            DO i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
+               READ (21, '(2x,i9,8(2x,e14.7))') i_dummy
+            END DO
+            ENDFILE 21       
+            CLOSE (21, STATUS = 'KEEP')        
+         END IF
+      ELSE
 
-  ELSE
-! fresh start, empty files, clean up whatever garbage there might be
-
-     OPEN  (21, FILE = 'history_ext_circuit.dat', STATUS = 'REPLACE')          
-     CLOSE (21, STATUS = 'KEEP')
-
-  END IF
+         INQUIRE (FILE = 'history_ext_circuit.dat', EXIST = exists)
+         IF (exists) THEN                                                       
+            OPEN (21, FILE = 'history_ext_circuit.dat', STATUS = 'OLD')          
+            DO i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
+               READ (21, '(2x,i9,8(2x,e14.7))') i_dummy
+            END DO
+            ENDFILE 21       
+            CLOSE (21, STATUS = 'KEEP')        
+         END IF
+      END IF
+   ELSE
+   ! fresh start, empty files, clean up whatever garbage there might be
+      IF (avg_flux_and_history) THEN
+         OPEN  (21, FILE = 'history_ext_circuit_avg.dat', STATUS = 'REPLACE')          
+         CLOSE (21, STATUS = 'KEEP')         
+      ELSE
+         OPEN  (21, FILE = 'history_ext_circuit.dat', STATUS = 'REPLACE')          
+         CLOSE (21, STATUS = 'KEEP')
+      END IF 
+   END IF
 
 END SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 
@@ -1289,6 +1309,7 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
   USE SetupValues
+  USE AvgSnapshots, ONLY: avg_flux_and_history
 
   USE rng_wrapper
 
@@ -1864,6 +1885,8 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
 
   IF (Rank_of_process.EQ.0) THEN
      whole_object(N_of_boundary_objects+1:N_of_boundary_and_inner_objects)%electron_emit_count = ibuf_receive(1:N_of_inner_objects)
+     IF (avg_flux_and_history) whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s + &
+                                                                                                                  REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_emit_count)
   END IF
 
   DEALLOCATE(ibuf_send, STAT = ALLOC_ERR)

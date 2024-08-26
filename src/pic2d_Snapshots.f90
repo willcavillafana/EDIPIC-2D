@@ -2670,9 +2670,12 @@ SUBROUTINE FINISH_SNAPSHOTS
 
   USE Snapshots
   USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location
+  USE CurrentProblemValues, ONLY: whole_object, N_of_boundary_and_inner_objects
+  USE IonParticles, ONLY: N_spec
   IMPLICIT NONE
 
   INTEGER DEALLOC_ERR
+  INTEGER :: n
 
   IF (ALLOCATED(    Tcntr_snapshot)) DEALLOCATE(    Tcntr_snapshot, STAT=DEALLOC_ERR)
   IF (ALLOCATED(save_evdf_snapshot)) DEALLOCATE(save_evdf_snapshot, STAT=DEALLOC_ERR)
@@ -2682,5 +2685,9 @@ SUBROUTINE FINISH_SNAPSHOTS
   IF (ALLOCATED(save_e_collided_with_bo)) DEALLOCATE(save_e_collided_with_bo, STAT=DEALLOC_ERR)
   IF (ALLOCATED(plane_x_cuts_location)) DEALLOCATE(plane_x_cuts_location, STAT=DEALLOC_ERR)
   IF (ALLOCATED(plane_y_cuts_location)) DEALLOCATE(plane_y_cuts_location, STAT=DEALLOC_ERR)
-
+  
+  DO n = 1, N_of_boundary_and_inner_objects
+      IF (ALLOCATED(whole_object(n)%ion_hit_flux_avg_per_s(1:N_spec))) DEALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s, STAT=DEALLOC_ERR)
+      IF (ALLOCATED(whole_object(n)%ion_hit_count(1:N_spec))) DEALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s, STAT=DEALLOC_ERR)
+  END DO
 END SUBROUTINE FINISH_SNAPSHOTS

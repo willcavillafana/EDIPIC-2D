@@ -50,7 +50,11 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
   time_begin = 0
   time_end = 0
 !  avg_data_collection_offset = -1
-
+  
+  num_plane_x_locations = 0
+  num_plane_y_locations = 0
+  save_collision_freq_ee = .FALSE.
+  avg_flux_and_history = .FALSE.
 ! read / write the data file 
   INQUIRE (FILE = 'init_avgsnapshots.dat', EXIST = exists)
 
@@ -317,7 +321,7 @@ END SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
 
    USE mod_print, ONLY: print_message, print_parser_error
-   USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location,num_plane_x_locations, num_plane_y_locations, save_collision_freq_ee
+   USE AvgSnapshots, ONLY: plane_x_cuts_location, plane_y_cuts_location,num_plane_x_locations, num_plane_y_locations, save_collision_freq_ee, avg_flux_and_history
    USE CurrentProblemValues, ONLY: string_length, delta_x_m
 
    IMPLICIT NONE
@@ -338,9 +342,7 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
    routine = 'ADDITIONAL_PARAMETERS_AVG_SNAPHOTS'
   
    separator = '='
-   num_plane_x_locations = 0
-   num_plane_y_locations = 0
-   save_collision_freq_ee = .FALSE.
+
    
    WRITE( message, '(A)'), "Reading additional parameters for averaged snapshots"//achar(10)
    CALL print_message(message,routine)   
@@ -447,7 +449,38 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
    IF ( i_found==0 ) THEN
       WRITE( message,'(A)') "coulomb_collision_ee_freq keyword not present. I assume we do not want it. "
       CALL print_message( message,routine )       
-   END IF                    
+   END IF         
+   
+   i_found = 0
+   REWIND(9)
+   DO
+      READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      IF ( ierr/=0 ) EXIT
+      IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+      READ (line,*) long_buf ! read first word of line
+      IF ( TRIM(long_buf)=="avg_flux_and_history" ) THEN ! found search string at beginning of line
+         i_found = 1
+
+         READ (line,*) long_buf,separator,caval            
+         
+         IF (TRIM(caval)=='yes') THEN
+            avg_flux_and_history = .TRUE.
+            WRITE( message, '(A)'), "Fluxes at the wall and reporting of particles will be averaged on the fly."//achar(10)
+         ELSE IF (TRIM(caval)=='no') THEN
+            avg_flux_and_history = .FALSE.
+            WRITE( message, '(A)'), "Fluxes at the wall and reporting of particles will be printed at each iteration."//achar(10)
+         ELSE 
+            WRITE( message, '(A,A,A)'), "No sure if you want to avergae on the fly fluxes and reporting of particles. For keyword 'avg_flux_and_history' I received: ",TRIM(caval),". Expected:'yes' or 'no'. Case sensitive"//achar(10)
+            CALL print_parser_error(message)
+         END IF
+         CALL print_message( message )
+
+      END IF
+   END DO  
+   IF ( i_found==0 ) THEN
+      WRITE( message,'(A)') "avg_flux_and_history keyword not present. I assume we do not want it. "
+      CALL print_message( message,routine )       
+   END IF                       
 
    CLOSE (9, STATUS = 'KEEP')   
 
@@ -1138,6 +1171,8 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
   CHARACTER(LEN=string_length) :: file_name
   CHARACTER(LEN=string_length) :: message
 
+  INTEGER :: avg_output_flag
+
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
        CHARACTER*(length_of_string) convert_int_to_txt_string
@@ -1146,12 +1181,14 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
 
-! quit if all snapshots were created or if due to any reasons the snapshot counter is 
-! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
-  IF (current_avgsnap.GT.N_of_all_avgsnaps) RETURN
+  CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap) 
+  IF (avg_output_flag==0) RETURN
+! ! quit if all snapshots were created or if due to any reasons the snapshot counter is 
+! ! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
+!   IF (current_avgsnap.GT.N_of_all_avgsnaps) RETURN
 
-! quit if the current moment of time is not the moment when it is necessary to create the snapshot
-  IF (T_cntr.NE.avgsnapshot(current_avgsnap)%T_cntr_end) RETURN
+! ! quit if the current moment of time is not the moment when it is necessary to create the snapshot
+!   IF (T_cntr.NE.avgsnapshot(current_avgsnap)%T_cntr_end) RETURN
 
   IF (cluster_rank_key.NE.0) THEN
 ! processes which are not cluster masters do not participate in saving data
@@ -1809,3 +1846,42 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
   current_avgsnap = current_avgsnap + 1           ! increase the snapshots counter (cluster masters only, other processes did this already)
 
 END SUBROUTINE CREATE_AVERAGED_SNAPSHOT
+
+! --------------------------------------------------------------------------------------------------
+!     SUBROUTINE DECIDE_AVERAGED_SNAPSHOT_CREATION
+! >    @details Determines if averaged snapshots or any quantity using the same time table should be created 
+! !    @authors W. Villafana
+! !    @date    Aug-25-2024
+! -------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE DETERMINE_AVG_DATA_CREATION(avg_output_flag,test_time_counter)
+
+   USE AvgSnapshots, ONLY: current_avgsnap, N_of_all_avgsnaps, avgsnapshot
+   USE CurrentProblemValues, ONLY: T_cntr, string_length
+   USE mod_print, ONLY: print_debug
+   IMPLICIT NONE
+
+   !IN/OUT
+   INTEGER, INTENT(OUT) :: avg_output_flag
+   INTEGER, INTENT(IN) :: test_time_counter
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level   
+
+   routine = "DETERMINE_AVG_DATA_CREATION"
+   local_debug_level = 2
+
+   CALL print_debug( routine,local_debug_level)   
+
+   avg_output_flag = 1 ! By default I want an output
+   ! quit if all snapshots were created or if due to any reasons the snapshot counter is 
+   ! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
+   IF (test_time_counter.GT.N_of_all_avgsnaps) avg_output_flag = 0
+
+   ! quit if the current moment of time is not the moment when it is necessary to create the snapshot
+   IF (T_cntr.NE.avgsnapshot(test_time_counter)%T_cntr_end) avg_output_flag = 0   
+
+END SUBROUTINE DETERMINE_AVG_DATA_CREATION
+
+

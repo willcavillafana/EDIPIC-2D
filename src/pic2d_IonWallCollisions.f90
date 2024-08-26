@@ -407,6 +407,7 @@ SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
   USE IonParticles, ONLY : N_spec
+  USE AvgSnapshots, ONLY: avg_flux_and_history
 
   IMPLICIT NONE
 
@@ -454,13 +455,24 @@ SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
         whole_object(k)%ion_hit_count(1:N_spec) = ibuf_receive(pos1:pos2)
      END DO
      
-     IF (debug_level>=local_debug_level) print '("electrons hit boundaries :: ",20(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count           
-     do s = 1, N_spec
-        do k = 1, N_of_boundary_and_inner_objects
-           ibuf_send(k) = whole_object(k)%ion_hit_count(s)
-        end do
-        IF (debug_level>=local_debug_level) print '("ions (",i2,") hit boundaries :: ",20(2x,i8))', s, ibuf_send(1:N_of_boundary_and_inner_objects)
-     end do
+     ! Update avg flux if necessary
+     IF (avg_flux_and_history) THEN
+         whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s &
+                                                                                       + REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count)
+         DO k = 1, N_of_boundary_and_inner_objects
+            whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) = whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) + REAL(whole_object(k)%ion_hit_count(1:N_spec))
+         END DO
+     END IF
+
+      IF (debug_level>=local_debug_level) THEN
+         print '("electrons hit boundaries :: ",20(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count           
+         do s = 1, N_spec
+            do k = 1, N_of_boundary_and_inner_objects
+               ibuf_send(k) = whole_object(k)%ion_hit_count(s)
+            end do
+         print '("ions (",i2,") hit boundaries :: ",20(2x,i8))', s, ibuf_send(1:N_of_boundary_and_inner_objects)
+         end do
+      END IF
 
   END IF
 

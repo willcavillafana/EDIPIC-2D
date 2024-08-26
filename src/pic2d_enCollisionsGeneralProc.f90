@@ -767,6 +767,7 @@ SUBROUTINE SAVE_en_COLLISIONS
   USE MCCollisions
   USE ElectronParticles, ONLY : N_electrons
   USE CurrentProblemValues, ONLY : T_cntr, debug_level
+  USE AvgSnapshots, ONLY: avg_flux_and_history,current_avgsnap
 
   IMPLICIT NONE
 
@@ -788,8 +789,14 @@ SUBROUTINE SAVE_en_COLLISIONS
 
   INTEGER :: local_debug_level
 
+  INTEGER :: avg_output_flag
+
   local_debug_level = 3  
 
+   IF (avg_flux_and_history) THEN
+      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap)
+      IF (avg_output_flag==0) RETURN
+   END IF    
 ! report all collision counters to the process with zero global rank
 
   buflen=1             ! include N_electrons

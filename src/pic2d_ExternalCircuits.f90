@@ -1855,6 +1855,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
   USE BlockAndItsBoundaries
   USE IonParticles, ONLY : N_spec, Qs
   USE Diagnostics, ONLY : Save_probes_e_data_T_cntr, N_of_probes_block, Probe_params_block_list, probe_F_block
+  USE AvgSnapshots, ONLY: avg_flux_and_history, avgsnapshot, current_avgsnap
 
   IMPLICIT NONE
 
@@ -1883,6 +1884,10 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
   INTEGER m
   INTEGER npb
 
+   INTEGER :: avg_output_flag
+
+   REAL(8) :: ECPS_avg
+   REAL(8) :: N_averaged_timesteps_dble
 ! function
   REAL(8) ECPS_Voltage
 
@@ -2060,20 +2065,57 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
 !     dQ_full(1) = charge_of_object(1) + dQ_full(1)
      dQ_full = charge_of_object + dQ_full
 
-     OPEN (21, FILE = 'history_ext_circuit.dat', POSITION = 'APPEND')
-     WRITE (21, '(2x,i9,8(2x,e14.7))') &
-          & T_cntr, &                                                             ! 1
-          & T_cntr * delta_t_s * 1.0d9, &                                         ! 2
-!          & source_U * SIN(source_omega * T_cntr + source_phase) * F_scale_V, &        ! 3
-          & ECPS_Voltage(1, T_cntr) * F_scale_V, &        ! 3
-          & potential_of_object(1) * F_scale_V, &                                      ! 4
-          & charge_of_object(1), &                      ! 5
-          & dQ_full(1), &                               ! 6
-          & dQ_plasma_of_object(1), &                             ! 7
-          & (dQ_full(1) - dQ_plasma_of_object(1)) * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s)), &    ! 8 ! current in external circuit
-          &             - dQ_plasma_of_object(1)  * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s))       ! 9 ! current in plasma
-     CLOSE (21, STATUS = 'KEEP')
+     
+     potential_of_object_avg = potential_of_object_avg + potential_of_object(1)
+     charge_of_object_avg = charge_of_object_avg + charge_of_object(1)
+     dQ_full_avg = dQ_full_avg + dQ_full(1)
+     dQ_plasma_of_object_avg = dQ_plasma_of_object_avg+dQ_plasma_of_object(1)
+      IF (avg_flux_and_history) THEN
+         CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap)
+         IF (avg_output_flag==1) THEN
+            N_averaged_timesteps_dble   =  REAL(avgsnapshot(current_avgsnap)%T_cntr_end - avgsnapshot(current_avgsnap)%T_cntr_begin + 1)
+            ! Average ECPS source
+            ECPS_avg = zero
+            DO nn = avgsnapshot(current_avgsnap)%T_cntr_begin, avgsnapshot(current_avgsnap)%T_cntr_end
+               ECPS_avg = ECPS_avg + ECPS_Voltage(1, nn)
+            ENDDO
+            OPEN (21, FILE = 'history_ext_circuit_avg.dat', POSITION = 'APPEND')
+            WRITE (21, '(2x,i9,8(2x,e14.7))') &
+               & T_cntr, &                                                             ! 1
+               & T_cntr * delta_t_s, &                                         ! 2
+               ! & source_U * SIN(source_omega * T_cntr + source_phase) * F_scale_V, &        ! 3
+               & ECPS_avg/N_averaged_timesteps_dble * F_scale_V, &        ! 3
+               & potential_of_object_avg/N_averaged_timesteps_dble * F_scale_V, &                                      ! 4
+               & charge_of_object_avg/N_averaged_timesteps_dble*e_Cl, &                      ! 5
+               & dQ_full_avg/N_averaged_timesteps_dble *e_Cl, &                               ! 6
+               & dQ_plasma_of_object_avg/N_averaged_timesteps_dble*e_Cl, &                             ! 7
+               & (dQ_full_avg - dQ_plasma_of_object_avg) * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s))/N_averaged_timesteps_dble, &    ! 8 ! current in external circuit
+               &             - dQ_plasma_of_object_avg  * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s))/N_averaged_timesteps_dble       ! 9 ! current in plasma
+            CLOSE (21, STATUS = 'KEEP')
+            
+            ! Reset
+            potential_of_object_avg = zero
+            charge_of_object_avg = zero
+            dQ_full_avg = zero
+            dQ_plasma_of_object_avg = zero
+         END IF
 
+         potential_of_object_avg = zero
+      ELSE
+         OPEN (21, FILE = 'history_ext_circuit.dat', POSITION = 'APPEND')
+         WRITE (21, '(2x,i9,8(2x,e14.7))') &
+               & T_cntr, &                                                             ! 1
+               & T_cntr * delta_t_s * 1.0d9, &                                         ! 2
+               ! & source_U * SIN(source_omega * T_cntr + source_phase) * F_scale_V, &        ! 3
+               & ECPS_Voltage(1, T_cntr) * F_scale_V, &        ! 3
+               & potential_of_object(1) * F_scale_V, &                                      ! 4
+               & charge_of_object(1), &                      ! 5
+               & dQ_full(1), &                               ! 6
+               & dQ_plasma_of_object(1), &                             ! 7
+               & (dQ_full(1) - dQ_plasma_of_object(1)) * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s)), &    ! 8 ! current in external circuit
+               &             - dQ_plasma_of_object(1)  * (e_Cl * N_plasma_m3 * delta_x_m**2 / (N_of_particles_cell_dble * delta_t_s))       ! 9 ! current in plasma
+         CLOSE (21, STATUS = 'KEEP')
+      END IF
   END IF   !### IF (Rank_of_process.EQ.0) THEN
 
   CALL MPI_BCAST(potential_of_object, N_of_object_potentials_to_solve, MPI_DOUBLE_PRECISION, 0, MPI_COMM_WORLD, ierr)

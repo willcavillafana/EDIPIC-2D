@@ -428,12 +428,14 @@ SUBROUTINE INITIATE_WALL_DIAGNOSTICS
   USE Checkpoints, ONLY : use_checkpoint
 !  USE Diagnostics, ONLY : N_of_saved_records
   USE SetupValues, ONLY : ht_use_e_emission_from_cathode, ht_use_e_emission_from_cathode_zerogradf, ht_emission_constant
+  USE AvgSnapshots, ONLY: avg_flux_and_history
+  USE CurrentProblemValues, ONLY: string_length
 
   IMPLICIT NONE
 
                                     ! ----x----I----x--
   CHARACTER(17) historybo_filename  ! history_bo_NN.dat
-
+  CHARACTER(LEN=string_length) :: file_name
   LOGICAL exists
   INTEGER i, k
   INTEGER i_dummy, ios
@@ -453,41 +455,76 @@ SUBROUTINE INITIATE_WALL_DIAGNOSTICS
 ! hardwired for objects #2 (cathode) and #4 (anode)
 
   IF (use_checkpoint.EQ.1) THEN
-! start from checkpoint, must trim the time dependences
+   ! start from checkpoint, must trim the time dependences
 
-     DO k = 1, N_of_boundary_and_inner_objects
+      IF (avg_flux_and_history) THEN
+         DO k = 1, N_of_boundary_and_inner_objects
 
-        historybo_filename = 'history_bo_NN.dat'
-        historybo_filename(12:13) = convert_int_to_txt_string(k, 2)
+            file_name = 'history_bo_avg_NN.dat'
+            file_name(16:17) = convert_int_to_txt_string(k, 2)
 
-        INQUIRE (FILE = historybo_filename, EXIST = exists)
-        IF (exists) THEN                                                       
-           OPEN (21, FILE = historybo_filename, STATUS = 'OLD')          
-           DO !i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
-              READ (21, '(2x,i8,10(2x,i8))', iostat = ios) i_dummy
-              IF (ios.NE.0) EXIT
-              IF (i_dummy.GE.Start_T_cntr) EXIT
-           END DO
-           BACKSPACE(21)
-           ENDFILE 21       
-           CLOSE (21, STATUS = 'KEEP')        
-        END IF
+            INQUIRE (FILE = file_name, EXIST = exists)
+            IF (exists) THEN                                                       
+               OPEN (21, FILE = file_name, STATUS = 'OLD')          
+               DO !i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
+                  READ (21, '(2x,i8,2x,ES14.7,10(2x,ES14.7))', iostat = ios) i_dummy
+                  IF (ios.NE.0) EXIT
+                  IF (i_dummy.GE.Start_T_cntr) EXIT
+               END DO
+               BACKSPACE(21)
+               ENDFILE 21       
+               CLOSE (21, STATUS = 'KEEP')        
+            END IF
 
-     END DO
+         END DO
+
+      ELSE
+         DO k = 1, N_of_boundary_and_inner_objects
+
+            historybo_filename = 'history_bo_NN.dat'
+            historybo_filename(12:13) = convert_int_to_txt_string(k, 2)
+
+            INQUIRE (FILE = historybo_filename, EXIST = exists)
+            IF (exists) THEN                                                       
+               OPEN (21, FILE = historybo_filename, STATUS = 'OLD')          
+               DO !i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
+                  READ (21, '(2x,i8,10(2x,i8))', iostat = ios) i_dummy
+                  IF (ios.NE.0) EXIT
+                  IF (i_dummy.GE.Start_T_cntr) EXIT
+               END DO
+               BACKSPACE(21)
+               ENDFILE 21       
+               CLOSE (21, STATUS = 'KEEP')        
+            END IF
+
+         END DO
+      END IF
 
   ELSE
-! fresh start, empty files, clean up whatever garbage there might be
+   ! fresh start, empty files, clean up whatever garbage there might be
 
-     DO k = 1, N_of_boundary_and_inner_objects
+      IF (avg_flux_and_history) THEN
+         DO k = 1, N_of_boundary_and_inner_objects
 
-        historybo_filename = 'history_bo_NN.dat'
-        historybo_filename(12:13) = convert_int_to_txt_string(k, 2)
+            file_name = 'history_bo_avg_NN.dat'
+            file_name(16:17) = convert_int_to_txt_string(k, 2)
 
-        OPEN  (21, FILE = historybo_filename, STATUS = 'REPLACE')          
-        CLOSE (21, STATUS = 'KEEP')
+            OPEN  (21, FILE = file_name, STATUS = 'REPLACE')          
+            CLOSE (21, STATUS = 'KEEP')
 
-     END DO
+         END DO
+      ELSE
 
+         DO k = 1, N_of_boundary_and_inner_objects
+
+            historybo_filename = 'history_bo_NN.dat'
+            historybo_filename(12:13) = convert_int_to_txt_string(k, 2)
+   
+            OPEN  (21, FILE = historybo_filename, STATUS = 'REPLACE')          
+            CLOSE (21, STATUS = 'KEEP')
+   
+         END DO
+      END IF   
   END IF
 
 END SUBROUTINE INITIATE_WALL_DIAGNOSTICS
@@ -501,6 +538,8 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
   USE SetupValues, ONLY : ht_use_e_emission_from_cathode, ht_use_e_emission_from_cathode_zerogradf, ht_emission_constant
   USE IonParticles, ONLY : N_spec, Qs
   USE ExternalCircuit
+  USE AvgSnapshots, ONLY: avg_flux_and_history, avgsnapshot, current_avgsnap
+  USE mod_print, ONLY: print_message
 
   IMPLICIT NONE
 
@@ -508,6 +547,12 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
   INTEGER k
                                     ! ----x----I----x--
   CHARACTER(17) historybo_filename  ! history_bo_NN.dat
+  INTEGER :: avg_output_flag
+  INTEGER :: N_averaged_timesteps
+  REAL(8) :: time_window
+  INTEGER :: test_time_avg
+  CHARACTER(LEN=string_length) :: message
+  CHARACTER(LEN=string_length) :: file_name
 
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
@@ -517,6 +562,7 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
 
+  avg_output_flag = 0
   IF (Rank_of_process.NE.0) RETURN
 
   IF (ht_use_e_emission_from_cathode.OR.ht_use_e_emission_from_cathode_zerogradf.OR.ht_emission_constant) RETURN
@@ -529,6 +575,44 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
         dQ_plasma_of_object(nn) = dQ_plasma_of_object(nn) + Qs(s) * whole_object(noi)%ion_hit_count(s)
      END DO
   END DO
+
+  IF (avg_flux_and_history) THEN
+      test_time_avg = current_avgsnap - 1 ! Has been incremented by + 1 in last call to avg_snapshots
+      
+      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,test_time_avg)
+      IF (avg_output_flag==1) THEN
+         N_averaged_timesteps   =  avgsnapshot(test_time_avg)%T_cntr_end - avgsnapshot(test_time_avg)%T_cntr_begin + 1
+         time_window = REAL(N_averaged_timesteps*delta_t_s)
+         WRITE( message,'(A,I4,A)') "### ^^^^^^^^^^^^^^^^^^^^ Averaged flux ",test_time_avg," will be created ^^^^^^^^^^^^^^^^^^^ ###"
+         CALL print_message( message )   
+         DO k = 1, N_of_boundary_and_inner_objects
+
+            file_name = 'history_bo_avg_NN.dat'
+            file_name(16:17) = convert_int_to_txt_string(k, 2)
+            
+            WRITE( message,'(A)') "Saving file "//TRIM(file_name)
+            CALL print_message( message )   
+            
+            OPEN (21, FILE = file_name, POSITION = 'APPEND')
+            WRITE (21, '(2x,i8,2x,ES14.7,10(2x,ES14.7))') &
+                 & T_cntr, &
+                 & REAL(T_cntr)*delta_t_s, &
+                 & whole_object(k)%electron_hit_flux_avg_per_s*weight_ptcl/time_window , &
+                 & whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec)*weight_ptcl/time_window, &
+                 & whole_object(k)%electron_emission_flux_avg_per_s*weight_ptcl/time_window
+       
+            CLOSE (21, STATUS = 'KEEP')
+
+            ! Reset everything
+            whole_object(k)%electron_hit_flux_avg_per_s = zero
+            whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) = zero
+            whole_object(k)%electron_emission_flux_avg_per_s = zero
+         END DO         
+         WRITE( message,'(A,I4,A)') "### ^^^^^^^^^^^^^^^^^^^^ Averaged flux ",test_time_avg," saved ^^^^^^^^^^^^^^^^^^^ ###"
+         CALL print_message( message )            
+      END IF
+      RETURN ! If I need average on the fly data, I am done
+  END IF  
 
   DO k = 1, N_of_boundary_and_inner_objects
 

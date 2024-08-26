@@ -296,6 +296,10 @@ MODULE CurrentProblemValues
      INTEGER electron_hit_count
      INTEGER electron_emit_count
      INTEGER, ALLOCATABLE :: ion_hit_count(:)
+     REAL(8) electron_hit_flux_avg_per_s
+     REAL(8) electron_emission_flux_avg_per_s
+     REAL(8), ALLOCATABLE :: ion_hit_flux_avg_per_s(:)
+
      REAL(8) total_charge
      REAL(8) phi                  ! electrostatic potential, used with metal walls and to calculate external field with dielectric walls
      REAL(8) phi_const            ! constant part of the electrostatic potential
@@ -1254,6 +1258,10 @@ MODULE ExternalCircuit
   REAL(8), ALLOCATABLE :: dQ_plasma_of_object(:)  ! change of charge of object due to plasma electrons and ions collided with the object
                                                   ! and emission of electrons only
 
+  REAL(8) :: potential_of_object_avg ! for diagnostics, average on the fly potential of first object
+  REAL(8) :: charge_of_object_avg ! for diagnostics, average on the fly charge of first object
+  REAL(8) :: dQ_full_avg ! for diagnostics, average on the fly cumulated charge of first object
+  REAL(8) :: dQ_plasma_of_object_avg ! for diagnostics, average on the fly change of charge due to plasma of first object
 
 ! for a point on the surface of an object we need a template to define which nodes to use
 ! and which coefficients to use
@@ -1408,6 +1416,7 @@ MODULE AvgSnapshots
   REAL, ALLOCATABLE :: flux_through_plane_over_one_period(:,:), cluster_flux_through_plane_over_one_period(:,:), total_flux_through_plane_over_one_period(:,:) ! For electrons and s species of ions (first dim) and N planes X or Y (second dim)
   REAL(8), ALLOCATABLE :: plane_x_cuts_location(:), plane_y_cuts_location(:)
 
+  LOGICAL :: avg_flux_and_history
 
 END MODULE AvgSnapshots
 
