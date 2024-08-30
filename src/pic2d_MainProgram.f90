@@ -11,6 +11,7 @@ PROGRAM MainProg
   USE mod_print, ONLY: print_message, print_git_info
   USE IonParticles, ONLY: i_freeze_ions
   USE ElectronParticles, ONLY :  electron_to_add
+  USE AvgSnapshots, ONLY: current_avgsnap
 
   IMPLICIT NONE
 
@@ -374,7 +375,7 @@ PROGRAM MainProg
         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
         CALL end_timer( clear_accumulated_fields_timer )
-        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer ) 
+        CALL start_timer( compute_ptcl_emission_timer ) 
         !t16 = MPI_WTIME()
 
      ELSE
@@ -410,7 +411,7 @@ PROGRAM MainProg
         CALL end_timer( add_ions_after_collisions_timer )
         CALL start_timer( clear_accumulated_fields_timer ) 
         CALL end_timer( clear_accumulated_fields_timer )
-        CALL start_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer )                          
+        CALL start_timer( compute_ptcl_emission_timer )                          
       !   t13 = MPI_WTIME()
       !   t14 = t13
       !   t15 = t13
@@ -419,12 +420,6 @@ PROGRAM MainProg
      END IF
 
      CALL DO_PROBE_DIAGNOSTICS
-
-     CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-
-     CALL CREATE_AVERAGED_SNAPSHOT
-
-     CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
 !###     CALL PERFORM_ELECTRON_EMISSION_HT_SETUP        ! either this or
                                                     ! PERFORM_ELECTRON_EMISSION_HT_SETUP_ZERO_GRAD_F (called above) works
@@ -437,10 +432,10 @@ PROGRAM MainProg
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
      
-     CALL end_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer )
+     CALL end_timer( compute_ptcl_emission_timer )
      CALL start_timer( add_electrons_after_emission_timer )   
      !t17 = MPI_WTIME()
-
+     
      CALL PROCESS_ADDED_ELECTRONS                ! add the new electrons to the main array
 
      CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -472,6 +467,13 @@ PROGRAM MainProg
      CALL SAVE_TRACED_PARTICLES_e     
      CALL end_timer( ptcl_tracing_timer )
 
+     CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+     
+     CALL start_timer( create_averaged_snapshot_timer )      
+     CALL CREATE_AVERAGED_SNAPSHOT
+     CALL start_timer( create_averaged_snapshot_timer )      
+
+     CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)      
 
      CALL end_timer( single_pic_loop_timer )
      CALL print_iteration_info(T_cntr)

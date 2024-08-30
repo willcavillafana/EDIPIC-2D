@@ -1888,6 +1888,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
 
    REAL(8) :: ECPS_avg
    REAL(8) :: N_averaged_timesteps_dble
+   INTEGER :: avg_compute_flag
 ! function
   REAL(8) ECPS_Voltage
 
@@ -2065,13 +2066,15 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
 !     dQ_full(1) = charge_of_object(1) + dQ_full(1)
      dQ_full = charge_of_object + dQ_full
 
-     
-     potential_of_object_avg = potential_of_object_avg + potential_of_object(1)
-     charge_of_object_avg = charge_of_object_avg + charge_of_object(1)
-     dQ_full_avg = dQ_full_avg + dQ_full(1)
-     dQ_plasma_of_object_avg = dQ_plasma_of_object_avg+dQ_plasma_of_object(1)
+      CALL DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
+      IF (avg_compute_flag==1) THEN      
+         potential_of_object_avg = potential_of_object_avg + potential_of_object(1)
+         charge_of_object_avg = charge_of_object_avg + charge_of_object(1)
+         dQ_full_avg = dQ_full_avg + dQ_full(1)
+         dQ_plasma_of_object_avg = dQ_plasma_of_object_avg+dQ_plasma_of_object(1)
+      END IF
       IF (avg_flux_and_history) THEN
-         CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap)
+         CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag)
          IF (avg_output_flag==1) THEN
             N_averaged_timesteps_dble   =  REAL(avgsnapshot(current_avgsnap)%T_cntr_end - avgsnapshot(current_avgsnap)%T_cntr_begin + 1)
             ! Average ECPS source

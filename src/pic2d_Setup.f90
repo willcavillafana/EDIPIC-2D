@@ -846,7 +846,7 @@ SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 
   LOGICAL exists
   INTEGER i
-  INTEGER i_dummy
+  INTEGER i_dummy, ios
 
   IF (Rank_of_process.NE.0) RETURN
 
@@ -861,11 +861,22 @@ SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
          INQUIRE (FILE = 'history_ext_circuit_avg.dat', EXIST = exists)
          IF (exists) THEN                                                       
             OPEN (21, FILE = 'history_ext_circuit_avg.dat', STATUS = 'OLD')          
-            DO i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
-               READ (21, '(2x,i9,8(2x,e14.7))') i_dummy
+            DO 
+               READ (21, '(2x,i9,8(2x,e14.7))', iostat = ios) i_dummy
+               IF (ios.NE.0) EXIT
+               IF (i_dummy.GE.Start_T_cntr) EXIT
             END DO
-            ENDFILE 21       
+            ! BACKSPACE(21) ! No backspace, that way I always keep at least data point more after restart. This is important because otherwise this data point will be missing 
+            ! as it will NOT be recomputed. If this data point was not computed in the first place it will be lost but that should not occur too often
+            ENDFILE 21   
+            ! DO i = 1, Start_T_cntr   !N_of_saved_records             ! these files are updated at every electron timestep
+            !    READ (21, '(2x,i9,8(2x,e14.7))') i_dummy
+            ! END DO
+            ! ENDFILE 21       
             CLOSE (21, STATUS = 'KEEP')        
+         ELSE
+            OPEN  (21, FILE = 'history_ext_circuit_avg.dat', STATUS = 'REPLACE')          
+            CLOSE (21, STATUS = 'KEEP')  
          END IF
       ELSE
 
@@ -877,6 +888,9 @@ SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
             END DO
             ENDFILE 21       
             CLOSE (21, STATUS = 'KEEP')        
+         ELSE
+            OPEN  (21, FILE = 'history_ext_circuit.dat', STATUS = 'REPLACE')          
+            CLOSE (21, STATUS = 'KEEP')            
          END IF
       END IF
    ELSE
@@ -1336,6 +1350,8 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
   INTEGER, ALLOCATABLE :: ibuf_send(:)
   INTEGER, ALLOCATABLE :: ibuf_receive(:)
   INTEGER ALLOC_ERR
+
+  INTEGER :: avg_compute_flag
 
   IF (N_of_inner_objects.EQ.0) RETURN
 
@@ -1884,9 +1900,14 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
   CALL MPI_REDUCE(ibuf_send, ibuf_receive, N_of_inner_objects, MPI_INTEGER, MPI_SUM, 0, MPI_COMM_WORLD, ierr)
 
   IF (Rank_of_process.EQ.0) THEN
-     whole_object(N_of_boundary_objects+1:N_of_boundary_and_inner_objects)%electron_emit_count = ibuf_receive(1:N_of_inner_objects)
-     IF (avg_flux_and_history) whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s + &
-                                                                                                                  REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_emit_count)
+      whole_object(N_of_boundary_objects+1:N_of_boundary_and_inner_objects)%electron_emit_count = ibuf_receive(1:N_of_inner_objects)
+      IF (avg_flux_and_history) THEN 
+         CALL DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
+         IF (avg_compute_flag==1) THEN       
+            whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s + &
+                                                                                                REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_emit_count)
+         END IF
+      END IF
   END IF
 
   DEALLOCATE(ibuf_send, STAT = ALLOC_ERR)

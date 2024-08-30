@@ -27,11 +27,12 @@ MODULE mod_def_timers
     TYPE(T_TIMER) :: compute_mcc_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: add_ions_after_collisions_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: clear_accumulated_fields_timer = t_timer( start=zero,end=zero,total=zero )
-    TYPE(T_TIMER) :: create_averaged_snapshot_and_compute_ptcl_emission_timer = t_timer( start=zero,end=zero,total=zero )    
+    TYPE(T_TIMER) :: compute_ptcl_emission_timer = t_timer( start=zero,end=zero,total=zero )    
     TYPE(T_TIMER) :: add_electrons_after_emission_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: save_bo_particle_hits_emissions_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: gather_surface_charge_density_timer = t_timer( start=zero,end=zero,total=zero )
     TYPE(T_TIMER) :: ptcl_tracing_timer = t_timer( start=zero,end=zero,total=zero )
+    TYPE(T_TIMER) :: create_averaged_snapshot_timer = t_timer( start=zero,end=zero,total=zero )
 
     CONTAINS
 !--------------------------------------------------------------------------------------------------
@@ -83,8 +84,8 @@ MODULE mod_def_timers
         CALL print_timer( add_ions_after_collisions_timer,message )
         message = "Clear accumulated fields"
         CALL print_timer( clear_accumulated_fields_timer,message )
-        message = "Create average snapshot + particle emission"
-        CALL print_timer( create_averaged_snapshot_and_compute_ptcl_emission_timer,message )
+        message = "Compute particle emission"
+        CALL print_timer( compute_ptcl_emission_timer,message )
         message = "Add electrons after emission"
         CALL print_timer( add_electrons_after_emission_timer,message )
         message = "Save bo particle hits emissions"
@@ -93,6 +94,8 @@ MODULE mod_def_timers
         CALL print_timer( gather_surface_charge_density_timer,message )
         message = "Particle tracing"
         CALL print_timer( ptcl_tracing_timer,message )
+        message = "Create average snapshot"
+        CALL print_timer( create_averaged_snapshot_timer,message )        
         
     END SUBROUTINE 
     

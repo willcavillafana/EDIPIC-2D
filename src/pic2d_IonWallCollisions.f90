@@ -424,6 +424,7 @@ SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
   
   INTEGER k, pos1, pos2, s
   INTEGER :: local_debug_level
+  INTEGER :: avg_compute_flag
 
   local_debug_level = 3
   bufsize = N_of_boundary_and_inner_objects * (1 + N_spec)
@@ -457,11 +458,14 @@ SUBROUTINE COLLECT_PARTICLE_BOUNDARY_HITS
      
      ! Update avg flux if necessary
      IF (avg_flux_and_history) THEN
-         whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s &
-                                                                                       + REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count)
-         DO k = 1, N_of_boundary_and_inner_objects
-            whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) = whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) + REAL(whole_object(k)%ion_hit_count(1:N_spec))
-         END DO
+         CALL DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
+         IF (avg_compute_flag==1) THEN 
+            whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s &
+                                                                                          + REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count)
+            DO k = 1, N_of_boundary_and_inner_objects
+               whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) = whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) + REAL(whole_object(k)%ion_hit_count(1:N_spec))
+            END DO
+         END IF
      END IF
 
       IF (debug_level>=local_debug_level) THEN

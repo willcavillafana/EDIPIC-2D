@@ -794,7 +794,7 @@ SUBROUTINE SAVE_en_COLLISIONS
   local_debug_level = 3  
 
    IF (avg_flux_and_history) THEN
-      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap)
+      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag)
       IF (avg_output_flag==0) RETURN
    END IF    
 ! report all collision counters to the process with zero global rank

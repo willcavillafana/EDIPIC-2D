@@ -42,6 +42,8 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
   CHARACTER(LEN=string_length) :: message, plane_name, file_name
   INTEGER :: idx, species
 
+  INTEGER :: i_dummy
+
 ! default values ensure that if init_avgsnapshots.dat is not found 
 ! procedures COLLECT_DATA_FOR_AVERAGED_SNAPSHOT and CREATE_AVERAGED_SNAPSHOT do nothing
   N_of_all_avgsnaps = 0
@@ -292,23 +294,60 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
   CALL ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
 
-   IF ( use_checkpoint/=1 ) THEN ! Fresh start 
-      DO idx=1,num_plane_x_locations+num_plane_y_locations
-         WRITE( file_name,'(A,I3.3,A)') "Flux_through_plane_",idx,".dat"
-         OPEN (21, FILE = file_name, STATUS = 'REPLACE')      
-         IF ( idx<=num_plane_x_locations ) THEN
-            WRITE( plane_name,'(A,ES15.7,A)') "X = ",plane_x_cuts_location(idx)*delta_x_m ," [m]"
-         ELSE 
-            WRITE( plane_name,'(A,ES15.7,A)') "Y = ",plane_y_cuts_location(idx-num_plane_x_locations)*delta_x_m," [m]"
-         END IF
-         WRITE (21,'(A)' ) plane_name
-         WRITE( 21,'(A)', ADVANCE='no' ) "Time_counter,Time[s],electrons[s-1]"
-         DO species=2,N_spec+1
-            WRITE (21, '(A,I1,A)', ADVANCE='no' ) ",ions_species_",idx,"[s-1]"
-         END DO       
-         CLOSE (21, STATUS = 'KEEP')
-      ENDDO 
-   END IF 
+   IF (Rank_of_process==0) THEN
+      IF ( use_checkpoint/=1 ) THEN ! Fresh start 
+         DO idx=1,num_plane_x_locations+num_plane_y_locations
+            WRITE( file_name,'(A,I3.3,A)') "Flux_through_plane_",idx,".dat"
+            OPEN (21, FILE = file_name, STATUS = 'REPLACE')      
+            IF ( idx<=num_plane_x_locations ) THEN
+               WRITE( plane_name,'(A,ES15.7,A)') "X = ",plane_x_cuts_location(idx)*delta_x_m ," [m]"
+            ELSE 
+               WRITE( plane_name,'(A,ES15.7,A)') "Y = ",plane_y_cuts_location(idx-num_plane_x_locations)*delta_x_m," [m]"
+            END IF
+            WRITE (21,'(A)' ) plane_name
+            WRITE( 21,'(A)', ADVANCE='no' ) "Time_counter,Time[s],electrons[s-1]"
+            DO species=2,N_spec+1
+               WRITE (21, '(A,I1,A)', ADVANCE='no' ) ",ions_species_",idx,"[s-1]"
+            END DO       
+            CLOSE (21, STATUS = 'KEEP')
+         ENDDO 
+      ELSE
+         DO idx=1,num_plane_x_locations+num_plane_y_locations
+            exists = .FALSE.
+            WRITE( file_name,'(A,I3.3,A)') "Flux_through_plane_",idx,".dat"
+            INQUIRE ( FILE = file_name, EXIST = exists)
+            IF (exists) THEN                                                       
+               OPEN (21, FILE = file_name, STATUS = 'OLD')         
+               ! Skip header
+               DO n=1,3
+                  READ(21, '(A)') 
+               END DO
+               ! Read data
+               DO 
+                  READ (21, '(2x,i10,2x,ES18.10)', iostat = ios) i_dummy
+                  IF (ios.NE.0) EXIT
+                  IF (i_dummy.GE.Start_T_cntr) EXIT
+               END DO
+               ! BACKSPACE(21) ! No backspace, that way I always keep at least data point more after restart. This is important because otherwise this data point will be missing 
+               ! as it will NOT be recomputed. If this data point was not computed in the first place it will be lost but that should not occur too often
+               ENDFILE 21         
+            ELSE       
+               OPEN (21, FILE = file_name, STATUS = 'REPLACE')      
+               IF ( idx<=num_plane_x_locations ) THEN
+                  WRITE( plane_name,'(A,ES15.7,A)') "X = ",plane_x_cuts_location(idx)*delta_x_m ," [m]"
+               ELSE 
+                  WRITE( plane_name,'(A,ES15.7,A)') "Y = ",plane_y_cuts_location(idx-num_plane_x_locations)*delta_x_m," [m]"
+               END IF
+               WRITE (21,'(A)' ) plane_name
+               WRITE( 21,'(A)', ADVANCE='no' ) "Time_counter,Time[s],electrons[s-1]"
+               DO species=2,N_spec+1
+                  WRITE (21, '(A,I1,A)', ADVANCE='no' ) ",ions_species_",idx,"[s-1]"
+               END DO       
+            END IF
+            CLOSE (21, STATUS = 'KEEP')
+         END DO
+      END IF 
+   END IF
 
 END SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
@@ -1181,7 +1220,8 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
 
-  CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap) 
+  
+  CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag) 
   IF (avg_output_flag==0) RETURN
 ! ! quit if all snapshots were created or if due to any reasons the snapshot counter is 
 ! ! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
@@ -1842,19 +1882,19 @@ SUBROUTINE CREATE_AVERAGED_SNAPSHOT
    IF (ALLOCATED(total_flux_through_plane_over_one_period)) DEALLOCATE(total_flux_through_plane_over_one_period)
 
   IF (Rank_of_process.EQ.0) PRINT '(/2x,"### ^^^^^^^^^^^^^^^^^^^^ Averaged Snapshot ",i4," completed :) ^^^^^^^^^^^^^^^^^^^ ###")', current_avgsnap
-
+   
   current_avgsnap = current_avgsnap + 1           ! increase the snapshots counter (cluster masters only, other processes did this already)
-
+  
 END SUBROUTINE CREATE_AVERAGED_SNAPSHOT
 
 ! --------------------------------------------------------------------------------------------------
-!     SUBROUTINE DECIDE_AVERAGED_SNAPSHOT_CREATION
+!     SUBROUTINE DETERMINE_AVG_DATA_CREATION
 ! >    @details Determines if averaged snapshots or any quantity using the same time table should be created 
 ! !    @authors W. Villafana
 ! !    @date    Aug-25-2024
 ! -------------------------------------------------------------------------------------------------- 
 
-SUBROUTINE DETERMINE_AVG_DATA_CREATION(avg_output_flag,test_time_counter)
+SUBROUTINE DETERMINE_AVG_DATA_CREATION(avg_output_flag)
 
    USE AvgSnapshots, ONLY: current_avgsnap, N_of_all_avgsnaps, avgsnapshot
    USE CurrentProblemValues, ONLY: T_cntr, string_length
@@ -1863,7 +1903,6 @@ SUBROUTINE DETERMINE_AVG_DATA_CREATION(avg_output_flag,test_time_counter)
 
    !IN/OUT
    INTEGER, INTENT(OUT) :: avg_output_flag
-   INTEGER, INTENT(IN) :: test_time_counter
 
    !LOCAL   
    CHARACTER(LEN=string_length) :: routine
@@ -1877,11 +1916,52 @@ SUBROUTINE DETERMINE_AVG_DATA_CREATION(avg_output_flag,test_time_counter)
    avg_output_flag = 1 ! By default I want an output
    ! quit if all snapshots were created or if due to any reasons the snapshot counter is 
    ! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
-   IF (test_time_counter.GT.N_of_all_avgsnaps) avg_output_flag = 0
+   IF (current_avgsnap.GT.N_of_all_avgsnaps) avg_output_flag = 0
 
    ! quit if the current moment of time is not the moment when it is necessary to create the snapshot
-   IF (T_cntr.NE.avgsnapshot(test_time_counter)%T_cntr_end) avg_output_flag = 0   
+   IF (T_cntr.NE.avgsnapshot(current_avgsnap)%T_cntr_end) avg_output_flag = 0   
 
 END SUBROUTINE DETERMINE_AVG_DATA_CREATION
+
+! --------------------------------------------------------------------------------------------------
+!     SUBROUTINE DECIDE_COMPUTE_AVG_DATA
+! >    @details Determines if averaged data should be computed. Answer can be no after a restart. 
+!               In such a case, first iterations will be ignored until I can properly compute the next avg data array (n+1).
+!               That implies that avg data array number n can be not computed at all if it could not complete before the restart.
+!               Usually that does not occur because I need the code to crash right after checkpoint but before the current avg data array could be computed. 
+!               If I compute one more, I am safe. NOT IDEAL
+! !    @authors W. Villafana
+! !    @date    Aug-29-2024
+! -------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
+
+   USE AvgSnapshots, ONLY: current_avgsnap, N_of_all_avgsnaps, avgsnapshot
+   USE CurrentProblemValues, ONLY: T_cntr, string_length
+   USE mod_print, ONLY: print_debug
+   IMPLICIT NONE
+
+   !IN/OUT
+   INTEGER, INTENT(OUT) :: avg_compute_flag
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level   
+
+   routine = "DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART"
+   local_debug_level = 2
+
+   CALL print_debug( routine,local_debug_level)   
+
+   avg_compute_flag = 0
+   
+   IF ((current_avgsnap.GE.1).AND.(current_avgsnap.LE.N_of_all_avgsnaps)) THEN
+      IF ( (T_cntr.GE.avgsnapshot(current_avgsnap)%T_cntr_begin).AND. &
+         & (T_cntr.LE.avgsnapshot(current_avgsnap)%T_cntr_end) ) THEN  
+            avg_compute_flag = 1 
+      END IF
+   END IF
+
+END SUBROUTINE DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART
 
 

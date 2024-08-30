@@ -471,9 +471,15 @@ SUBROUTINE INITIATE_WALL_DIAGNOSTICS
                   IF (ios.NE.0) EXIT
                   IF (i_dummy.GE.Start_T_cntr) EXIT
                END DO
-               BACKSPACE(21)
+               ! BACKSPACE(21) ! No backspace, that way I always keep at least data point more after restart. This is important because otherwise this data point will be missing 
+               ! as it will NOT be recomputed. If this data point was not computed in the first place it will be lost but that should not occur too often
                ENDFILE 21       
                CLOSE (21, STATUS = 'KEEP')        
+            ELSE! Start a new one. Back compatibility
+         
+                  OPEN  (21, FILE = file_name, STATUS = 'REPLACE')          
+                  CLOSE (21, STATUS = 'KEEP')
+         
             END IF
 
          END DO
@@ -495,6 +501,11 @@ SUBROUTINE INITIATE_WALL_DIAGNOSTICS
                BACKSPACE(21)
                ENDFILE 21       
                CLOSE (21, STATUS = 'KEEP')        
+            ELSE ! Start a new one. Back compatibility
+      
+                  OPEN  (21, FILE = historybo_filename, STATUS = 'OLD')          
+                  CLOSE (21, STATUS = 'KEEP')
+      
             END IF
 
          END DO
@@ -550,7 +561,6 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
   INTEGER :: avg_output_flag
   INTEGER :: N_averaged_timesteps
   REAL(8) :: time_window
-  INTEGER :: test_time_avg
   CHARACTER(LEN=string_length) :: message
   CHARACTER(LEN=string_length) :: file_name
 
@@ -577,13 +587,11 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
   END DO
 
   IF (avg_flux_and_history) THEN
-      test_time_avg = current_avgsnap - 1 ! Has been incremented by + 1 in last call to avg_snapshots
-      
-      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,test_time_avg)
+      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag)
       IF (avg_output_flag==1) THEN
-         N_averaged_timesteps   =  avgsnapshot(test_time_avg)%T_cntr_end - avgsnapshot(test_time_avg)%T_cntr_begin + 1
+         N_averaged_timesteps   =  avgsnapshot(current_avgsnap)%T_cntr_end - avgsnapshot(current_avgsnap)%T_cntr_begin + 1
          time_window = REAL(N_averaged_timesteps*delta_t_s)
-         WRITE( message,'(A,I4,A)') "### ^^^^^^^^^^^^^^^^^^^^ Averaged flux ",test_time_avg," will be created ^^^^^^^^^^^^^^^^^^^ ###"
+         WRITE( message,'(A,I4,A)') "### ^^^^^^^^^^^^^^^^^^^^ Averaged flux ",current_avgsnap," will be created ^^^^^^^^^^^^^^^^^^^ ###"
          CALL print_message( message )   
          DO k = 1, N_of_boundary_and_inner_objects
 
@@ -608,7 +616,7 @@ SUBROUTINE SAVE_BOUNDARY_PARTICLE_HITS_EMISSIONS
             whole_object(k)%ion_hit_flux_avg_per_s(1:N_spec) = zero
             whole_object(k)%electron_emission_flux_avg_per_s = zero
          END DO         
-         WRITE( message,'(A,I4,A)') "### ^^^^^^^^^^^^^^^^^^^^ Averaged flux ",test_time_avg," saved ^^^^^^^^^^^^^^^^^^^ ###"
+         WRITE( message,'(A,I4,A)') "### ^^^^^^^^^^^^^^^^^^^^ Averaged flux ",current_avgsnap," saved ^^^^^^^^^^^^^^^^^^^ ###"
          CALL print_message( message )            
       END IF
       RETURN ! If I need average on the fly data, I am done

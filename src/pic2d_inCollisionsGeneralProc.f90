@@ -231,7 +231,7 @@ SUBROUTINE SAVE_in_COLLISIONS
   IF (no_rcx_collisions) RETURN
 
    IF (avg_flux_and_history) THEN
-      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag,current_avgsnap)
+      CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag)
       IF (avg_output_flag==0) RETURN
    END IF  
 
