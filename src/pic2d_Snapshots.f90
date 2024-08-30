@@ -2687,7 +2687,7 @@ SUBROUTINE FINISH_SNAPSHOTS
   IF (ALLOCATED(plane_y_cuts_location)) DEALLOCATE(plane_y_cuts_location, STAT=DEALLOC_ERR)
   
   DO n = 1, N_of_boundary_and_inner_objects
-      IF (ALLOCATED(whole_object(n)%ion_hit_flux_avg_per_s(1:N_spec))) DEALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s, STAT=DEALLOC_ERR)
-      IF (ALLOCATED(whole_object(n)%ion_hit_count(1:N_spec))) DEALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s, STAT=DEALLOC_ERR)
+      IF (ALLOCATED(whole_object(n)%ion_hit_flux_avg_per_s)) DEALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s, STAT=DEALLOC_ERR)
+      IF (ALLOCATED(whole_object(n)%ion_hit_count)) DEALLOCATE(whole_object(n)%ion_hit_flux_avg_per_s, STAT=DEALLOC_ERR)
   END DO
 END SUBROUTINE FINISH_SNAPSHOTS
