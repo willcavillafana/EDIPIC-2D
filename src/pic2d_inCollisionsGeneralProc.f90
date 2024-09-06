@@ -107,7 +107,7 @@ SUBROUTINE INITIATE_in_COLL_DIAGNOSTICS
 
   LOGICAL exists
   CHARACTER(1) buf
-  INTEGER i_dummy
+  INTEGER i_dummy, ios
 
   INTERFACE
      FUNCTION convert_int_to_txt_string(int_number, length_of_string)
@@ -143,9 +143,15 @@ SUBROUTINE INITIATE_in_COLL_DIAGNOSTICS
            READ (21, '(A1)') buf ! WRITE (21, '("# column  2 is the total number of ion macroparticles of species SS in the whole system")')
            READ (21, '(A1)') buf ! WRITE (21, '("# column  3 is the number of rezonance charge exchange collision events during past ion time step")')
 
-           DO i = 1, Start_T_cntr / N_subcycles            ! these files are updated at every ion timestep
-              READ (21, '(2x,i9,2x,i9,2x,i8)') i_dummy
-           END DO
+            DO
+               READ (21, '(2x,i9,2x,i9,2x,i8)', iostat = ios) i_dummy
+               IF (ios.NE.0) EXIT
+               IF (i_dummy.GE.Start_T_cntr) EXIT
+            ENDDO
+            BACKSPACE(21)            
+         !   DO i = 1, Start_T_cntr / N_subcycles            ! these files are updated at every ion timestep
+         !      READ (21, '(2x,i9,2x,i9,2x,i8)') i_dummy
+         !   END DO
            ENDFILE 21       
            CLOSE (21, STATUS = 'KEEP')
         ELSE
