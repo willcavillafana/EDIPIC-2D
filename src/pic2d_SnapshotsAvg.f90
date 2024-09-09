@@ -1917,6 +1917,7 @@ SUBROUTINE DETERMINE_AVG_DATA_CREATION(avg_output_flag)
    ! quit if all snapshots were created or if due to any reasons the snapshot counter is 
    ! larger than the declared number of snapshots (e.g., when no snapshots are requested) 
    IF (current_avgsnap.GT.N_of_all_avgsnaps) avg_output_flag = 0
+   IF (avg_output_flag==0) RETURN 
 
    ! quit if the current moment of time is not the moment when it is necessary to create the snapshot
    IF (T_cntr.NE.avgsnapshot(current_avgsnap)%T_cntr_end) avg_output_flag = 0   
