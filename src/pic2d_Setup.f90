@@ -914,7 +914,7 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
   USE SetupValues
-
+  USE AvgSnapshots, ONLY: avg_flux_and_history
   USE rng_wrapper
 
   IMPLICIT NONE
@@ -934,6 +934,8 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
   INTEGER, ALLOCATABLE :: ibuf_receive(:)
   INTEGER ALLOC_ERR
   INTEGER :: local_debug_level
+
+  INTEGER :: avg_compute_flag  
   
   local_debug_level = 2
 
@@ -1297,6 +1299,14 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
 
      IF (Rank_of_process.EQ.0) THEN
         whole_object(1:N_of_boundary_objects)%electron_emit_count = ibuf_receive(1:N_of_boundary_objects)
+
+        IF (avg_flux_and_history) THEN 
+            CALL DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
+            IF (avg_compute_flag==1) THEN       
+               whole_object(1:N_of_boundary_objects)%electron_emission_flux_avg_per_s = whole_object(1:N_of_boundary_objects)%electron_emission_flux_avg_per_s + &
+                                                                                                REAL(whole_object(1:N_of_boundary_objects)%electron_emit_count)
+            END IF
+         END IF        
 
         IF (debug_level>=local_debug_level) print '("electrons emitted by boundaries :: ",10(2x,i8))', whole_object(1:N_of_boundary_objects)%electron_emit_count  
 
@@ -1904,8 +1914,8 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
       IF (avg_flux_and_history) THEN 
          CALL DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
          IF (avg_compute_flag==1) THEN       
-            whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s + &
-                                                                                                REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_emit_count)
+            whole_object(N_of_boundary_objects+1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s = whole_object(N_of_boundary_objects+1:N_of_boundary_and_inner_objects)%electron_emission_flux_avg_per_s + &
+                                                                                                REAL(whole_object(N_of_boundary_objects+1:N_of_boundary_and_inner_objects)%electron_emit_count)
          END IF
       END IF
   END IF

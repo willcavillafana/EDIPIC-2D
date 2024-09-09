@@ -296,8 +296,8 @@ MODULE CurrentProblemValues
      INTEGER electron_hit_count
      INTEGER electron_emit_count
      INTEGER, ALLOCATABLE :: ion_hit_count(:)
-     REAL(8) electron_hit_flux_avg_per_s
-     REAL(8) electron_emission_flux_avg_per_s
+     REAL(8) :: electron_hit_flux_avg_per_s
+     REAL(8) :: electron_emission_flux_avg_per_s
      REAL(8), ALLOCATABLE :: ion_hit_flux_avg_per_s(:)
 
      REAL(8) total_charge

@@ -374,6 +374,7 @@ SUBROUTINE COLLECT_ELECTRON_BOUNDARY_HITS
   USE CurrentProblemValues
   USE ClusterAndItsBoundaries
   USE IonParticles, ONLY : N_spec
+  USE AvgSnapshots, ONLY: avg_flux_and_history
 
   IMPLICIT NONE
 
@@ -389,6 +390,7 @@ SUBROUTINE COLLECT_ELECTRON_BOUNDARY_HITS
 
   INTEGER k
   INTEGER :: local_debug_level
+  INTEGER :: avg_compute_flag
 
   local_debug_level = 2
 
@@ -408,6 +410,14 @@ SUBROUTINE COLLECT_ELECTRON_BOUNDARY_HITS
      whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count = ibuf_receive(1:N_of_boundary_and_inner_objects)
      IF (debug_level>=local_debug_level) print '("electrons hit boundaries :: ",10(2x,i8))', whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count  
 
+     ! Update avg flux if necessary
+      IF (avg_flux_and_history) THEN
+         CALL DECIDE_IF_COMPUTE_AVG_DATA_AFTER_RESTART(avg_compute_flag)
+         IF (avg_compute_flag==1) THEN 
+            whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s = whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_flux_avg_per_s &
+                                                                                          + REAL(whole_object(1:N_of_boundary_and_inner_objects)%electron_hit_count)     
+         END IF
+      END IF
      DO k = 1, N_of_boundary_and_inner_objects
         whole_object(k)%ion_hit_count(1:N_spec) = 0
      END DO
