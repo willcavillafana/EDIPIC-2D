@@ -158,6 +158,7 @@ SUBROUTINE INITIATE_PARAMETERS
   c_indx_y_max_total = 0  
   Delta_r = one
   Delta_z = one
+  shift_center_z = zero
   i_no_poisson = 0
   i_empty_domain = 0
   i_one_particle = 0
@@ -232,7 +233,7 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the X-direction")')
   READ (9, '(5x,i1)') cluster_N_blocks_x
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the Y-direction")')
-  READ (9, '(5x,i1)') cluster_N_blocks_y
+  READ (9, '(4x,i2)') cluster_N_blocks_y
   READ (9, '(A1)') buf !"---ddd---ddd---- number of objects along domain boundary // number of material inner objects (>=0), each inner objects is a rectangle")')
   READ (9, '(3x,i3,3x,i3)') N_of_boundary_objects, N_of_inner_objects
 !   READ (9, '(A1)') buf !"-----d---------- Choose Cartesian (=0) or cylindrical (=1 for r_theta, =2 for r_z) case 
@@ -1146,7 +1147,7 @@ if (Rank_of_process.eq.0) print *, "SET_CLUSTER_STRUCTURE done"
 
   READ (9, '(A1)') buf !"---ddd.d---+d---dddd.ddd---ddd.dd-- ion mass [amu] / charge [e] / initial temperature [eV] / initial relative concentration [%]")')
   DO s = 1, N_spec
-     READ (9, '(3x,f5.1,3x,i2,3x,f8.3,3x,f6.2)') M_i_amu(s), Qs(s), init_Ti_eV(s), init_NiNe(s)
+     READ (9, '(3x,f6.2,2x,i2,3x,f8.3,3x,f6.2)') M_i_amu(s), Qs(s), init_Ti_eV(s), init_NiNe(s)
      init_NiNe(s) = 0.01_8 * init_NiNe(s)   ! convert % to fraction
   END DO
 
@@ -1441,7 +1442,7 @@ SUBROUTINE read_flexible_parameters
    
    USE ParallelOperationValues, ONLY: Rank_of_process
    USE mod_print, ONLY: print_message, print_parser_error
-   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain, i_one_particle,vthx_factor,vthy_factor,vthz_factor, i_velocity_one_particle   
+   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain, i_one_particle,vthx_factor,vthy_factor,vthz_factor, i_velocity_one_particle, shift_center_z   
    USE IonParticles, ONLY: i_freeze_ions
    USE Snapshots, ONLY: work_dir_2d_map
    USE BlockAndItsBoundaries, ONLY: work_dir_partition_and_fields_files
@@ -1524,6 +1525,26 @@ SUBROUTINE read_flexible_parameters
          WRITE( message,'(A)') "Delta_z keyword not present. I assume we do not want it"
          CALL print_message( message,routine )       
       END IF          
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="shift_center_z" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,rval            
+            shift_center_z = rval
+            WRITE( message,'(A,ES10.3,A)') "Partial init shift_center_z= ",shift_center_z," [-] (between -1 and 1). Zero means the the partial initialization is centered around Lz/2. One means it will be centered around Lz"
+            CALL print_message( message,routine )            
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "shift_center_z keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF                
 
       i_found = 0
       REWIND(9)
@@ -4081,8 +4102,8 @@ SUBROUTINE DISTRIBUTE_PARTICLES
          ! Since we cannot play direclty with the statistical weight (which does not exist), we must adjust the number of macroparticles
          x_limit_right = MIN(x_limit_right,Rmax*c_indx_x_max_total)
          x_limit_left = MIN(x_limit_left,Rmax*c_indx_x_max_total)
-         y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)/two*c_indx_y_max_total)
-         y_limit_top = MIN(y_limit_top,(one+Delta_z_max)/two*c_indx_y_max_total)    
+         y_limit_bot = MAX(y_limit_bot,(one-Delta_z_max)/two*c_indx_y_max_total+c_indx_y_max_total*shift_center_z)
+         y_limit_top = MIN(y_limit_top,(one+Delta_z_max)/two*c_indx_y_max_total+c_indx_y_max_total*shift_center_z)    
          IF (y_limit_top<y_limit_bot) y_limit_bot = y_limit_top! make sure we have zero if domain has zero particles
          ! y_limit_bot = MIN(y_limit_top,y_limit_bot) 
          N_electrons =  INT( N_electrons_total_cyl*&
