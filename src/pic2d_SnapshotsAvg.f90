@@ -328,8 +328,7 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
                   IF (ios.NE.0) EXIT
                   IF (i_dummy.GE.Start_T_cntr) EXIT
                END DO
-               ! BACKSPACE(21) ! No backspace, that way I always keep at least data point more after restart. This is important because otherwise this data point will be missing 
-               ! as it will NOT be recomputed. If this data point was not computed in the first place it will be lost but that should not occur too often
+               BACKSPACE(21) ! Backspace is restored. I can safely eliminate last poitn because it should be recomputed as checkpoint automatically restarts at start of average window
                ENDFILE 21         
             ELSE       
                OPEN (21, FILE = file_name, STATUS = 'REPLACE')      
