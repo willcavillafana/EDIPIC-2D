@@ -238,7 +238,7 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
      OPEN (41, FILE = '_avg_snapmoments.dat', STATUS = 'REPLACE')
      WRITE (41, '(" number   start_time(ns)   end_time(ns)   start_T_cntr   end_T_cntr   N_of_avg_points,e/i")')
      DO n = 1, N_of_all_avgsnaps
-        WRITE (41, '(2x,i4,2x,2(2x,f13.5),2x,2(2x,i9),2(4x,i6))') &
+        WRITE (41, '(2x,i5,2x,2(2x,f13.5),2x,2(2x,i9),2(4x,i6))') &
              & n, &
              & avgsnapshot(n)%T_cntr_begin * 1.0d9 * delta_t_s, &
              & avgsnapshot(n)%T_cntr_end * 1.0d9 * delta_t_s, &
