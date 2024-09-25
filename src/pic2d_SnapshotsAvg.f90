@@ -152,8 +152,8 @@ SUBROUTINE INITIATE_AVERAGED_SNAPSHOTS
 
   T2prev = -1
 
-  ALLOCATE(timestep_begin(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(timestep_end(1:9999), STAT = ALLOC_ERR)
+  ALLOCATE(timestep_begin(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(timestep_end(1:99999), STAT = ALLOC_ERR)
      
   DO i = 1, N_of_snap_groups
 ! read the parameters of current set of snapshot from the data file
