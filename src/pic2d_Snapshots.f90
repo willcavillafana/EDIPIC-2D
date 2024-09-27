@@ -79,11 +79,11 @@ SUBROUTINE INITIATE_SNAPSHOTS
   T2_old = -1
   N2_old = 0
 
-  ALLOCATE(                     timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(           evdf_flag_timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(             pp_flag_timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(      ionrate2d_flag_timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(part_coll_walls_flag_timestep(1:9999), STAT = ALLOC_ERR)
+  ALLOCATE(                     timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(           evdf_flag_timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(             pp_flag_timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(      ionrate2d_flag_timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(part_coll_walls_flag_timestep(1:99999), STAT = ALLOC_ERR)
      
   IF (Rank_of_process.EQ.0) PRINT '("### File init_snapshots is found. Reading the data file... ###")'
 
