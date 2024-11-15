@@ -35,6 +35,7 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
   REAL(8) N_tot, energy_before, energy_after, alpha
   REAL(8) vx_avg_before, vy_avg_before, vz_avg_before, vx_avg_after, vy_avg_after, vz_avg_after
   REAL :: freq_collision_coulomb
+  REAl(8) :: inv_N_tot
 
   REAL, ALLOCATABLE :: rbuffer_local(:), rbuffer_global(:)
   INTEGER :: indx1, indx2, indx3
@@ -59,10 +60,12 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
 
 !  energy_before = kin_energy_e_global  
   N_tot = moments_global(0)
-  vx_avg_before = moments_global(1) / N_tot
-  vy_avg_before = moments_global(2) / N_tot
-  vz_avg_before = moments_global(3) / N_tot
-  energy_before = moments_global(4) / N_tot - (vx_avg_before**2 + vy_avg_before**2 + vz_avg_before**2)
+  inv_N_tot = zero
+  IF (N_tot/=zero) inv_N_tot = one/N_tot
+  vx_avg_before = moments_global(1) * inv_N_tot
+  vy_avg_before = moments_global(2) * inv_N_tot
+  vz_avg_before = moments_global(3) * inv_N_tot
+  energy_before = moments_global(4) * inv_N_tot - (vx_avg_before**2 + vy_avg_before**2 + vz_avg_before**2)
 
   IF (cluster_rank_key.EQ.0) THEN
      DO j = c_indx_y_min, c_indx_y_max
@@ -276,10 +279,12 @@ SUBROUTINE PERFORM_ELECTRON_COULOMB_SCATTERING
 
 !  energy_after = kin_energy_e_global
   N_tot = moments_global(0) ! is actually conserved after processing collisions 
-  vx_avg_after = moments_global(1) / N_tot
-  vy_avg_after = moments_global(2) / N_tot
-  vz_avg_after = moments_global(3) / N_tot
-  energy_after = moments_global(4) / N_tot - (vx_avg_after**2 + vy_avg_after**2 + vz_avg_after**2)
+  inv_N_tot = zero
+  IF (N_tot/=zero) inv_N_tot = one/N_tot  
+  vx_avg_after = moments_global(1) * inv_N_tot
+  vy_avg_after = moments_global(2) * inv_N_tot
+  vz_avg_after = moments_global(3) * inv_N_tot
+  energy_after = moments_global(4) * inv_N_tot - (vx_avg_after**2 + vy_avg_after**2 + vz_avg_after**2)
 
   alpha = sqrt(energy_before / energy_after)
 
