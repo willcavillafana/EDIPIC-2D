@@ -229,7 +229,7 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(A1)') buf !"---ddd---------- number of cells along the Y-direction in a block")')
   READ (9, '(3x,i3)') N_grid_block_y
   READ (9, '(A1)') buf !"--dddd---------- number of macroparticles per cell for the scale density")')
-  READ (9, '(i6)') N_of_particles_cell
+  READ (9, '(i12)') N_of_particles_cell
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the X-direction")')
   READ (9, '(5x,i1)') cluster_N_blocks_x
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the Y-direction")')

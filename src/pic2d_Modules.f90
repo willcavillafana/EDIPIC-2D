@@ -229,7 +229,7 @@ MODULE CurrentProblemValues
   INTEGER N_grid_block_x  ! number of cells along the X-direction in a block
   INTEGER N_grid_block_y  ! number of cells along the Y-direction in a block
 
-  INTEGER N_of_particles_cell  ! number of macroparticles per cell for the scale density
+  INTEGER(8) :: N_of_particles_cell  ! number of macroparticles per cell for the scale density
   REAL(KIND=dble_precision) :: N_of_particles_cell_dble
 
   INTEGER cluster_N_blocks_x  ! number of blocks along the X-direction in a cluster
