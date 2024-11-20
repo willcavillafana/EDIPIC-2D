@@ -329,6 +329,7 @@ SUBROUTINE INITIATE_PARAMETERS
   DO n = N_of_boundary_objects+1, N_of_boundary_and_inner_objects  !N_of_inner_objects
      READ (9, '(A1)') buf !"===dd=== object type")')
      READ (9, '(3x,i2)') whole_object(n)%object_type
+     CALL print_info_object_type( n,whole_object(n)%object_type )
      IF ((whole_object(n)%object_type.NE.METAL_WALL).AND.(whole_object(n)%object_type.NE.DIELECTRIC)) THEN
         IF (Rank_of_process.EQ.0) PRINT '("Error, inner material object ",i2," has type ",i3," which is not permitted")', n, whole_object(n)%object_type
         CALL MPI_FINALIZE(ierr)

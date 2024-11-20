@@ -1,6 +1,6 @@
 SUBROUTINE UPDATE_WALL_POTENTIALS(T_cntr)
 
-  USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_objects, N_of_boundary_and_inner_objects, METAL_WALL, VACUUM_GAP
+  USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_objects, N_of_boundary_and_inner_objects, METAL_WALL, VACUUM_GAP, zero
 
   IMPLICIT NONE
 
@@ -26,6 +26,10 @@ SUBROUTINE UPDATE_WALL_POTENTIALS(T_cntr)
                             & Amplitude_Profile(n, T_cntr) + &
                             & customized_profile(n,T_cntr) 
      END IF
+      DO i = 1,whole_object(n)%N_objects_connected_to_it
+         j = whole_object(n)%connected_object_no(i)
+         whole_object(j)%phi = zero
+      END DO
   END DO
 
 ! set potentials across vacuum gaps
