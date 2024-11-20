@@ -79,11 +79,11 @@ SUBROUTINE INITIATE_SNAPSHOTS
   T2_old = -1
   N2_old = 0
 
-  ALLOCATE(                     timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(           evdf_flag_timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(             pp_flag_timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(      ionrate2d_flag_timestep(1:9999), STAT = ALLOC_ERR)
-  ALLOCATE(part_coll_walls_flag_timestep(1:9999), STAT = ALLOC_ERR)
+  ALLOCATE(                     timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(           evdf_flag_timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(             pp_flag_timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(      ionrate2d_flag_timestep(1:99999), STAT = ALLOC_ERR)
+  ALLOCATE(part_coll_walls_flag_timestep(1:99999), STAT = ALLOC_ERR)
      
   IF (Rank_of_process.EQ.0) PRINT '("### File init_snapshots is found. Reading the data file... ###")'
 
@@ -270,7 +270,7 @@ SUBROUTINE INITIATE_SNAPSHOTS
 !                 "--****-----*******.*****----********----*----*----*----*----*"
      WRITE (41, '(" number       time(ns)       T_cntr    vdf  pp  ioniz icbo ecbo ")')
      DO i = 1, N_of_all_snaps
-        WRITE (41, '(2x,i4,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)') &
+        WRITE (41, '(2x,i5,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)') &
              & i, &
              & Tcntr_snapshot(i) * 1.0d9 * delta_t_s, &
              & Tcntr_snapshot(i), &

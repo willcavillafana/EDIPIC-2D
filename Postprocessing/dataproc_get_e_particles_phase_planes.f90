@@ -108,7 +108,7 @@ program get_traced_epp_at_snapshot_times
   read (41, '(A1)') buf
 !     DO i = 1, N_of_all_snaps
   do
-     read (41, '(2x,i4,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)', iostat = ios) itmp
+     read (41, '(2x,i5,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)', iostat = ios) itmp
      if (ios.ne.0) exit
      N_of_all_snaps = itmp
 !        WRITE (41, '(2x,i4,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)') &
@@ -129,7 +129,7 @@ program get_traced_epp_at_snapshot_times
   open (41, file = '_snapmoments.dat')
   read (41, '(A1)') buf
   do i = 1, N_of_all_snaps
-     read (41, '(2x,i4,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)') itmp, rtmp, Tcntr_snapshot(i)
+     read (41, '(2x,i5,5x,f13.5,4x,i8,4x,i1,4x,i1,4x,L1,4x,L1,4x,L1)') itmp, rtmp, Tcntr_snapshot(i)
   end do
   close (41, status = 'KEEP')
 
