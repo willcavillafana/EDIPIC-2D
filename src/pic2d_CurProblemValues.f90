@@ -1433,7 +1433,7 @@ SUBROUTINE print_info_object_type(n,obj_type)
          type_name = 'a priori unknow BC. Results might be wrong'
    END SELECT
    
-   WRITE( message, '(A,I2,A)'), "Object # ",n," "//TRIM(type_name)
+   WRITE( message, '(A,I2,A)') "Object # ",n," "//TRIM(type_name)
    CALL print_message(message)
 
 
@@ -1482,7 +1482,7 @@ SUBROUTINE read_flexible_parameters
   ! Implement new parser for geometry 
    INQUIRE (FILE = 'init_params.dat', EXIST = exists)
    IF (exists) THEN
-      WRITE( message, '(A)'), "init_params.dat found."//achar(10)
+      WRITE( message, '(A)') "init_params.dat found."//achar(10)
       CALL print_message(message,routine)
       
       OPEN (9, file='init_params.dat')
@@ -1499,12 +1499,12 @@ SUBROUTINE read_flexible_parameters
             
             IF (TRIM(caval)=='cartesian') THEN
                i_cylindrical = 0
-               WRITE( message, '(A)'), "Selected geometry: CARTESIAN"//achar(10)
+               WRITE( message, '(A)') "Selected geometry: CARTESIAN"//achar(10)
             ELSE IF (TRIM(caval)=='cylindrical_r_z') THEN
                i_cylindrical = 2
-               WRITE( message, '(A)'), "Selected geometry: CYLINDRICAL r-z"//achar(10)
+               WRITE( message, '(A)') "Selected geometry: CYLINDRICAL r-z"//achar(10)
             ELSE 
-               WRITE( message, '(A,A,A)'), "Selected geometry is not correct. Received: ",TRIM(caval),". Expected:'cartesian' or 'cylindrical_r_z'. Case sensitive"//achar(10)
+               WRITE( message, '(A,A,A)') "Selected geometry is not correct. Received: ",TRIM(caval),". Expected:'cartesian' or 'cylindrical_r_z'. Case sensitive"//achar(10)
                CALL print_parser_error(message)
             END IF
             CALL print_message( message )

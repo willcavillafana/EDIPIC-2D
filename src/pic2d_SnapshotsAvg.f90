@@ -382,7 +382,7 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
    separator = '='
 
    
-   WRITE( message, '(A)'), "Reading additional parameters for averaged snapshots"//achar(10)
+   WRITE( message, '(A)') "Reading additional parameters for averaged snapshots"//achar(10)
    CALL print_message(message,routine)   
 
    INQUIRE (FILE = 'init_avgsnapshots.dat', EXIST = exists)
@@ -472,12 +472,12 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
          
          IF (TRIM(caval)=='yes') THEN
             save_collision_freq_ee = .TRUE.
-            WRITE( message, '(A)'), "Coulomb collision frequency 2D maps are saved and averaged on the fly."//achar(10)
+            WRITE( message, '(A)') "Coulomb collision frequency 2D maps are saved and averaged on the fly."//achar(10)
          ELSE IF (TRIM(caval)=='no') THEN
             save_collision_freq_ee = .FALSE.
-            WRITE( message, '(A)'), "Coulomb collision frequency 2D maps are NOT saved."//achar(10)
+            WRITE( message, '(A)') "Coulomb collision frequency 2D maps are NOT saved."//achar(10)
          ELSE 
-            WRITE( message, '(A,A,A)'), "No sure if you want to save Coulomb collision frequency. For keyword 'coulomb_collision_ee_freq' I received: ",TRIM(caval),". Expected:'yes' or 'no'. Case sensitive"//achar(10)
+            WRITE( message, '(A,A,A)') "No sure if you want to save Coulomb collision frequency. For keyword 'coulomb_collision_ee_freq' I received: ",TRIM(caval),". Expected:'yes' or 'no'. Case sensitive"//achar(10)
             CALL print_parser_error(message)
          END IF
          CALL print_message( message )
@@ -503,12 +503,12 @@ SUBROUTINE ADDITIONAL_PARAMETERS_AVG_SNAPHOTS
          
          IF (TRIM(caval)=='yes') THEN
             avg_flux_and_history = .TRUE.
-            WRITE( message, '(A)'), "Fluxes at the wall and reporting of particles will be averaged on the fly."//achar(10)
+            WRITE( message, '(A)') "Fluxes at the wall and reporting of particles will be averaged on the fly."//achar(10)
          ELSE IF (TRIM(caval)=='no') THEN
             avg_flux_and_history = .FALSE.
-            WRITE( message, '(A)'), "Fluxes at the wall and reporting of particles will be printed at each iteration."//achar(10)
+            WRITE( message, '(A)') "Fluxes at the wall and reporting of particles will be printed at each iteration."//achar(10)
          ELSE 
-            WRITE( message, '(A,A,A)'), "No sure if you want to avergae on the fly fluxes and reporting of particles. For keyword 'avg_flux_and_history' I received: ",TRIM(caval),". Expected:'yes' or 'no'. Case sensitive"//achar(10)
+            WRITE( message, '(A,A,A)') "No sure if you want to avergae on the fly fluxes and reporting of particles. For keyword 'avg_flux_and_history' I received: ",TRIM(caval),". Expected:'yes' or 'no'. Case sensitive"//achar(10)
             CALL print_parser_error(message)
          END IF
          CALL print_message( message )
