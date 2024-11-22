@@ -176,6 +176,11 @@ SUBROUTINE INITIATE_PARAMETERS
   work_dir_partition_and_fields_files = './' 
   work_dir_probes = './'
 
+  i_customed_profile_initialization = 0
+  Rw_bessel = zero
+  Y_shift_exp_Y = zero
+  Y0_exp = zero
+
   Coulomb_flag = .FALSE.
   INQUIRE (FILE = 'init_CoulombScattering.dat', EXIST = exists)
   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
@@ -1442,7 +1447,10 @@ SUBROUTINE read_flexible_parameters
    
    USE ParallelOperationValues, ONLY: Rank_of_process
    USE mod_print, ONLY: print_message, print_parser_error
-   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, i_no_poisson, i_empty_domain, i_one_particle,vthx_factor,vthy_factor,vthz_factor, i_velocity_one_particle, shift_center_z   
+   USE CurrentProblemValues, ONLY: string_length, Delta_z, i_cylindrical, Delta_r, delta_x_m, debug_level, &
+                                   i_no_poisson, i_empty_domain, i_one_particle,vthx_factor,vthy_factor,vthz_factor, &
+                                   i_velocity_one_particle, shift_center_z, &
+                                   i_customed_profile_initialization, Rw_bessel, Y0_exp, Y_shift_exp_Y, N_plasma_m3
    USE IonParticles, ONLY: i_freeze_ions
    USE Snapshots, ONLY: work_dir_2d_map
    USE BlockAndItsBoundaries, ONLY: work_dir_partition_and_fields_files
@@ -1819,75 +1827,83 @@ SUBROUTINE read_flexible_parameters
          CALL print_message( message,routine )       
       END IF                     
 
-      ! i_found = 0
-      ! REWIND(9)
-      ! DO
-      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
-      !    IF ( ierr/=0 ) EXIT
-      !    IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
-      !    READ (line,*) long_buf ! read first word of line
-      !    IF ( TRIM(long_buf)=="planes_X_locations_to_measure_net_flux" ) THEN ! found search string at beginning of line
-      !       i_found = 1
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="i_customed_profile_initialization" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval            
 
-      !       CALL count_number_of_inputs(line,long_buf,separator,num_plane_x_locations)
-      !       IF (num_plane_x_locations > 0) THEN
-      !          ALLOCATE(plane_x_cuts_location(num_plane_x_locations))
-      !       ELSE
-      !          WRITE(message, '(A,A)') 'No values found in the line: ',line
-      !          CALL print_parser_error(message)
-      !       END IF            
-            
-      !       READ (line,*) long_buf,separator,plane_x_cuts_location(1:num_plane_x_locations)
+            IF ( TRIM(caval)=="diffusion_bessel_in_X_exp_in_Y" ) THEN
 
-      !       WRITE( message,'(A)') "planes_X_locations_to_measure_net_flux keyword present. Will generate fluxes on for cuts at X = ... if averaged snaphots are turned on"
-      !       CALL print_message( message,routine )    
-            
-      !       DO idx=1,num_plane_x_locations
-      !          WRITE( message,'(A,ES10.3,A,I10,A,I10)') "Plane cut at X = ",plane_x_cuts_location(idx)," [m] between grid node i = ",FLOOR(plane_x_cuts_location(idx)/delta_x_m)," and i = ",FLOOR(plane_x_cuts_location(idx)/delta_x_m)+1
-      !          plane_x_cuts_location(idx) = plane_x_cuts_location(idx)/delta_x_m
-      !          CALL print_message( message )    
-      !       END DO            
+               i_customed_profile_initialization = 1
+               WRITE(message, '(A)') "Domain will be initialized with the law: n=N_uniform*J0(alpha*X)*"
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "(ch(alpha*(Y-Y_shift_exp_Y))-ch(alpha*Y0_exp)/sh(alpha*Y0_exp)*sh(alpha*(Y-Y_shift_exp_Y))."
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "For 0<=X<=Rw_bessel and Y_shift_exp_Y<Y<Y0_exp+Y_shift_exp_Y."
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "N_uniform = uniform density value set by user by default."
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "Rw_bessel is the wall position, alpha=first root of Bessel function/Rw_bessel."
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "Y_shift_exp_Y = coordinates from which profile starts."
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "Y0_exp: total distance over which profile is valid."
+               CALL print_message(message, routine)
+               WRITE(message, '(A)') "Outside the range of validity, the profile is by default uniform."//ACHAR(10)
+               CALL print_message(message, routine)               
+               IF (i_cylindrical/=2) THEN
+                  WRITE( message, '(A)') "You must use cylindrical_r_z for the geometry"
+                  CALL print_parser_error(message)
+               END IF
+            ELSE
+               WRITE( message,'(A,A,A)') 'With i_customed_profile_initialization keyword, you must use one of the following options "diffusion_bessel_in_X_exp_in_Y". &
+                                          Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO       
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "i_customed_profile_initialization keyword not present. I assume we do not want it"
+         CALL print_message( message,routine )       
+      END IF            
 
-      !    END IF
-      ! END DO  
-      ! IF ( i_found==0 ) THEN
-      !    WRITE( message,'(A)') "planes_X_locations_to_measure_net_flux keyword not present. I assume we do not want it. "
-      !    CALL print_message( message,routine )       
-      ! END IF                          
-      
-      ! i_found = 0
-      ! REWIND(9)
-      ! DO
-      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
-      !    IF ( ierr/=0 ) EXIT
-      !    IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
-      !    READ (line,*) long_buf ! read first word of line
-      !    IF ( TRIM(long_buf)=="planes_Y_locations_to_measure_net_flux" ) THEN ! found search string at beginning of line
-      !       i_found = 1
-      !       CALL count_number_of_inputs(line,long_buf,separator,num_plane_y_locations)
-      !       IF (num_plane_y_locations > 0) THEN
-      !          ALLOCATE(plane_y_cuts_location(num_plane_y_locations))
-      !       ELSE
-      !          WRITE(message, '(A,A)') 'No values found in the line: ',line
-      !          CALL print_parser_error(message)
-      !       END IF                   
-      !       READ (line,*) long_buf,separator,plane_y_cuts_location(1:num_plane_y_locations)
+      IF (i_customed_profile_initialization==1) THEN
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="input_for_diffusion_bessel_in_X_exp_in_Y" ) THEN ! found search string at beginning of line
+               i_found = 1
+               WRITE( message,'(A)') "For diffusion_bessel_in_X_exp_in_Y profile, reading in this order (international units): &
+                                               Rw_bessel Y_shift_exp_Y Y0_exp" 
+               CALL print_message( message,routine )   
 
-      !       WRITE( message,'(A)') "planes_Y_locations_to_measure_net_flux keyword present. Will generate fluxes on for cuts at Y = ... if averaged snaphots are turned on."
-      !       CALL print_message( message,routine )    
-            
-      !       DO idx=1,num_plane_y_locations
-      !          WRITE( message,'(A,ES10.3,A,I10,A,I10)') "Plane cut at Y = ",plane_y_cuts_location(idx)," [m] between grid node j = ",FLOOR(plane_y_cuts_location(idx)/delta_x_m)," and j = ",FLOOR(plane_y_cuts_location(idx)/delta_x_m)+1
-      !          plane_y_cuts_location(idx) = plane_y_cuts_location(idx)/delta_x_m
-      !          CALL print_message( message )    
-      !       END DO            
+               READ (line,*) long_buf,separator,Rw_bessel,Y_shift_exp_Y,Y0_exp                  
+               WRITE( message,'(A,ES10.3,A,ES10.3,A,ES10.3,A)') "For diffusion_bessel_in_X_exp_in_Y profile, reading &
+                                               Rw_bessel= ",Rw_bessel," [m] &
+                                               Y_shift_exp_Y= ",Y_shift_exp_Y," [m], Y0_exp= ",Y0_exp," [m]"//ACHAR(10) 
+               CALL print_message( message,routine )            
 
-      !    END IF
-      ! END DO  
-      ! IF ( i_found==0 ) THEN
-      !    WRITE( message,'(A)') "planes_Y_locations_to_measure_net_flux keyword not present. I assume we do not want it. "
-      !    CALL print_message( message,routine )       
-      ! END IF             
+               ! Convert to dimensionless units
+               Rw_bessel = Rw_bessel/delta_x_m
+               Y_shift_exp_Y = Y_shift_exp_Y/delta_x_m
+               Y0_exp = Y0_exp/delta_x_m
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "input_for_diffusion_bessel_in_X_exp_in_Y keyword missing but i_customed_profile_initialization requested. Must be used."
+            CALL print_parser_error( message )
+         END IF    
+      ENDIF         
 
       CLOSE (9, STATUS = 'KEEP')
    END IF
@@ -3991,8 +4007,9 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   USE ClusterAndItsBoundaries
   USE BlockAndItsBoundaries, ONLY: block_has_symmetry_plane_X_left
   USE mod_print, ONLY: print_message_cluster,print_output,print_output_all,print_error
-
+  USE mod_numerics, ONLY: mid_point_integration
   USE rng_wrapper
+  USE mod_function_wrappers_1d, ONLY: evaluate_function
 
   IMPLICIT NONE
 
@@ -4024,6 +4041,9 @@ SUBROUTINE DISTRIBUTE_PARTICLES
   INTEGER :: int_test ! test if integer precision is enough! temporary fix 
   CHARACTER(LEN=string_length) :: routine
   REAL(8) :: Rmax,Delta_z_max ! artificall coefficients to intilialize plasma on portion of domain only
+
+  REAL(8) :: max_value_distribution, local_distribution
+  CHARACTER(LEN=string_length) :: function_name_1, function_name_2
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -4272,6 +4292,30 @@ SUBROUTINE DISTRIBUTE_PARTICLES
         ENDIF
 
      END DO
+
+     ! Checking if I should remove some electrons based on a customed inpital profile
+      k = 0
+      DO WHILE (k<N_electrons)
+         IF (N_electrons==0) EXIT
+         k = k+1
+         
+         IF (i_customed_profile_initialization==1) THEN
+            IF (Rw_bessel>=electron(k)%X .AND. Y_shift_exp_Y+Y0_exp>=electron(k)%Y .AND. Y_shift_exp_Y<=electron(k)%Y ) THEN
+            
+               function_name_1 = "bessel_diffusion"
+               function_name_2 = "cosh_sinh_diffusion"
+
+               max_value_distribution = one
+               local_distribution = evaluate_function(function_name_1,electron(k)%X)*evaluate_function(function_name_2,electron(k)%Y)
+
+               ! Rejection method
+               IF (well_random_number()>local_distribution/max_value_distribution) CALL REMOVE_ELECTRON(k)
+
+            END IF
+         END IF
+         
+      ENDDO
+
 
 ! remove all electrons which were placed inside inner objects
      k=0
