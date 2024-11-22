@@ -33,6 +33,10 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIALS_2D
 
 ! set potential of the electrode of interest to 1   !### it is dimensionless 1 for now
      whole_object(noi)%phi = 1.0_8
+      DO i=1,whole_object(noi)%N_objects_connected_to_it
+         j = whole_object(noi)%connected_object_no(i)
+         whole_object(j)%phi = one
+      END DO
 
 ! set potentials across vacuum gaps (same as in UPDATE_WALL_POTENTIALS ### make it a separate routine???)
      DO n = 1, N_of_boundary_objects
@@ -2103,7 +2107,6 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
             dQ_plasma_of_object_avg = zero
          END IF
 
-         potential_of_object_avg = zero
       ELSE
          OPEN (21, FILE = 'history_ext_circuit.dat', POSITION = 'APPEND')
          WRITE (21, '(2x,i9,8(2x,e14.7))') &

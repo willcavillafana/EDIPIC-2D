@@ -437,11 +437,11 @@ SUBROUTINE PERFORM_ELECTRON_NEUTRAL_COLLISIONS
 
         IF (first_collision_not_done_yet) THEN
            random_j = INT(well_random_number() * N_electrons)
-           random_j = MIN(MAX(random_j, 1), N_electrons)
-        ELSE
+           random_j = MIN(MAX(random_j, 1), N_electrons)            
+         ELSE
            DO                        ! search will be repeated until a number will be successfully obtained
-              random_j = INT(well_random_number() * N_electrons)
-              random_j = MIN(MAX(random_j, 1), N_electrons)
+              random_j = 1 + INT(well_random_number() * N_electrons)
+              random_j = MIN(random_j, N_electrons)
               IF (.NOT.Find_in_stored_list(random_j)) EXIT    !#### needs some safety mechanism to avoid endless cycling
            END DO
         END IF

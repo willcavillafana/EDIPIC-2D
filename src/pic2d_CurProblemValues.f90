@@ -234,7 +234,7 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(A1)') buf !"---ddd---------- number of cells along the Y-direction in a block")')
   READ (9, '(3x,i3)') N_grid_block_y
   READ (9, '(A1)') buf !"--dddd---------- number of macroparticles per cell for the scale density")')
-  READ (9, '(i6)') N_of_particles_cell
+  READ (9, '(i12)') N_of_particles_cell
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the X-direction")')
   READ (9, '(5x,i1)') cluster_N_blocks_x
   READ (9, '(A1)') buf !"-----d---------- number of blocks in a cluster along the Y-direction")')
@@ -334,6 +334,7 @@ SUBROUTINE INITIATE_PARAMETERS
   DO n = N_of_boundary_objects+1, N_of_boundary_and_inner_objects  !N_of_inner_objects
      READ (9, '(A1)') buf !"===dd=== object type")')
      READ (9, '(3x,i2)') whole_object(n)%object_type
+     CALL print_info_object_type( n,whole_object(n)%object_type )
      IF ((whole_object(n)%object_type.NE.METAL_WALL).AND.(whole_object(n)%object_type.NE.DIELECTRIC)) THEN
         IF (Rank_of_process.EQ.0) PRINT '("Error, inner material object ",i2," has type ",i3," which is not permitted")', n, whole_object(n)%object_type
         CALL MPI_FINALIZE(ierr)

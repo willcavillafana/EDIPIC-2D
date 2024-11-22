@@ -339,6 +339,8 @@ MODULE CurrentProblemValues
      INTEGER, ALLOCATABLE :: ap_T_cntr(:)   ! array of times (in units of timesteps) of amplitude profile data points
 
      LOGICAL potential_must_be_solved       ! .TRUE. for [metal] electrodes connected to external circuits, .FALSE. otherwise
+     INTEGER :: N_objects_connected_to_it   ! Number of objects connected to the preset=nt object (useful if I want to connect electrically object A with object B. Object B can be connected to external circuit)
+     INTEGER, ALLOCATABLE :: connected_object_no(:)
 
      REAL    N_electron_constant_emit      ! constant number of electron macroparticles to be injected each time step (for example due to emission from a thermocathode)
      INTEGER model_constant_emit
@@ -2453,3 +2455,42 @@ MODULE mod_function_wrappers_1d
   END FUNCTION cosh_sinh_diffusion
 
 END MODULE mod_function_wrappers_1d
+!--------------------------------------------------------------------------------------------------
+!     MODULE array_utils
+!>    @details Provides utility subroutines for array manipulation, including resizing arrays.
+!!    @authors W. Villafana
+!!    @date    Nov-19-2024
+!--------------------------------------------------------------------------------------------------
+
+MODULE array_utils
+
+IMPLICIT NONE
+CONTAINS
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE increase_array_size
+!>    @details Dynamically increases the size of an allocatable array while preserving its content.
+!>             If the array is not allocated, it initializes it to the specified size.
+!!    @param[inout] array     The allocatable array to resize.
+!!    @param[in]    new_size  The new size for the array.
+!!    @authors      W. Villafana
+!!    @date         Nov-19-2024
+!--------------------------------------------------------------------------------------------------
+
+  SUBROUTINE increase_array_size(array, new_size)
+    INTEGER, ALLOCATABLE :: array(:)
+    INTEGER :: new_size
+    INTEGER, ALLOCATABLE :: temp(:)
+
+    IF (.NOT. ALLOCATED(array)) THEN
+       ALLOCATE(array(new_size))
+    ELSE
+       ALLOCATE(temp(SIZE(array)))
+       temp = array  ! Store current values
+       DEALLOCATE(array)
+       ALLOCATE(array(new_size))
+       array(:SIZE(temp)) = temp  ! Restore values
+    ENDIF
+  END SUBROUTINE increase_array_size
+
+END MODULE array_utils
