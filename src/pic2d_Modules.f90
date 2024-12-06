@@ -1123,6 +1123,17 @@ MODULE SetupValues
   REAL(8) :: ioniz_ecr_vol_I_injected ! For ECR volumic ionization source: injected current in A
   REAL(8) :: xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz ! For ECR volumic ionization source: position of ionization volumic source
 
+  ! Ionization source term that is flux dependent
+  INTEGER :: i_ionize_source_flux_dependent ! if equal to 1, the number of pairs of e-i to be injected is given by a measured ion flux in the domain
+  REAL(8) :: xs_ioniz_flux_dependent,xe_ioniz_flux_dependent,ys_ioniz_flux_dependent,ye_ioniz_flux_dependent ! Volume of ionization source term 
+  INTEGER :: j_ion_source_start_flux_dependent, j_ion_source_end_flux_dependent, i_ion_source_start_flux_dependent, i_ion_source_end_flux_dependent
+  INTEGER :: c_j_ion_source_start_flux_dependent, c_j_ion_source_end_flux_dependent, c_i_ion_source_start_flux_dependent, c_i_ion_source_end_flux_dependent ! boundaries for cluster
+  INTEGER :: i_ionize_source_flux_dependent_plane_X, i_ionize_source_flux_dependent_plane_Y ! only one of them can be equal to 1. Will mean that plane is at location X= or Y= something
+  REAL(8) :: cut_location_flux_plane_for_ionization ! position of flux plane in m 
+  REAL(8) :: number_of_ions_crossing_plane, cluster_number_of_ions_crossing_plane, total_number_of_ions_crossing_plane
+  REAL(8) :: portion_injections_per_cluster_flux_dependent_ionization!, leftovers_injection, total_number_injected
+  ! INTEGER :: total_pairs_injected
+
 END MODULE SetupValues
 
 !--------------------------------------------------------------

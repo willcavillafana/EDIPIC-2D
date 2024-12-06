@@ -2284,4 +2284,111 @@ SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN ( number_object, x_old, y_old, x,y,sp
       IF ( (y-plane_y_cuts_location(idx-num_plane_x_locations))*(y_old-plane_y_cuts_location(idx-num_plane_x_locations))<zero ) flux_through_plane_over_one_period(species,idx) = flux_through_plane_over_one_period(species,idx) - 1.0*SIGN(one,y-y_old)
    ENDDO
 
-END SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN   
+END SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN  
+
+! --------------------------------------------------------------------------------------------------
+!     SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE
+! >    @details Measures net flux of particles through a plane defined by X= or Y=. Positive flux means from left to right or from bottom to top. 
+!               This flux will be connected to ionization source zone, not for diagnostics
+! !    @authors W. Villafana
+! !    @date    Dec-03-2024
+! -------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE ( x_old, y_old, x,y,vx,vy,vz,tag, i_flux_measure )
+   
+   USE mod_print, ONLY: print_debug
+   USE CurrentProblemValues, ONLY: string_length, one, zero
+   USE ParallelOperationValues, ONLY: Rank_of_process
+   USE SetupValues, ONLY: i_ionize_source_flux_dependent, i_ionize_source_flux_dependent_plane_X, i_ionize_source_flux_dependent_plane_Y,&
+                          cut_location_flux_plane_for_ionization, number_of_ions_crossing_plane
+   IMPLICIT NONE
+
+   !IN/OUT
+   REAL(8), INTENT(IN) :: x_old, y_old, x, y 
+   REAL(8), INTENT(IN) :: vx, vy, vz 
+   INTEGER, INTENT(IN) :: tag 
+   INTEGER, INTENT(OUT) :: i_flux_measure
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level
+   INTEGER :: idx
+
+   routine = "MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE"
+   local_debug_level = 5
+
+   CALL print_debug( routine,local_debug_level)
+
+   i_flux_measure = 0
+
+   IF (i_ionize_source_flux_dependent==0) RETURN
+
+   IF (i_ionize_source_flux_dependent_plane_X==1) THEN
+      ! Check if ptcl has crossed the plane or not
+      IF ( (x-cut_location_flux_plane_for_ionization)*(x_old-cut_location_flux_plane_for_ionization)<zero ) THEN      
+         number_of_ions_crossing_plane = number_of_ions_crossing_plane + one*SIGN(one,x-x_old)
+         i_flux_measure = 1
+      END IF
+   END IF
+   
+   IF (i_ionize_source_flux_dependent_plane_Y==1) THEN
+      ! Check if ptcl has crossed the plane or not
+      IF ( (y-cut_location_flux_plane_for_ionization)*(y_old-cut_location_flux_plane_for_ionization)<zero ) THEN      
+         number_of_ions_crossing_plane = number_of_ions_crossing_plane + one*SIGN(one,y-y_old)
+         i_flux_measure = 1
+      END IF
+   END IF
+   
+
+END SUBROUTINE MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE       
+
+! --------------------------------------------------------------------------------------------------
+!     SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE   
+! >    @details Measures net flux of particles through a plane defined by X= or Y=. Positive flux means from left to right or from bottom to top 
+!               If a collision with an inner object is detected, I need to correct flux if the plane line interescts with the inner object. 
+!               It would mean I am very close to boundary and the ptcl should not be recored in flux as it collides with inner object first 
+!               This is NOT for diagnsotics. This is when I have an ionization source term that is dependent 
+! !    @authors W. Villafana
+! !    @date    Apr-15-2024
+! -------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE  ( number_object, x_old, y_old, x,y )
+   
+   USE mod_print, ONLY: print_debug
+   USE CurrentProblemValues, ONLY: string_length, one, zero, whole_object
+   USE ParallelOperationValues, ONLY: Rank_of_process
+   USE SetupValues, ONLY: i_ionize_source_flux_dependent, i_ionize_source_flux_dependent_plane_X, i_ionize_source_flux_dependent_plane_Y,&
+                          cut_location_flux_plane_for_ionization, number_of_ions_crossing_plane
+   IMPLICIT NONE
+
+   !IN/OUT
+   REAL(8), INTENT(IN) :: x_old, y_old, x, y 
+   INTEGER, INTENT(IN) :: number_object
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: routine
+   INTEGER :: local_debug_level
+   INTEGER :: idx
+
+   routine = "CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE"
+   local_debug_level = 5
+
+   CALL print_debug( routine,local_debug_level)
+
+   IF (i_ionize_source_flux_dependent==0) RETURN
+
+   IF (i_ionize_source_flux_dependent_plane_X==1) THEN
+      ! Check if plane intersects with inner object
+      IF ( cut_location_flux_plane_for_ionization>whole_object(number_object)%Xmax .OR. cut_location_flux_plane_for_ionization<whole_object(number_object)%Xmin )  RETURN  
+      ! Check if ptcl has crossed the plane or not
+      IF ( (x-cut_location_flux_plane_for_ionization)*(x_old-cut_location_flux_plane_for_ionization)<zero ) number_of_ions_crossing_plane = number_of_ions_crossing_plane - one*SIGN(one,x-x_old)
+   END IF
+   
+   IF (i_ionize_source_flux_dependent_plane_Y==1) THEN
+      ! Check if plane intersects with inner object
+      IF ( cut_location_flux_plane_for_ionization>whole_object(number_object)%Ymax .OR. cut_location_flux_plane_for_ionization<whole_object(number_object)%Ymin )  RETURN  
+      ! Check if ptcl has crossed the plane or not
+      IF ( (x-cut_location_flux_plane_for_ionization)*(x_old-cut_location_flux_plane_for_ionization)<zero ) number_of_ions_crossing_plane = number_of_ions_crossing_plane - one*SIGN(one,y-y_old)
+   END IF   
+
+END SUBROUTINE CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE   

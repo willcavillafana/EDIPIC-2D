@@ -307,13 +307,18 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    USE ClusterAndItsBoundaries, ONLY: c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
    USE SetupValues, ONLY: j_ion_source_start_ecr, j_ion_source_end_ecr, i_ion_source_start_ecr, i_ion_source_end_ecr, c_j_ion_source_start_ecr, c_j_ion_source_end_ecr, &
                           c_i_ion_source_start_ecr, c_i_ion_source_end_ecr, i_neutral_profile, i_ionize_source_ecr, xs_ioniz,xe_ioniz,ys_ioniz,ye_ioniz, &
-                          ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr, ye_neutral_1, ys_neutral_1, nn_neutral_1
+                          ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr, ye_neutral_1, ys_neutral_1, nn_neutral_1, &
+                          i_ionize_source_flux_dependent, xs_ioniz_flux_dependent,xe_ioniz_flux_dependent,ys_ioniz_flux_dependent,ye_ioniz_flux_dependent, &
+                          cut_location_flux_plane_for_ionization, c_j_ion_source_start_flux_dependent, c_j_ion_source_end_flux_dependent, c_i_ion_source_start_flux_dependent, c_i_ion_source_end_flux_dependent, &
+                          i_ionize_source_flux_dependent_plane_X, i_ionize_source_flux_dependent_plane_Y, portion_injections_per_cluster_flux_dependent_ionization!, &
+                        !   leftovers_injection, total_number_injected, total_pairs_injected
    USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell_dble, delta_t_s, e_Cl, zero, N_subcycles, &
                                     B_scale_T
    USE mod_print, ONLY: print_parser_error, print_message
    USE ParallelOperationValues!, ONLY: Rank_of_process, cluster_rank_key
    USE MCCollisions, ONLY: neutral
    USE ExternalFields, ONLY: i_mag_profile, bottom_B_val_1, top_B_val_1, y_discontinuity_1
+   USE IonParticles, ONLY: N_spec
    
    CHARACTER(LEN=string_length) :: message, chaval,long_buf,line,separator, routine
    INTEGER :: i_found ! flag to decide if I found keyword or not.
@@ -323,6 +328,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    LOGICAL exists
    INTEGER ALLOC_ERR
    INTEGER ierr
+   REAL(8) :: factor_geom
 
    routine = 'LOAD_OTHER_SPECIFIC_PARAMETERS'
 
@@ -331,6 +337,18 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    i_neutral_profile = 0 ! by default 
    i_ionize_source_ecr = 0 ! by default 
    ioniz_ecr_vol_I_injected = zero
+
+   i_ionize_source_flux_dependent = 0
+   i_ionize_source_flux_dependent_plane_X = 0
+   i_ionize_source_flux_dependent_plane_Y = 0
+   xs_ioniz_flux_dependent = zero
+   xe_ioniz_flux_dependent = zero
+   ys_ioniz_flux_dependent = zero
+   ye_ioniz_flux_dependent = zero
+   leftovers_injection = zero
+   total_number_injected = zero
+   total_pairs_injected = 0
+
    INQUIRE (FILE = 'init_ecr_model.dat', EXIST = exists)
    IF (exists) THEN
       IF ( Rank_of_process==0 ) PRINT *,'init_ecr_model.dat found.'
@@ -483,7 +501,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
 
       END DO
       IF ( i_found==0 ) THEN
-         WRITE( message,'(A)') "ionization_source_term keyword not present. I assume it is turned off"
+         WRITE( message,'(A)') "ionization_source_term keyword not present. I assume it is turned off"//achar(10)
          CALL print_message( message )    
       END IF        
 
@@ -588,6 +606,175 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
             CALL PrepareYIonizRateDistribIntegral_ECR_setup
 
          END IF
+      END IF
+
+      ! Input for artificial ionization source term. An ion flux in the volume will be measured and a pair of electron ion will be reinjected in specfic volume 
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 ) EXIT
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="ionization_flux_dependent" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,chaval
+            
+            ! Compare requested profile with what is implemented
+            IF ( TRIM(chaval)=="yes" ) THEN 
+               i_ionize_source_flux_dependent = 1
+               ! Print message and inform user
+               WRITE( message, '(A)'), "Ionization source term will be dependent on a measured ion flux inside the domain"
+               CALL print_message( message )
+            ELSE IF ( TRIM(chaval)=="no" ) THEN
+               WRITE( message, '(A)'), "Ionization source term dependent on a measured ion flux inside the domain is NOT activated"
+            ELSE   
+               WRITE( message, '(A,A,A)'), "'ionization_flux_dependent' I expected: 'yes' or 'no' (case sensitive). Received: ",TRIM(chaval),ACHAR(10)
+               CALL print_parser_error(message)            
+            END IF
+
+            IF (N_spec>2) THEN
+               WRITE( message, '(A,A)'), "'ionization_flux_dependent' can only be used with ONE ion species for now ",ACHAR(10)
+               CALL print_parser_error(message)                           
+            END IF
+
+            EXIT
+         END IF
+
+      END DO
+      IF ( i_found==0 ) THEN
+         WRITE( message,'(A)') "ionization_flux_dependent keyword not present. I assume it is turned off"//achar(10)
+         CALL print_message( message )    
+      END IF    
+      
+      IF (i_ionize_source_flux_dependent==1) THEN
+
+         ! positions x_start, x_end, y_start, y_end in m 
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="ioniz_flux_dependent_vol_position_xs_xe_ys_ye" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,xs_ioniz_flux_dependent,xe_ioniz_flux_dependent,ys_ioniz_flux_dependent,ye_ioniz_flux_dependent
+               WRITE( message,'(A,ES10.3,ES10.3,ES10.3,ES10.3,A)') "Ionization flux dependent volumic xs,xe,yx,ye = ",xs_ioniz_flux_dependent,xe_ioniz_flux_dependent,ys_ioniz_flux_dependent,ye_ioniz_flux_dependent," [m]"
+               CALL print_message( message )  
+               
+               ! Normalize length
+               xs_ioniz_flux_dependent = xs_ioniz_flux_dependent/delta_x_m
+               xe_ioniz_flux_dependent = xe_ioniz_flux_dependent/delta_x_m
+               ys_ioniz_flux_dependent = ys_ioniz_flux_dependent/delta_x_m
+               ye_ioniz_flux_dependent = ye_ioniz_flux_dependent/delta_x_m
+
+               IF ( INT(ye_ioniz_flux_dependent)-INT(ys_ioniz_flux_dependent)==0 .OR. INT(xe_ioniz_flux_dependent)-INT(xs_ioniz_flux_dependent)==0 ) THEN 
+                  WRITE( message,'(A,I8,A,I8,A)') "Volume for imposed flux dependent ionization source is too small. It must be at least 1 cell wide or high. &
+                   I have xe/dx-xs/dx = ", INT(xe_ioniz_flux_dependent)-INT(xs_ioniz_flux_dependent)," cells and ye/dx-ys/dx = ", INT(ye_ioniz_flux_dependent)-INT(ys_ioniz_flux_dependent)," cells"
+                  CALL print_parser_error(message)
+               END IF 
+
+
+               ! calculate node index boundaries for the ionization source
+               IF (cluster_rank_key==0) THEN
+                  j_ion_source_start_flux_dependent = INT(ys_ioniz_flux_dependent)
+                  j_ion_source_end_flux_dependent   = INT(ye_ioniz_flux_dependent)
+                  i_ion_source_start_flux_dependent = INT(xs_ioniz_flux_dependent)
+                  i_ion_source_end_flux_dependent   = INT(xe_ioniz_flux_dependent)
+
+                  ! Calculation of limits of ionization source per cluster
+                  c_j_ion_source_start_flux_dependent = MAX(j_ion_source_start_flux_dependent, c_indx_y_min)
+                  IF (c_indx_y_max.LT.global_maximal_j) THEN
+                     c_j_ion_source_end_flux_dependent = MIN(j_ion_source_end_flux_dependent, c_indx_y_max-1)
+                  ELSE
+                     c_j_ion_source_end_flux_dependent = MIN(j_ion_source_end_flux_dependent, global_maximal_j)
+                  END IF            
+                  
+                  c_i_ion_source_start_flux_dependent = MAX(i_ion_source_start_flux_dependent, c_indx_x_min)
+                  IF (c_indx_x_max.LT.global_maximal_i) THEN
+                     c_i_ion_source_end_flux_dependent = MIN(i_ion_source_end_flux_dependent, c_indx_x_max-1)
+                  ELSE
+                     c_i_ion_source_end_flux_dependent = MIN(i_ion_source_end_flux_dependent, global_maximal_i)
+                  END IF      
+               END IF                
+
+               ! Calculate portion of particles that each cluster should inject 
+               factor_geom = DBLE((c_i_ion_source_end_flux_dependent-c_i_ion_source_start_flux_dependent))/DBLE((i_ion_source_end_flux_dependent-i_ion_source_start_flux_dependent))
+               IF ( i_cylindrical==2 ) factor_geom = DBLE((c_i_ion_source_end_flux_dependent**2-c_i_ion_source_start_flux_dependent**2))/DBLE((i_ion_source_end_flux_dependent**2-i_ion_source_start_flux_dependent**2))
+
+               portion_injections_per_cluster_flux_dependent_ionization = factor_geom*DBLE((c_j_ion_source_end_flux_dependent-c_j_ion_source_start_flux_dependent))/DBLE((j_ion_source_end_flux_dependent-j_ion_source_start_flux_dependent))
+
+               EXIT
+            END IF
+         END DO   
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "ioniz_flux_dependent_vol_position_xs_xe_ys_ye keyword not present. I need four doubles in m"
+            CALL print_parser_error(message)
+         END IF               
+
+      ! Determine if plane is at X or Y = constant
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="ion_flux_direction_plane" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,chaval
+               
+               ! Compare requested profile with what is implemented
+               IF ( TRIM(chaval)=="X" ) THEN 
+                  i_ionize_source_flux_dependent_plane_X = 1
+                  ! Print message and inform user
+                  WRITE( message, '(A)'), "Plane to compute ion flux for ionization source term will be at X location"
+                  CALL print_message( message )
+               ELSE IF ( TRIM(chaval)=="Y" ) THEN
+                  i_ionize_source_flux_dependent_plane_Y = 1
+                  WRITE( message, '(A)'), "Plane to compute ion flux for ionization source term will be at Y location"
+               ELSE   
+                  WRITE( message, '(A,A,A)'), "'ion_flux_direction_plane' I expected: 'X' or 'Y' (case sensitive). Received: ",TRIM(chaval),ACHAR(10)
+                  CALL print_parser_error(message)            
+               END IF
+               EXIT
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "ion_flux_direction_plane keyword not present. I need it with either 'X' or 'Y'"
+            CALL print_parser_error(message)     
+         END IF            
+
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 ) EXIT
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf)=="cut_location_flux_plane_for_ionization" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,cut_location_flux_plane_for_ionization
+               IF ( i_ionize_source_flux_dependent_plane_X==1) THEN
+                  WRITE(message, '(A,ES10.3,A,I10,A,I10,A)') "For the ionization source term, the ion flux F at X = ", &
+                                                  cut_location_flux_plane_for_ionization," [m] will be used, between i = ",FLOOR(cut_location_flux_plane_for_ionization/delta_x_m)," and i = ",FLOOR(cut_location_flux_plane_for_ionization/delta_x_m)+1, &                                                  
+                                                  ". F > 0 indicates injection. Positive direction is left to right." // ACHAR(10)
+               ELSE IF ( i_ionize_source_flux_dependent_plane_Y==1) THEN
+                  WRITE(message, '(A,ES10.3,A,I10,A,I10,A)') "For the ionization source term, the ion flux F at Y = ", &
+                                                  cut_location_flux_plane_for_ionization," [m] will be used, between j = ",FLOOR(cut_location_flux_plane_for_ionization/delta_x_m)," and j = ",FLOOR(cut_location_flux_plane_for_ionization/delta_x_m)+1, &                                                  
+                                                  ". F > 0 indicates injection. Positive direction is left to right." // ACHAR(10)                  
+               END IF
+               CALL print_message( message )  
+               
+               ! Normalize length
+               cut_location_flux_plane_for_ionization = cut_location_flux_plane_for_ionization/delta_x_m
+
+               EXIT
+            END IF
+         END DO   
+         IF ( i_found==0 ) THEN
+            WRITE( message,'(A)') "cut_location_flux_plane_for_ionization keyword not present. I need one double in m"
+            CALL print_parser_error(message)
+         END IF                           
+         
+
       END IF
 
       CLOSE (9, STATUS = 'KEEP')    
@@ -990,6 +1177,146 @@ SUBROUTINE PrepareYIonizRateDistribIntegral_ECR_setup
    ! END DO
  
  END SUBROUTINE PERFORM_IONIZATION_ECR_SETUP
+
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE PERFORM_IONIZATION_FROM_MEASURED_FLUX
+!>    @details Inject a pair of e-i from a measured ion flux that is inside the computatioanl domain. If flux is negative I inject nothing
+!              A positive flux means that I have effectively ions going from left to right for a X=constant plane. 
+!              A positive flux means that I have effectively ions going from bottom to top for a Y=constant plane. 
+!              Only one plane can be defined
+!!    @authors W. Villafana
+!!    @date    Dec_03_2024
+!-------------------------------------------------------------------------------------------------- 
+
+ SUBROUTINE PERFORM_IONIZATION_FROM_MEASURED_FLUX
+
+   USE ParallelOperationValues
+   USE ClusterAndItsBoundaries
+   USE SetupValues
+   USE IonParticles, ONLY : N_spec
+   USe CurrentProblemValues, ONLY: init_Te_eV, T_e_eV, N_max_vel, i_cylindrical, string_length, debug_level, one, zero
+   USE IonParticles, ONLY: Ms, init_Ti_eV
+   USE mod_print, ONLY: print_debug, print_message
+ 
+   USE rng_wrapper
+ 
+   IMPLICIT NONE
+ 
+   INCLUDE 'mpif.h'
+ 
+   INTEGER ierr
+ 
+   INTEGER add_N_i_ionize!(1:N_spec)
+   INTEGER s, n
+   INTEGER tag
+   REAL(8) x, y, vx, vy, vz
+   REAL(8) :: x_min_cluster, x_max_cluster, y_min_cluster, y_max_cluster
+   REAL(8) :: factor_ion, factor_electron
+
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: message, routine
+   INTEGER :: local_debug_level   
+   REAL(8) :: number_injections_to_make_in_cluster
+   INTEGER :: nb_pairs_to_inject_in_cluster
+   REAL(8) :: leftovers_injection
+
+   IF ( i_ionize_source_flux_dependent/=1 ) RETURN
+   
+   ! Declare routine name and debug level
+   routine = 'PERFORM_IONIZATION_FROM_MEASURED_FLUX'
+   local_debug_level = 1
+
+   CALL print_debug( routine,local_debug_level)      
+
+   IF (local_debug_level<debug_level) THEN
+      WRITE( message,'(A,I8,A)') "Number of pairs e-i to be injected is ",INT(total_number_of_ions_crossing_plane),achar(10)
+      CALL print_message( message ) 
+   END IF
+   
+   ! By default the particles are sampled from a Maxwellian whose temperature is the one chosen at initilization
+   s = 1 ! one species for now
+   factor_ion      = SQRT(init_Ti_eV(s) / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
+   factor_electron = SQRT(init_Te_eV / T_e_eV) / N_max_vel
+
+   ! leftovers_injection = zero
+ ! let the master process of each cluster notify its members (particle calculators) about the amount of e-i pairs to be produced
+ ! this allows to easily include time-varying intensity of ionization source
+   ! Although the logic correct, I loose a few particles. Not sure why. Maybe difficult to deal with numerical truncation error over time. Should be unsignificant
+   number_injections_to_make_in_cluster = total_number_of_ions_crossing_plane*portion_injections_per_cluster_flux_dependent_ionization
+   ! total_number_injected = total_number_injected + number_injections_to_make_in_cluster
+   nb_pairs_to_inject_in_cluster = INT(number_injections_to_make_in_cluster)
+   leftovers_injection = number_injections_to_make_in_cluster - DBLE(nb_pairs_to_inject_in_cluster)
+
+   nb_pairs_to_inject_in_cluster = nb_pairs_to_inject_in_cluster + INT(leftovers_injection)
+   IF (leftovers_injection>well_random_number()) nb_pairs_to_inject_in_cluster = nb_pairs_to_inject_in_cluster + 1 
+   ! nb_pairs_to_inject_in_cluster = INT(number_injections_to_make_in_cluster+leftovers_injection)
+   ! leftovers_injection = (number_injections_to_make_in_cluster + leftovers_injection) - DBLE(nb_pairs_to_inject_in_cluster)
+
+   ! leftovers_injection = MOD(number_injections_to_make_in_cluster + leftovers_injection, one)
+    ! Update the total pairs injected
+   ! total_pairs_injected = total_pairs_injected + nb_pairs_to_inject_in_cluster   
+
+   ! ! Check if the total pairs injected matches the target total
+   ! IF (total_pairs_injected < INT(total_number_injected+0.5)) THEN
+   !    ! Add a leftover particle to make up the difference
+   !    nb_pairs_to_inject_in_cluster = nb_pairs_to_inject_in_cluster + 1
+   !    ! leftovers_injection = leftovers_injection - one
+   !    total_pairs_injected = total_pairs_injected + 1
+   ! END IF   
+
+   ! leftovers_injection = leftovers_injection + number_injections_to_make_in_cluster - DBLE(nb_pairs_to_inject_in_cluster)
+   ! print*,'portion,rank',portion_injections_per_cluster_flux_dependent_ionization, Rank_of_process
+   ! print*,'leftovers,rank',leftovers_injection, Rank_of_process
+   CALL MPI_BCAST(nb_pairs_to_inject_in_cluster, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
+   add_N_i_ionize = 0
+   
+ ! identify number of e-i pairs to be produced in each process  for each ion species
+   add_N_i_ionize = nb_pairs_to_inject_in_cluster / N_processes_cluster
+   IF (Rank_cluster.EQ.(N_processes_cluster-1)) THEN ! leftovers to last process
+      add_N_i_ionize = nb_pairs_to_inject_in_cluster - (N_processes_cluster-1) * (nb_pairs_to_inject_in_cluster / N_processes_cluster)
+   END IF
+   ! print*,'add_N_i_ionize,rank',add_N_i_ionize,Rank_of_process
+   tag = 0
+   x_min_cluster = DBLE(c_i_ion_source_start_flux_dependent)
+   x_max_cluster = DBLE(c_i_ion_source_end_flux_dependent)    
+   y_min_cluster = DBLE(c_j_ion_source_start_flux_dependent)
+   y_max_cluster = DBLE(c_j_ion_source_end_flux_dependent) 
+
+   ! print*,'add_ptcl, rank', add_N_i_ionize, Rank_of_process
+
+   DO n = 1, add_N_i_ionize
+
+      IF (i_cylindrical==0) THEN
+         x = x_min_cluster + well_random_number() * (x_max_cluster-x_min_cluster)
+      ELSE IF (i_cylindrical==2) THEN
+         x = SQRT(x_min_cluster**2 + well_random_number() * (x_max_cluster**2-x_min_cluster**2))
+      END IF
+
+      y = y_min_cluster + well_random_number() * (y_max_cluster-y_min_cluster)
+
+      CALL GetMaxwellVelocity(vx)
+      CALL GetMaxwellVelocity(vy)
+      CALL GetMaxwellVelocity(vz)
+   
+      vx = vx * factor_electron
+      vy = vy * factor_electron
+      vz = vz * factor_electron
+
+      CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+
+      CALL GetMaxwellVelocity(vx)
+      CALL GetMaxwellVelocity(vy)
+      CALL GetMaxwellVelocity(vz)
+   
+      vx = vx * factor_ion
+      vy = vy * factor_ion
+      vz = vz * factor_ion
+
+      CALL ADD_ION_TO_ADD_LIST(s, x, y, vx, vy, vz, tag)
+   END DO
+   ! END DO
+ 
+ END SUBROUTINE PERFORM_IONIZATION_FROM_MEASURED_FLUX
 
 
 !--------------------------------------------

@@ -33,6 +33,7 @@ SUBROUTINE ADVANCE_IONS
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
   INTEGER :: n_obj_collision
+  INTEGER :: i_flux_measure_for_ionization_source
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -232,6 +233,8 @@ SUBROUTINE ADVANCE_IONS
            END IF
         END IF
 
+        CALL MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE(x_old, y_old, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, i_flux_measure_for_ionization_source)        
+
 ! check whether a collision with an inner object occurred
         collision_with_inner_object_occurred = .FALSE.
         DO n = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
@@ -241,6 +244,7 @@ SUBROUTINE ADVANCE_IONS
            IF (ion(s)%part(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
            CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, n_obj_collision) !, whole_object(n))
+           IF (i_flux_measure_for_ionization_source==1) CALL CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE( n_obj_collision,x_old, y_old,  ion(s)%part(k)%X, ion(s)%part(k)%Y)
            CALL REMOVE_ION(s, k)  ! this subroutine does  N_ions(s) = N_ions(s) - 1 and k = k-1
            collision_with_inner_object_occurred = .TRUE.
            EXIT

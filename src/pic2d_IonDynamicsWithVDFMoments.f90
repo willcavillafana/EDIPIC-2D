@@ -2,14 +2,15 @@
 !
 SUBROUTINE ADVANCE_IONS_PLUS
 
-  USE ParallelOperationValues, ONLY : cluster_rank_key
-  USE CurrentProblemValues, ONLY : T_cntr, N_of_boundary_and_inner_objects, whole_object, ion_colls_with_bo
+  USE ParallelOperationValues, ONLY : cluster_rank_key, COMM_CLUSTER, COMM_HORIZONTAL, Rank_of_process
+  USE CurrentProblemValues, ONLY : T_cntr, N_of_boundary_and_inner_objects, whole_object, ion_colls_with_bo, zero
   USE Snapshots, ONLY : cs_N, cs_VX, cs_VY, cs_VZ, cs_WX, cs_WY, cs_WZ, cs_VXVY, cs_VXVZ, cs_VYVZ, cs_QX, cs_QY, cs_QZ
   USE AvgSnapshots, ONLY : current_avgsnap, N_of_all_avgsnaps, avgsnapshot, save_avg_data, num_plane_x_locations, num_plane_y_locations, &
                            flux_through_plane_over_one_period, cluster_flux_through_plane_over_one_period
   USE ClusterAndItsBoundaries, ONLY : c_indx_x_min, c_indx_x_max, c_indx_y_min, c_indx_y_max
   USE IonParticles, ONLY : N_spec, N_ions_to_send_left, N_ions_to_send_right, N_ions_to_send_above, N_ions_to_send_below
   USE Diagnostics, ONLY : Save_probes_i_data_T_cntr
+  USE SetupValues, ONLY: i_ionize_source_flux_dependent, number_of_ions_crossing_plane, cluster_number_of_ions_crossing_plane, total_number_of_ions_crossing_plane
 
   IMPLICIT NONE
 
@@ -50,6 +51,13 @@ SUBROUTINE ADVANCE_IONS_PLUS
            & num_plane_x_locations+num_plane_y_locations>0 ) collect_ion_moments_now = .TRUE.
      END IF
   END IF
+
+  ! At every time step, I must reset the amount of ions cressoing the plane
+   IF (i_ionize_source_flux_dependent==1) THEN
+      number_of_ions_crossing_plane = zero
+      cluster_number_of_ions_crossing_plane = zero
+      total_number_of_ions_crossing_plane  = zero
+   END IF
 
   IF (collect_ion_moments_now) THEN
 
@@ -115,6 +123,14 @@ SUBROUTINE ADVANCE_IONS_PLUS
         ion_colls_with_bo(k)%N_of_saved_parts = 0
      END DO
 
+      IF (num_plane_x_locations+num_plane_y_locations>0) THEN
+         IF (ALLOCATED(flux_through_plane_over_one_period)) DEALLOCATE(flux_through_plane_over_one_period)
+         ALLOCATE(flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations))
+         flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations) = 0.0
+         cluster_flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations) = 0.0
+      END IF          
+
+
      DO s = 1, N_spec
 
 ! clear arrays
@@ -135,13 +151,7 @@ SUBROUTINE ADVANCE_IONS_PLUS
         cs_QX = 0.0
         cs_QY = 0.0
         cs_QZ = 0.0
-
-         IF (num_plane_x_locations+num_plane_y_locations>0) THEN
-            IF (ALLOCATED(flux_through_plane_over_one_period)) DEALLOCATE(flux_through_plane_over_one_period)
-            ALLOCATE(flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations))
-            flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations) = 0.0
-            cluster_flux_through_plane_over_one_period(1:N_spec+1,1:num_plane_x_locations+num_plane_y_locations) = 0.0
-         END IF        
+   
 
         CALL ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
 
@@ -182,6 +192,13 @@ SUBROUTINE ADVANCE_IONS_PLUS
      END IF
 
   END IF   !###   IF (collect_ion_moments_now) THEN
+
+   ! In any case I have to compute finale number of ions crossing the boundary
+   IF (i_ionize_source_flux_dependent==1)  THEN 
+      CALL MPI_REDUCE(number_of_ions_crossing_plane, cluster_number_of_ions_crossing_plane, 1, MPI_DOUBLE_PRECISION, MPI_SUM, 0, COMM_CLUSTER, ierr)  
+      CALL MPI_ALLREDUCE(cluster_number_of_ions_crossing_plane, total_number_of_ions_crossing_plane, 1, MPI_DOUBLE_PRECISION, MPI_SUM, COMM_HORIZONTAL, ierr)
+      total_number_of_ions_crossing_plane = MAX(total_number_of_ions_crossing_plane,zero) ! We inject only if we need to
+   END IF
 
 END SUBROUTINE ADVANCE_IONS_PLUS
 
@@ -268,6 +285,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
   REAL rvx3, rvy3, rvz3
   REAL inv_N, rtemp
   INTEGER :: i_flux_measure, n_obj_collision
+  INTEGER :: i_flux_measure_for_ionization_source
 !------------------------------------<<<
 
 ! functions
@@ -529,7 +547,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
      END IF
 
      CALL MEASURE_NET_FLUX_THROUGH_PLANE(x_old, y_old, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag,1+s, i_flux_measure)
-
+     CALL MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE(x_old, y_old, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, i_flux_measure_for_ionization_source)
 !------------------------------------>>>
      updVX = 0.5_8 * (vx_new + updVX)
      updVY = 0.5_8 * (vy_new + updVY)
@@ -625,6 +643,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_2D(s)
 ! collision detected
         CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, n_obj_collision) !, whole_object(n))
         IF (i_flux_measure==1) CALL CORRECT_MEASURED_FLUX_IN_DOMAIN( n_obj_collision,x_old, y_old,  ion(s)%part(k)%X, ion(s)%part(k)%Y, 1+s)
+        IF (i_flux_measure_for_ionization_source==1) CALL CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE( n_obj_collision,x_old, y_old,  ion(s)%part(k)%X, ion(s)%part(k)%Y)
         CALL REMOVE_ION(s, k)  ! this subroutine does  N_ions(s) = N_ions(s) - 1 and k = k-1
         collision_with_inner_object_occurred = .TRUE.
         EXIT
@@ -1179,6 +1198,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
   INTEGER n
   LOGICAL collision_with_inner_object_occurred
   INTEGER :: n_obj_collision
+  INTEGER :: i_flux_measure_for_ionization_source
 
 ! functions
   REAL(8) Bx, By, Bz, Ez
@@ -1474,6 +1494,8 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
            END IF
         END IF
 
+        CALL MEASURE_NET_FLUX_THROUGH_PLANE_FOR_IONIZATION_SOURCE(x_old, y_old, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, i_flux_measure_for_ionization_source)                
+
 ! check whether a collision with an inner object occurred
         collision_with_inner_object_occurred = .FALSE.
         DO n = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
@@ -1483,6 +1505,7 @@ SUBROUTINE ADVANCE_IONS_AND_CALCULATE_MOMENTS_PROBES
            IF (ion(s)%part(k)%Y.GE.whole_object(n)%Ymax) CYCLE
 ! collision detected
            CALL TRY_ION_COLL_WITH_INNER_OBJECT(s, ion(s)%part(k)%X, ion(s)%part(k)%Y, ion(s)%part(k)%VX, ion(s)%part(k)%VY, ion(s)%part(k)%VZ, ion(s)%part(k)%tag, n_obj_collision) !, whole_object(n))
+           IF (i_flux_measure_for_ionization_source==1) CALL CORRECT_MEASURED_FLUX_IN_DOMAIN_FOR_IONIZATION_SOURCE( n_obj_collision,x_old, y_old,  ion(s)%part(k)%X, ion(s)%part(k)%Y)
            CALL REMOVE_ION(s, k)  ! this subroutine does  N_ions(s) = N_ions(s) - 1 and k = k-1
            collision_with_inner_object_occurred = .TRUE.
            EXIT
