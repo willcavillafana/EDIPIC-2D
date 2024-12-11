@@ -310,16 +310,18 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                           ioniz_ecr_vol_I_injected, N_to_ionize_total_ecr, N_to_ionize_cluster_ecr, ye_neutral_1, ys_neutral_1, nn_neutral_1, &
                           i_ionize_source_flux_dependent, xs_ioniz_flux_dependent,xe_ioniz_flux_dependent,ys_ioniz_flux_dependent,ye_ioniz_flux_dependent, &
                           cut_location_flux_plane_for_ionization, c_j_ion_source_start_flux_dependent, c_j_ion_source_end_flux_dependent, c_i_ion_source_start_flux_dependent, c_i_ion_source_end_flux_dependent, &
-                          i_ionize_source_flux_dependent_plane_X, i_ionize_source_flux_dependent_plane_Y, portion_injections_per_cluster_flux_dependent_ionization!, &
-                        !   leftovers_injection, total_number_injected, total_pairs_injected
+                          i_ionize_source_flux_dependent_plane_X, i_ionize_source_flux_dependent_plane_Y, portion_injections_per_cluster_flux_dependent_ionization, leftovers_injection
+                          
    USE CurrentProblemValues, ONLY : delta_x_m, global_maximal_i, global_maximal_j, string_length, N_plasma_m3, N_of_particles_cell_dble, delta_t_s, e_Cl, zero, N_subcycles, &
-                                    B_scale_T
+                                    B_scale_T, i_cylindrical, string_length
    USE mod_print, ONLY: print_parser_error, print_message
    USE ParallelOperationValues!, ONLY: Rank_of_process, cluster_rank_key
    USE MCCollisions, ONLY: neutral
    USE ExternalFields, ONLY: i_mag_profile, bottom_B_val_1, top_B_val_1, y_discontinuity_1
    USE IonParticles, ONLY: N_spec
    
+   IMPLICIT NONE
+
    CHARACTER(LEN=string_length) :: message, chaval,long_buf,line,separator, routine
    INTEGER :: i_found ! flag to decide if I found keyword or not.
    REAL(8) :: weight_ptcl ! stat of weight of macroparticles
@@ -329,6 +331,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    INTEGER ALLOC_ERR
    INTEGER ierr
    REAL(8) :: factor_geom
+   INTEGER :: j_ion_source_start_flux_dependent, j_ion_source_end_flux_dependent, i_ion_source_start_flux_dependent, i_ion_source_end_flux_dependent
 
    routine = 'LOAD_OTHER_SPECIFIC_PARAMETERS'
 
@@ -345,9 +348,8 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
    xe_ioniz_flux_dependent = zero
    ys_ioniz_flux_dependent = zero
    ye_ioniz_flux_dependent = zero
+   portion_injections_per_cluster_flux_dependent_ionization = zero
    leftovers_injection = zero
-   total_number_injected = zero
-   total_pairs_injected = 0
 
    INQUIRE (FILE = 'init_ecr_model.dat', EXIST = exists)
    IF (exists) THEN
@@ -695,13 +697,14 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                   ELSE
                      c_i_ion_source_end_flux_dependent = MIN(i_ion_source_end_flux_dependent, global_maximal_i)
                   END IF      
+                  
+
+                  ! Calculate portion of particles that each cluster should inject. 
+                  factor_geom = DBLE((c_i_ion_source_end_flux_dependent-c_i_ion_source_start_flux_dependent))/DBLE((i_ion_source_end_flux_dependent-i_ion_source_start_flux_dependent))
+                  IF ( i_cylindrical==2 ) factor_geom = (DBLE(c_i_ion_source_end_flux_dependent)**2-DBLE(c_i_ion_source_start_flux_dependent)**2)/(DBLE(i_ion_source_end_flux_dependent)**2-DBLE(i_ion_source_start_flux_dependent)**2)
+                  portion_injections_per_cluster_flux_dependent_ionization = factor_geom*DBLE((c_j_ion_source_end_flux_dependent-c_j_ion_source_start_flux_dependent))/DBLE((j_ion_source_end_flux_dependent-j_ion_source_start_flux_dependent))                  
+                  
                END IF                
-
-               ! Calculate portion of particles that each cluster should inject 
-               factor_geom = DBLE((c_i_ion_source_end_flux_dependent-c_i_ion_source_start_flux_dependent))/DBLE((i_ion_source_end_flux_dependent-i_ion_source_start_flux_dependent))
-               IF ( i_cylindrical==2 ) factor_geom = DBLE((c_i_ion_source_end_flux_dependent**2-c_i_ion_source_start_flux_dependent**2))/DBLE((i_ion_source_end_flux_dependent**2-i_ion_source_start_flux_dependent**2))
-
-               portion_injections_per_cluster_flux_dependent_ionization = factor_geom*DBLE((c_j_ion_source_end_flux_dependent-c_j_ion_source_start_flux_dependent))/DBLE((j_ion_source_end_flux_dependent-j_ion_source_start_flux_dependent))
 
                EXIT
             END IF
@@ -1218,7 +1221,8 @@ SUBROUTINE PrepareYIonizRateDistribIntegral_ECR_setup
    INTEGER :: local_debug_level   
    REAL(8) :: number_injections_to_make_in_cluster
    INTEGER :: nb_pairs_to_inject_in_cluster
-   REAL(8) :: leftovers_injection
+   ! REAL(8) :: leftovers_injection
+   REAL(8) :: factor_geom
 
    IF ( i_ionize_source_flux_dependent/=1 ) RETURN
    
@@ -1238,35 +1242,13 @@ SUBROUTINE PrepareYIonizRateDistribIntegral_ECR_setup
    factor_ion      = SQRT(init_Ti_eV(s) / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
    factor_electron = SQRT(init_Te_eV / T_e_eV) / N_max_vel
 
-   ! leftovers_injection = zero
- ! let the master process of each cluster notify its members (particle calculators) about the amount of e-i pairs to be produced
- ! this allows to easily include time-varying intensity of ionization source
    ! Although the logic correct, I loose a few particles. Not sure why. Maybe difficult to deal with numerical truncation error over time. Should be unsignificant
    number_injections_to_make_in_cluster = total_number_of_ions_crossing_plane*portion_injections_per_cluster_flux_dependent_ionization
-   ! total_number_injected = total_number_injected + number_injections_to_make_in_cluster
-   nb_pairs_to_inject_in_cluster = INT(number_injections_to_make_in_cluster)
-   leftovers_injection = number_injections_to_make_in_cluster - DBLE(nb_pairs_to_inject_in_cluster)
 
-   nb_pairs_to_inject_in_cluster = nb_pairs_to_inject_in_cluster + INT(leftovers_injection)
-   IF (leftovers_injection>well_random_number()) nb_pairs_to_inject_in_cluster = nb_pairs_to_inject_in_cluster + 1 
-   ! nb_pairs_to_inject_in_cluster = INT(number_injections_to_make_in_cluster+leftovers_injection)
-   ! leftovers_injection = (number_injections_to_make_in_cluster + leftovers_injection) - DBLE(nb_pairs_to_inject_in_cluster)
+   nb_pairs_to_inject_in_cluster = INT(number_injections_to_make_in_cluster+leftovers_injection)
+   leftovers_injection = leftovers_injection+number_injections_to_make_in_cluster - DBLE(nb_pairs_to_inject_in_cluster)
 
-   ! leftovers_injection = MOD(number_injections_to_make_in_cluster + leftovers_injection, one)
-    ! Update the total pairs injected
-   ! total_pairs_injected = total_pairs_injected + nb_pairs_to_inject_in_cluster   
 
-   ! ! Check if the total pairs injected matches the target total
-   ! IF (total_pairs_injected < INT(total_number_injected+0.5)) THEN
-   !    ! Add a leftover particle to make up the difference
-   !    nb_pairs_to_inject_in_cluster = nb_pairs_to_inject_in_cluster + 1
-   !    ! leftovers_injection = leftovers_injection - one
-   !    total_pairs_injected = total_pairs_injected + 1
-   ! END IF   
-
-   ! leftovers_injection = leftovers_injection + number_injections_to_make_in_cluster - DBLE(nb_pairs_to_inject_in_cluster)
-   ! print*,'portion,rank',portion_injections_per_cluster_flux_dependent_ionization, Rank_of_process
-   ! print*,'leftovers,rank',leftovers_injection, Rank_of_process
    CALL MPI_BCAST(nb_pairs_to_inject_in_cluster, 1, MPI_INTEGER, 0, COMM_CLUSTER, ierr)
    add_N_i_ionize = 0
    
