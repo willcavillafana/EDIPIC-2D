@@ -762,7 +762,7 @@ SUBROUTINE PREPARE_ECR_SETUP_VALUES
                ELSE IF ( i_ionize_source_flux_dependent_plane_Y==1) THEN
                   WRITE(message, '(A,ES10.3,A,I10,A,I10,A)') "For the ionization source term, the ion flux F at Y = ", &
                                                   cut_location_flux_plane_for_ionization," [m] will be used, between j = ",FLOOR(cut_location_flux_plane_for_ionization/delta_x_m)," and j = ",FLOOR(cut_location_flux_plane_for_ionization/delta_x_m)+1, &                                                  
-                                                  ". F > 0 indicates injection. Positive direction is left to right." // ACHAR(10)                  
+                                                  ". F > 0 indicates injection. Positive direction is bottom to top." // ACHAR(10)                  
                END IF
                CALL print_message( message )  
                
