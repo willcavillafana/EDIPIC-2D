@@ -28,7 +28,7 @@ SUBROUTINE INITIATE_ELECTRON_NEUTRAL_COLLISIONS
                                        ! ----x----I----x----I---
   INTEGER ALLOC_ERR
   INTEGER p, i, s
-  INTEGER colflag, saveflag
+  INTEGER colflag, saveflag, incolflag, stat
 
   CHARACTER(49) initneutral_crsect_filename  ! init_neutral_AAAAAA_crsect_coll_id_NN_type_NN.dat
                                              ! ----x----I----x----I----x----I----x----I----x----
@@ -117,36 +117,46 @@ SUBROUTINE INITIATE_ELECTRON_NEUTRAL_COLLISIONS
      READ (9, '(A1)') buf !--------dd--- number of all possible collisional processes
      READ (9, '(8x,i2)') neutral(n)%N_en_colproc
      IF (neutral(n)%N_en_colproc.LE.0) THEN
-        IF (Rank_of_process.EQ.0) PRINT '("### file ",A23," does NOT specify electron-neutral collisions for neutral species ",i2," (",A6,"), the collisions are turned OFF ###")', &
-             & initneutral_filename, n, neutral(n)%name
-        CLOSE (9, STATUS = 'KEEP')
-        CYCLE
-     END IF
+      IF (Rank_of_process.EQ.0) PRINT '("### file ",A23," does NOT specify electron-neutral collisions for neutral species ",i2," (",A6,"), the collisions are turned OFF ###")', &
+            & initneutral_filename, n, neutral(n)%name
+     ELSE
+      ALLOCATE(neutral(n)%en_colproc(1:neutral(n)%N_en_colproc), STAT=ALLOC_ERR)
+      DO p = 1, neutral(n)%N_en_colproc
+          colflag = 0
+          saveflag = 0
+          READ (9, '(A1)') buf !---dd--d--dd--d- collision #NN :: type / activated (1/0 = Yes/No) / ion species produced (ionization collisions only) / save coll. frequency
+          READ (9, '(3x,i2,2x,i1,2x,i2,2x,i1)') neutral(n)%en_colproc(p)%type, colflag, neutral(n)%en_colproc(p)%ion_species_produced, saveflag
+          neutral(n)%en_colproc(p)%activated = .FALSE.
+          IF (colflag.NE.0) neutral(n)%en_colproc(p)%activated = .TRUE.
+          neutral(n)%en_colproc(p)%save_collfreq_2d = .FALSE.
+          IF (saveflag.NE.0) neutral(n)%en_colproc(p)%save_collfreq_2d = .TRUE.
+      END DO
 
-     ALLOCATE(neutral(n)%en_colproc(1:neutral(n)%N_en_colproc), STAT=ALLOC_ERR)
-     DO p = 1, neutral(n)%N_en_colproc
-        colflag = 0
-        saveflag = 0
-        READ (9, '(A1)') buf !---dd--d--dd--d- collision #NN :: type / activated (1/0 = Yes/No) / ion species produced (ionization collisions only) / save coll. frequency
-        READ (9, '(3x,i2,2x,i1,2x,i2,2x,i1)') neutral(n)%en_colproc(p)%type, colflag, neutral(n)%en_colproc(p)%ion_species_produced, saveflag
-        neutral(n)%en_colproc(p)%activated = .FALSE.
-        IF (colflag.NE.0) neutral(n)%en_colproc(p)%activated = .TRUE.
-        neutral(n)%en_colproc(p)%save_collfreq_2d = .FALSE.
-        IF (saveflag.NE.0) neutral(n)%en_colproc(p)%save_collfreq_2d = .TRUE.
-     END DO
+      READ (9, '(A1)') buf !--------dd--- number of energy segments for collision probabilities (>0)
+      READ (9, '(8x,i2)') neutral(n)%N_of_energy_segments
+      ALLOCATE(neutral(n)%energy_segment_boundary_value(0:neutral(n)%N_of_energy_segments), STAT=ALLOC_ERR)
+      ALLOCATE(neutral(n)%energy_segment_step(1:neutral(n)%N_of_energy_segments), STAT=ALLOC_ERR)
+      READ (9, '(A1)') buf !--ddddd.ddd------------- minimal energy [eV]
+      READ (9, '(2x,f9.3)') neutral(n)%energy_segment_boundary_value(0)
+      DO i = 1, neutral(n)%N_of_energy_segments
+          READ (9, '(A1)') buf !--ddddd.ddd---ddd.ddd--- energy segment NN :: upper boundary [eV] / resolution [eV]
+          READ (9, '(2x,f9.3,3x,f7.3)') neutral(n)%energy_segment_boundary_value(i), neutral(n)%energy_segment_step(i)
+      END DO 
+    END IF
 
-     READ (9, '(A1)') buf !--------dd--- number of energy segments for collision probabilities (>0)
-     READ (9, '(8x,i2)') neutral(n)%N_of_energy_segments
-     ALLOCATE(neutral(n)%energy_segment_boundary_value(0:neutral(n)%N_of_energy_segments), STAT=ALLOC_ERR)
-     ALLOCATE(neutral(n)%energy_segment_step(1:neutral(n)%N_of_energy_segments), STAT=ALLOC_ERR)
-     READ (9, '(A1)') buf !--ddddd.ddd------------- minimal energy [eV]
-     READ (9, '(2x,f9.3)') neutral(n)%energy_segment_boundary_value(0)
-     DO i = 1, neutral(n)%N_of_energy_segments
-        READ (9, '(A1)') buf !--ddddd.ddd---ddd.ddd--- energy segment NN :: upper boundary [eV] / resolution [eV]
-        READ (9, '(2x,f9.3,3x,f7.3)') neutral(n)%energy_segment_boundary_value(i), neutral(n)%energy_segment_step(i)
-     END DO
-
-     CLOSE (9, STATUS = 'KEEP')
+    READ (9, '(A1)', iostat=stat) buf ! ----d------------------------ Enable ion-neutral collisions?
+    neutral(n)%in_cols_on = .FALSE.
+    IF ((stat == 0).AND.(buf.EQ.'-')) THEN ! this should catch errors if there are no more lines?
+      READ (9, '(4x,i1)') incolflag
+      if (incolflag.NE.0) THEN
+        neutral(n)%in_cols_on = .True.
+        IF (Rank_of_process.EQ.0) PRINT '("### file ",A23," enables ion-neutral collisions for neutral species ",i2," (",A6,"). The new collision model will be used. ###")', &
+            & initneutral_filename, n, neutral(n)%name
+        READ (9, '(A1)', iostat=stat) buf ! --d.d--d.dd--dd.ddddd---- beta_inf / A / polarizability (in units of Angstrom^3) 
+        READ (9, '(2x,f4.1,2x,f4.2,2x,f8.5)') neutral(n)%beta_inf, neutral(n)%Axc, neutral(n)%alpha
+      END IF
+    END IF
+    CLOSE (9, STATUS = 'KEEP')
   END DO
 
 !CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
