@@ -4,7 +4,7 @@ SUBROUTINE INITIATE_ION_NEUTRAL_COLLISIONS
 
   USE ParallelOperationValues
   USE MCCollisions
-  USE CurrentProblemValues, ONLY : kB_JK, e_Cl, N_max_vel, T_e_eV  !, amu_kg, m_e_kg, V_scale_ms
+  USE CurrentProblemValues, ONLY : kB_JK, e_Cl, N_max_vel, T_e_eV, pi  !, amu_kg, m_e_kg, V_scale_ms
   USE IonParticles, ONLY : N_spec, Ms
 !  USE ClusterAndItsBoundaries
 
@@ -22,7 +22,9 @@ SUBROUTINE INITIATE_ION_NEUTRAL_COLLISIONS
   LOGICAL exists
 
   CHARACTER(1) buf
-  INTEGER s
+  INTEGER s, cnt
+  real(8) Fel, dtheta, theta, xi, dxi
+
 
   INTEGER ALLOC_ERR
 
@@ -34,41 +36,46 @@ SUBROUTINE INITIATE_ION_NEUTRAL_COLLISIONS
      END FUNCTION convert_int_to_txt_string
   END INTERFACE
 
-  no_rcx_collisions = .TRUE.
+  no_in_collisions = .TRUE.
 
-! N_neutral_spec and other general neutral parameters are acquired from init_neutrals.dat [if it exists] in INITIATE_ELECTRON_NEUTRAL_COLLISIONS
+  ! N_neutral_spec and other general neutral parameters are acquired from init_neutrals.dat [if it exists] in INITIATE_ELECTRON_NEUTRAL_COLLISIONS
   IF (N_neutral_spec.EQ.0) THEN
      IF (Rank_of_process.EQ.0) PRINT '("### Neutrals deactivated, ion-neutral collisions are turned off ###")'
      RETURN
   END IF
 
   DO n = 1, N_neutral_spec
-! reading the parameters for the resonant charge exchange model:
-     init_rcx_param_filename = 'init_neutral_AAAAAA_rcx_param.dat'
-     init_rcx_param_filename(14:19) = neutral(n)%name
-     INQUIRE (FILE = init_rcx_param_filename, EXIST = exists)
-     if (.not.exists) then
-        if (Rank_of_process.eq.0) print '("### file ",A33," not found, RCX with neutral species ", i2," (",A6,") is turned off")', init_rcx_param_filename, n, neutral(n)%name
-        neutral(n)%rcx_on = .false.
-        neutral(n)%sigma_rcx_m2_1eV = 0.0_8 !just in case
-        neutral(n)%alpha_rcx = 0.0_8        !just in case
-        cycle
-     end if
-     open(9, file = init_rcx_param_filename)
-     read(9, *) buf
-     read(9, *) s, neutral(n)%sigma_rcx_m2_1eV, neutral(n)%alpha_rcx
-     close(9, status = 'keep')
-     if ((s.gt.0).and.(s.le.N_spec)) then
-        no_rcx_collisions = .false.
-        neutral(n)%rcx_on = .true.     
-        neutral(n)%rcx_ion_species_index = s
-     else
-        neutral(n)%rcx_on = .false.
-        neutral(n)%rcx_ion_species_index = 0
-     end if     
-  END DO
+   ! reading the parameters for the resonant charge exchange model:
+   init_rcx_param_filename = 'init_neutral_AAAAAA_rcx_param.dat'
+   init_rcx_param_filename(14:19) = neutral(n)%name
+   INQUIRE (FILE = init_rcx_param_filename, EXIST = exists)
+   if (.not.exists) then
+      if (Rank_of_process.eq.0) print '("### file ",A33," not found, RCX with neutral species ", i2," (",A6,") is turned off")', init_rcx_param_filename, n, neutral(n)%name
+      neutral(n)%rcx_on = .false.
+      neutral(n)%sigma_rcx_m2_1eV = 0.0_8 !just in case
+      neutral(n)%alpha_rcx = 0.0_8        !just in case
+   else
+      open(9, file = init_rcx_param_filename)
+      read(9, *) buf
+      read(9, *) s, neutral(n)%sigma_rcx_m2_1eV, neutral(n)%alpha_rcx
+      close(9, status = 'keep')
+      if ((s.gt.0).and.(s.le.N_spec)) then
+         no_in_collisions = .false.
+         neutral(n)%rcx_on = .true.     
+         neutral(n)%rcx_ion_species_index = s
+      else
+         neutral(n)%rcx_on = .false.
+         neutral(n)%rcx_ion_species_index = 0
+      end if   
+   end if
 
-  IF (no_rcx_collisions) RETURN
+   if ((neutral(n)%rcx_on).AND.(neutral(n)%in_cols_on).AND.(Rank_of_process.eq.0)) PRINT '("### Both the old model for RCX as well as the new one for polarization scattering + RCX are switched on. Only the new model will be used. ###")'
+   if (neutral(n)%in_cols_on) no_in_collisions = .false. ! if we are using the new in-col model, we still need the preparation below for diagnostics
+
+  END DO
+  
+
+  IF (no_in_collisions) RETURN
     
   allocate (collision_rcx(1:N_spec), stat = alloc_err)
   do s = 1, N_spec
@@ -76,13 +83,32 @@ SUBROUTINE INITIATE_ION_NEUTRAL_COLLISIONS
   end do
 
   do n = 1, N_neutral_spec
-     if (neutral(n)%rcx_on) then
+     if ((neutral(n)%rcx_on).OR.(neutral(n)%in_cols_on)) then
         s = neutral(n)%rcx_ion_species_index
         collision_rcx(s)%rcx_on = .true.
         collision_rcx(s)%neutral_species_index = n
         collision_rcx(s)%vfactor = SQRT(neutral(n)%T_K * kB_JK / (T_e_eV * e_Cl * Ms(s))) / DBLE(N_max_vel)
 !??        collision_rcx(s)%factor_eV = Ms(s) * energy_factor_eV !0.5_8 * m_e_kg * Ms(s) * V_scale_ms**2 / e_Cl
      end if
+  end do
+
+  do n = 1, N_neutral_spec
+   if (neutral(n)%in_cols_on) then ! Precalculate the collision integral
+      ALLOCATE(neutral(n)%Fel_precalc(0:(50000-1)), STAT=ALLOC_ERR)
+      dtheta = 0.0001
+      dxi = 1.0/50000.0
+      cnt = 0
+      do xi = 0.0_8, 1.0-dxi, dxi
+         Fel = 0.0
+         do theta = 0.0_8, pi/2.0, dtheta ! incomplete elliptic integral of first kind 
+            Fel = Fel + 1.0/sqrt((1.0 - (xi**2)*sin(theta)**2))*dtheta 
+         end do
+         !PRINT *, "Cnt: ", cnt  
+         neutral(n)%Fel_precalc(cnt) = Fel
+         cnt = cnt + 1
+      end do
+
+   end if
   end do
 
   CALL calculate_thermal_cx_probab
@@ -119,7 +145,7 @@ SUBROUTINE INITIATE_in_COLL_DIAGNOSTICS
 
   IF (Rank_of_process.NE.0) RETURN
 
-  IF (no_rcx_collisions) RETURN
+  IF (no_in_collisions) RETURN
 
   IF (use_checkpoint.EQ.1) THEN
 ! start from checkpoint, must trim the time dependences
@@ -234,7 +260,7 @@ SUBROUTINE SAVE_in_COLLISIONS
 
   local_debug_level = 3
 
-  IF (no_rcx_collisions) RETURN
+  IF (no_in_collisions) RETURN
 
    IF (avg_flux_and_history) THEN
       CALL DETERMINE_AVG_DATA_CREATION(avg_output_flag)

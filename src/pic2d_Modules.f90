@@ -1160,7 +1160,7 @@ MODULE MCCollisions
 
   LOGICAL en_collisions_turned_off
   LOGICAL no_ionization_collisions
-  LOGICAL no_rcx_collisions
+  LOGICAL no_in_collisions
 
   INTEGER N_neutral_spec
 
@@ -1191,6 +1191,11 @@ MODULE MCCollisions
      integer rcx_ion_species_index
      real(8) sigma_rcx_m2_1eV
      real(8) alpha_rcx
+     logical in_cols_on ! switch ion-neutral collisions on/off
+     real(8) alpha ! polarizability of neutral (in units of Angstrom^3)
+     real(8) beta_inf ! cutoff for impact parameter of ion-neutral collisions, lower for speed, raise for accuracy
+     real(8) Axc ! resonant charge exchange parameter (determine by comparison with swarm experiments)
+     real(8), ALLOCATABLE :: Fel_precalc(:) ! careful when changing size!
   END TYPE neutral_type
 
   TYPE(neutral_type), ALLOCATABLE :: neutral(:)
