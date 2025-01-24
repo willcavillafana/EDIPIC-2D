@@ -278,7 +278,7 @@ SUBROUTINE PERFORM_ION_NEUTRAL_COLLISION
             
             ! check if ion and neutral species are the same (via mass)
             ! if not, disable charge exchange after all (ignoring the non-resonant case)
-            if (ABS(Mn-Mi).GT.0.1) then
+            if (ABS((Mn-Mi)/Mn).GT.0.01) then
               CX = .FALSE.
             end if
 
