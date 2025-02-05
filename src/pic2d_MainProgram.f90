@@ -275,150 +275,151 @@ PROGRAM MainProg
      CALL start_timer( ions_pusher_with_collisions_inner_object_timer )    
      !t10 = MPI_WTIME()
 
-     n_sub = n_sub + 1
-     IF (n_sub.EQ.N_subcycles .AND. i_freeze_ions==0) THEN            ! N_subcycles is odd
+      n_sub = n_sub + 1
+      IF (n_sub.EQ.N_subcycles .AND. i_freeze_ions==0) THEN            ! N_subcycles is odd
 
-        if (Rank_of_process.eq.0 .AND. debug_level>=local_debug_level) print '("----- doing ions at step ",i6," ------")', T_cntr
+         if (Rank_of_process.eq.0 .AND. debug_level>=local_debug_level) print '("----- doing ions at step ",i6," ------")', T_cntr
 
-        CALL ADVANCE_IONS_PLUS                      !   velocity: n-N_e_subcycles+1/2 ---> n+1/2
-                                                    ! coordinate: n-int(N_e_subcycles/2) ---> n-int(N_e_subcycles/2)+N_e_subcycles
+         CALL ADVANCE_IONS_PLUS                      !   velocity: n-N_e_subcycles+1/2 ---> n+1/2
+                                                      ! coordinate: n-int(N_e_subcycles/2) ---> n-int(N_e_subcycles/2)+N_e_subcycles
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
+         CALL SAVE_IONS_COLLIDED_WITH_BOUNDARY_OBJECTS
 
-        ions_moved = .TRUE.
-        CALL FIND_ALIENS_IN_ION_ADD_LIST
-        CALL FIND_ALIENS_IN_ELECTRON_ADD_LIST
+         ions_moved = .TRUE.
+         CALL FIND_ALIENS_IN_ION_ADD_LIST
+         CALL FIND_ALIENS_IN_ELECTRON_ADD_LIST
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
-        CALL start_timer( transfer_particle_after_pusher_timer )   
-        !t11 = MPI_WTIME()
+         CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
+         CALL start_timer( transfer_particle_after_pusher_timer )   
+         !t11 = MPI_WTIME()
 
-        IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive BOTH electrons and ions crossing the borders
-           CALL EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
-        ELSE                                                              !
-           CALL EXCHANGE_PARTICLES_WITH_LEFT_RIGHT_NEIGHBOURS             ! in general, three passes X-Y-X are needed
-           CALL EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS            !
-           CALL EXCHANGE_PARTICLES_WITH_LEFT_RIGHT_NEIGHBOURS             !
-        END IF
+         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive BOTH electrons and ions crossing the borders
+            CALL EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
+         ELSE                                                              !
+            CALL EXCHANGE_PARTICLES_WITH_LEFT_RIGHT_NEIGHBOURS             ! in general, three passes X-Y-X are needed
+            CALL EXCHANGE_PARTICLES_WITH_ABOVE_BELOW_NEIGHBOURS            !
+            CALL EXCHANGE_PARTICLES_WITH_LEFT_RIGHT_NEIGHBOURS             !
+         END IF
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
-        CALL FIND_INNER_OBJECT_COLL_IN_ION_ADD_LIST
+         CALL FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
+         CALL FIND_INNER_OBJECT_COLL_IN_ION_ADD_LIST
 
-        CALL PROCESS_ADDED_ELECTRONS                ! add the new electrons to the main array   !### NEW   
-    
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+         CALL PROCESS_ADDED_ELECTRONS                ! add the new electrons to the main array   !### NEW   
+      
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
 
-        CALL end_timer( transfer_particle_after_pusher_timer )
-        CALL start_timer( collect_particles_hitting_with_bo_timer )   
-        !t12 = MPI_WTIME()
+         CALL end_timer( transfer_particle_after_pusher_timer )
+         CALL start_timer( collect_particles_hitting_with_bo_timer )   
+         !t12 = MPI_WTIME()
 
-        CALL COLLECT_PARTICLE_BOUNDARY_HITS
+         CALL COLLECT_PARTICLE_BOUNDARY_HITS
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-      !   IF ( T_cntr>1000)STOP
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         !   IF ( T_cntr>1000)STOP
 
-        CALL end_timer( collect_particles_hitting_with_bo_timer )
-        CALL start_timer( compute_mcc_timer ) 
-        !t13 = MPI_WTIME()
+         CALL end_timer( collect_particles_hitting_with_bo_timer )
+         CALL start_timer( compute_mcc_timer ) 
+         !t13 = MPI_WTIME()
 
-        CALL COLLECT_ELECTRON_DENSITY_FOR_COLL_FREQS
+         CALL COLLECT_ELECTRON_DENSITY_FOR_COLL_FREQS
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL PERFORM_ELECTRON_NEUTRAL_COLLISIONS
+         CALL PERFORM_ELECTRON_NEUTRAL_COLLISIONS
 
-        CALL PERFORM_ELECTRON_COULOMB_SCATTERING
-      !   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
-        CALL CLEAR_COULOMB_ARRAYS
+         CALL PERFORM_ELECTRON_COULOMB_SCATTERING
+         !   CALL MPI_BARRIER(MPI_COMM_WORLD, ierr)
+         CALL CLEAR_COULOMB_ARRAYS
 
-        CALL SAVE_en_COLLISIONS
+         CALL SAVE_en_COLLISIONS
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL SAVE_en_COLLISIONS_2D
+         CALL SAVE_en_COLLISIONS_2D
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL PERFORM_RESONANT_CHARGE_EXCHANGE    ! the only ion-neutral collision kind for now, does not produce new ions
+         CALL PERFORM_RESONANT_CHARGE_EXCHANGE    ! the only ion-neutral collision kind for now, does not produce new ions
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL SAVE_in_COLLISIONS
+         CALL SAVE_in_COLLISIONS
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL PERFORM_PLASMA_EMISSION_ECR_SETUP ! This is for the ECR configuration
-        CALL PERFORM_IONIZATION_ECR_SETUP
-        CALL PERFORM_IONIZATION_FROM_MEASURED_FLUX
-        !###        CALL PERFORM_IONIZATION_HT_SETUP
-       CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-        CALL end_timer( compute_mcc_timer )
-        CALL start_timer( add_ions_after_collisions_timer ) 
-        !t14 = MPI_WTIME()
+         CALL PERFORM_PLASMA_EMISSION_ECR_SETUP ! This is for the ECR configuration
+         CALL PERFORM_ION_EMISSION_FROM_BO
+         CALL PERFORM_IONIZATION_ECR_SETUP
+         CALL PERFORM_IONIZATION_FROM_MEASURED_FLUX
+         !###        CALL PERFORM_IONIZATION_HT_SETUP
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL end_timer( compute_mcc_timer )
+         CALL start_timer( add_ions_after_collisions_timer ) 
+         !t14 = MPI_WTIME()
 
-        CALL PROCESS_ADDED_IONS                  ! add the new ions to the main array
+         CALL PROCESS_ADDED_IONS                  ! add the new ions to the main array
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL end_timer( add_ions_after_collisions_timer )
-        CALL start_timer( clear_accumulated_fields_timer ) 
-        !t15 = MPI_WTIME()
+         CALL end_timer( add_ions_after_collisions_timer )
+         CALL start_timer( clear_accumulated_fields_timer ) 
+         !t15 = MPI_WTIME()
 
-        CALL CLEAR_ACCUMULATED_FIELDS
-        n_sub = 0                                 !### n_sub reset to zero here
+         CALL CLEAR_ACCUMULATED_FIELDS
+         n_sub = 0                                 !### n_sub reset to zero here
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL end_timer( clear_accumulated_fields_timer )
-        CALL start_timer( compute_ptcl_emission_timer ) 
-        !t16 = MPI_WTIME()
+         CALL end_timer( clear_accumulated_fields_timer )
+         CALL start_timer( compute_ptcl_emission_timer ) 
+         !t16 = MPI_WTIME()
 
-     ELSE
+      ELSE
 
-        CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
-        CALL start_timer( transfer_particle_after_pusher_timer ) 
-        !t11 = t10
-         ! IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_1',electron_to_add(1707)%X
-        IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive ONLY electrons crossing the borders
-           CALL EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
-        ELSE                                                              !
-           CALL EXCHANGE_ELECTRONS_WITH_LEFT_RIGHT_NEIGHBOURS             ! in general, three passes X-Y-X are needed
-           CALL EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS            !
-           CALL EXCHANGE_ELECTRONS_WITH_LEFT_RIGHT_NEIGHBOURS             !
-        END IF
+         CALL end_timer( ions_pusher_with_collisions_inner_object_timer )
+         CALL start_timer( transfer_particle_after_pusher_timer ) 
+         !t11 = t10
+            ! IF (Rank_of_process==1) print*,'electron_to_add(k)%X,wil_1',electron_to_add(1707)%X
+         IF (periodic_boundary_X_left.AND.periodic_boundary_X_right) THEN  ! send/receive ONLY electrons crossing the borders
+            CALL EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS            ! need only one X-pass for self-connected X-periodic clusters
+         ELSE                                                              !
+            CALL EXCHANGE_ELECTRONS_WITH_LEFT_RIGHT_NEIGHBOURS             ! in general, three passes X-Y-X are needed
+            CALL EXCHANGE_ELECTRONS_WITH_ABOVE_BELOW_NEIGHBOURS            !
+            CALL EXCHANGE_ELECTRONS_WITH_LEFT_RIGHT_NEIGHBOURS             !
+         END IF
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
-        
-        CALL end_timer( transfer_particle_after_pusher_timer )
-        CALL start_timer( collect_particles_hitting_with_bo_timer )   
-        !t12 = MPI_WTIME()
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         
+         CALL end_timer( transfer_particle_after_pusher_timer )
+         CALL start_timer( collect_particles_hitting_with_bo_timer )   
+         !t12 = MPI_WTIME()
 
-        CALL FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
+         CALL FIND_INNER_OBJECT_COLL_IN_ELECTRON_ADD_LIST
 
-        CALL COLLECT_ELECTRON_BOUNDARY_HITS
+         CALL COLLECT_ELECTRON_BOUNDARY_HITS
 
-        CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
+         CALL MPI_BARRIER(MPI_COMM_WORLD, ierr) 
 
-        CALL end_timer( collect_particles_hitting_with_bo_timer )
-        CALL start_timer( compute_mcc_timer )    
-        CALL end_timer( compute_mcc_timer )
-        CALL start_timer( add_ions_after_collisions_timer )     
-        CALL end_timer( add_ions_after_collisions_timer )
-        CALL start_timer( clear_accumulated_fields_timer ) 
-        CALL end_timer( clear_accumulated_fields_timer )
-        CALL start_timer( compute_ptcl_emission_timer )                          
-      !   t13 = MPI_WTIME()
-      !   t14 = t13
-      !   t15 = t13
-      !   t16 = t13
+         CALL end_timer( collect_particles_hitting_with_bo_timer )
+         CALL start_timer( compute_mcc_timer )    
+         CALL end_timer( compute_mcc_timer )
+         CALL start_timer( add_ions_after_collisions_timer )     
+         CALL end_timer( add_ions_after_collisions_timer )
+         CALL start_timer( clear_accumulated_fields_timer ) 
+         CALL end_timer( clear_accumulated_fields_timer )
+         CALL start_timer( compute_ptcl_emission_timer )                          
+         !   t13 = MPI_WTIME()
+         !   t14 = t13
+         !   t15 = t13
+         !   t16 = t13
 
-     END IF
+      END IF
 
      CALL DO_PROBE_DIAGNOSTICS
 

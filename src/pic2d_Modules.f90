@@ -443,6 +443,14 @@ MODULE CurrentProblemValues
      REAL(8), ALLOCATABLE :: T_ii_ee_true_eV(:)                    ! Temperature of injected true secondary electrons, [eV]
      REAL(8), ALLOCATABLE :: factor_convert_ii_ee_true_vinj(:)     ! factor to be used to convert values provided by Get*Velocity procedures to desired temperature
 
+     INTEGER :: i_inject_ion_flux_bo ! =1 we want injection of ion flux from boundary object. Flux value and average velocity is provided by user. First species of ions for now
+    !  INTEGER :: i_inject_electron_flux_bo ! =1 we want injection of electron flux from boundary object. Flux value and average velocity is provided by user
+     REAL(8) :: ion_flux_value ! Imposed ion flux
+     REAL(8) :: ion_additional_mean_velocity_value ! Additional mean velocity that is added to the Maxwellian flux. Total velocity is u_add+sqrt(eT/(2*m*pi))
+     REAL(8) :: ion_temperature_normal ! Temperature for injected ions
+    !  REAL(8) :: electron_flux_value ! Imposed electron flux
+    !  REAL(8) :: electron_additional_mean_velocity_value ! Additional mean velocity that is added to the Maxwellian flux. Total velocity is u_add+sqrt(eT/(2*m*pi))
+
   END TYPE boundary_object
 
   INTEGER N_of_boundary_objects
