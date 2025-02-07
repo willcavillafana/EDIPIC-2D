@@ -52,7 +52,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
 !   Lz = (index_maxi_z)*delta_x_m!0.020099999383091927!0.020027175545692444!0.002025220077484846
 !   print*,'Lr,Lz,index_maxi_r,index_maxi_z',Lr,Lz,index_maxi_r,index_maxi_z
 !   k_test_r = 11./4*two*pi/Lr ! Basic test 
-!   k_test_z = 5.0*two*pi/Lz ! Basic test
+!   k_test_z = (5.0*two*pi+pi/2.0)/Lz ! Basic test
 !   alpha_r = 18.071063967910924/Lr ! sixth root
    ! k_x_cart = (pi+5.0_8*pi)/Lr ! Test in Cartesian coordinates
    ! k_x_cart_neumann_right = (pi/2.0_8+7.0_8*pi)/Lr ! Test in Cartesian coordinates. Neumann right only
