@@ -2407,9 +2407,11 @@ SUBROUTINE DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i, j, neumann_flag)
  
    !LOCAL 
    INTEGER                      :: n1 ! Boundary number 
+   INTEGER                      :: m  ! segment number
    INTEGER                      :: last_metal_object ! last metal object 
    INTEGER                      :: i_found ! Determines if point belongs to an external boundary
    CHARACTER(LEN=string_length) :: message, routine
+   INTEGER                      :: nb_segments
 
    routine = "DECIDE_NEUMANN_EXTERNAL_BOUNDARY"
 
@@ -2419,17 +2421,19 @@ SUBROUTINE DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i, j, neumann_flag)
 
    ! Loop over external boundaries 
    DO n1 = 1,N_of_boundary_objects
+      nb_segments = whole_object(n1)%number_of_segments
       
-      ! Determine if point i,j belongs to a boundary 
-      IF ( i<whole_object(n1)%ileft   ) CYCLE
-      IF ( i>whole_object(n1)%iright  ) CYCLE
-      IF ( j<whole_object(n1)%jbottom ) CYCLE
-      IF ( j>whole_object(n1)%jtop    ) CYCLE
+      DO m = 1, nb_segments
+         ! Determine if point i,j belongs to a boundary 
+         IF ( i<whole_object(n1)%segment(m)%istart  ) CYCLE
+         IF ( i>whole_object(n1)%segment(m)%iend    ) CYCLE
+         IF ( j<whole_object(n1)%segment(m)%jstart  ) CYCLE
+         IF ( j>whole_object(n1)%segment(m)%jend    ) CYCLE
 
-      ! Point belongs to one boundary at least
-      i_found = 1
-      IF ( whole_object(n1)%object_type==METAL_WALL ) last_metal_object = n1
-      
+         ! Point belongs to one boundary at least
+         i_found = 1
+         IF ( whole_object(n1)%object_type==METAL_WALL ) last_metal_object = n1
+      ENDDO
    ENDDO
 
    ! Check if point was found at any boundary (must be the case)
