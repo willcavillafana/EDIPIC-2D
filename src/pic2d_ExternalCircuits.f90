@@ -1860,6 +1860,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
   USE IonParticles, ONLY : N_spec, Qs
   USE Diagnostics, ONLY : Save_probes_e_data_T_cntr, N_of_probes_block, Probe_params_block_list, probe_F_block
   USE AvgSnapshots, ONLY: avg_flux_and_history, avgsnapshot, current_avgsnap
+  USE mod_print, ONLY: print_error
 
   IMPLICIT NONE
 
@@ -1880,6 +1881,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
   REAL(8), ALLOCATABLE :: dQ_full(:)
 
   REAL(8) factor_C
+  REAL(8) :: U_dt_over_R_scale
   REAL(8) :: dU_source, dQ_ext
 
   REAL(8) d0, d1, d2
@@ -1893,6 +1895,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
    REAL(8) :: ECPS_avg
    REAL(8) :: N_averaged_timesteps_dble
    INTEGER :: avg_compute_flag
+   CHARACTER(LEN=string_length) :: message
 ! function
   REAL(8) ECPS_Voltage
 
@@ -1975,85 +1978,106 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
   
    !   circuit_type = 1   ! or 2 or 3 etc later make this a part of an input file
 
-     SELECT CASE (circuit_type)
-        CASE (1)
-! one rf electrode connected in series to rf voltage source, capacitor, ground
-! one electrode grounded
+      SELECT CASE (circuit_type)
+         CASE (1)
+            ! one rf electrode connected in series to rf voltage source, capacitor, ground
+            ! one electrode grounded
 
-           factor_C = eps_0_Fm / (capacitor_C_F(1) * N_of_particles_cell_dble)
+            factor_C = eps_0_Fm / (capacitor_C_F(1) * N_of_particles_cell_dble)
 
-           a(1,1) = 1.0_8 + factor_C * object_charge_coeff(1,1)
+            a(1,1) = 1.0_8 + factor_C * object_charge_coeff(1,1)
 
-!           dU_source = source_U * ( SIN(source_omega * T_cntr + source_phase) - &     ! source voltage at t^n
-!                                  & SIN(source_omega * (T_cntr-1) + source_phase) )   ! source voltage at t^{n-1}
-           dU_source = ECPS_Voltage(1, T_cntr) - ECPS_Voltage(1, T_cntr-1)
+            !           dU_source = source_U * ( SIN(source_omega * T_cntr + source_phase) - &     ! source voltage at t^n
+            !                                  & SIN(source_omega * (T_cntr-1) + source_phase) )   ! source voltage at t^{n-1}
+            dU_source = ECPS_Voltage(1, T_cntr) - ECPS_Voltage(1, T_cntr-1)
 
-!     noi = object_charge_calculation(1)%noi
+            !     noi = object_charge_calculation(1)%noi
 
-           rhs(1) = potential_of_object(1) + &                                        ! here potential_of_object(1) is at t^{n-1}
-                  & dU_source - &
-                  & factor_C * (object_charge_coeff(0,1) - charge_of_object(1)) + &   ! here charge_of_object(1) is at t^{n-1}
-                  & factor_C * dQ_plasma_of_object(1)                                 ! charge of plasma particles deposited at the object during one timestep
+            rhs(1) = potential_of_object(1) + &                                        ! here potential_of_object(1) is at t^{n-1}
+                     & dU_source - &
+                     & factor_C * (object_charge_coeff(0,1) - charge_of_object(1)) + &   ! here charge_of_object(1) is at t^{n-1}
+                     & factor_C * dQ_plasma_of_object(1)                                 ! charge of plasma particles deposited at the object during one timestep
 
-! solve the linear system
+            ! solve the linear system
 
-           IF (a(1,1).NE.0.0_8) THEN
-              potential_of_object(1) = rhs(1) / a(1,1)
-           ELSE
-! error
-              PRINT '("error zero a(1,1)")'
-              CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
-           END IF
+            IF (a(1,1).NE.0.0_8) THEN
+               potential_of_object(1) = rhs(1) / a(1,1)
+            ELSE
+            ! error
+               PRINT '("error zero a(1,1)")'
+               CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+            END IF
 
-        CASE (2)
-! one electrode with floating potential
-! potentials of all other electrodes given
+         CASE (2)
+            ! one electrode with floating potential
+            ! potentials of all other electrodes given
 
-!           charge_of_object(1) + dQ_plasma_of_object(1) = object_charge_coeff(0,1) + object_charge_coeff(1,1) * potential_of_object(1)
+            !           charge_of_object(1) + dQ_plasma_of_object(1) = object_charge_coeff(0,1) + object_charge_coeff(1,1) * potential_of_object(1)
 
-           dQ_ext = J_ext(1) ! normnalized charge count per time step due to the external source
+            dQ_ext = J_ext(1) ! normnalized charge count per time step due to the external source
 
-           a(1,1) = object_charge_coeff(1,1)
-           rhs(1) = charge_of_object(1) + dQ_plasma_of_object(1) + dQ_ext - object_charge_coeff(0,1)
+            a(1,1) = object_charge_coeff(1,1)
+            rhs(1) = charge_of_object(1) + dQ_plasma_of_object(1) + dQ_ext - object_charge_coeff(0,1)
 
-           IF (a(1,1).NE.0.0_8) THEN
-              potential_of_object(1) = rhs(1) / a(1,1)
-           ELSE
-! error
-              PRINT '("error zero a(1,1)")'
-              CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
-           END IF
+            IF (a(1,1).NE.0.0_8) THEN
+               potential_of_object(1) = rhs(1) / a(1,1)
+            ELSE
+               ! error
+               PRINT '("error zero a(1,1)")'
+               CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+            END IF
 
-        CASE (3)
-! two electrodes with floating potential
-! potentials of all other electrodes given
+         CASE (3)
+            ! two electrodes with floating potential
+            ! potentials of all other electrodes given
 
-!           charge_of_object(1) + dQ_plasma_of_object(1) = object_charge_coeff(0,1) + object_charge_coeff(1,1) * potential_of_object(1) + object_charge_coeff(2,1) * potential_of_object(2)
-!           charge_of_object(2) + dQ_plasma_of_object(2) = object_charge_coeff(0,2) + object_charge_coeff(1,2) * potential_of_object(1) + object_charge_coeff(2,2) * potential_of_object(2)
+            !           charge_of_object(1) + dQ_plasma_of_object(1) = object_charge_coeff(0,1) + object_charge_coeff(1,1) * potential_of_object(1) + object_charge_coeff(2,1) * potential_of_object(2)
+            !           charge_of_object(2) + dQ_plasma_of_object(2) = object_charge_coeff(0,2) + object_charge_coeff(1,2) * potential_of_object(1) + object_charge_coeff(2,2) * potential_of_object(2)
 
-           a(1,1) = object_charge_coeff(1,1)
-           a(1,2) = object_charge_coeff(2,1)
-           rhs(1) = charge_of_object(1) + dQ_plasma_of_object(1) - object_charge_coeff(0,1)
+            a(1,1) = object_charge_coeff(1,1)
+            a(1,2) = object_charge_coeff(2,1)
+            rhs(1) = charge_of_object(1) + dQ_plasma_of_object(1) - object_charge_coeff(0,1)
 
-           a(2,1) = object_charge_coeff(1,2)
-           a(2,2) = object_charge_coeff(2,2)
-           rhs(2) = charge_of_object(2) + dQ_plasma_of_object(2) - object_charge_coeff(0,2)
+            a(2,1) = object_charge_coeff(1,2)
+            a(2,2) = object_charge_coeff(2,2)
+            rhs(2) = charge_of_object(2) + dQ_plasma_of_object(2) - object_charge_coeff(0,2)
 
-! solve the linear system
+            ! solve the linear system
 
-           d0 = a(1,1) * a(2,2) - a(1,2) * a(2,1)
-           d1 = rhs(1) * a(2,2) - a(1,2) * rhs(2)
-           d2 = a(1,1) * rhs(2) - rhs(1) * a(2,1)
-           IF (d0.NE.0.0_8) THEN
-              potential_of_object(1) = d1 / d0
-              potential_of_object(2) = d2 / d0
-           ELSE
-! error
-              PRINT '("error zero d0")'
-              CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
-           END IF
+            d0 = a(1,1) * a(2,2) - a(1,2) * a(2,1)
+            d1 = rhs(1) * a(2,2) - a(1,2) * rhs(2)
+            d2 = a(1,1) * rhs(2) - rhs(1) * a(2,1)
+            IF (d0.NE.0.0_8) THEN
+               potential_of_object(1) = d1 / d0
+               potential_of_object(2) = d2 / d0
+            ELSE
+               ! error
+               PRINT '("error zero d0")'
+               CALL MPI_ABORT(MPI_COMM_WORLD, ierr)
+            END IF
 
-     END SELECT
+         CASE (4)
+            ! one electrode connected in series to a resistor and a voltage source
+
+            U_dt_over_R_scale = e_Cl*weight_ptcl/resistor_R_Ohm(1) ! Us*dt/Rs
+
+            a(1,1) = U_dt_over_R_scale + object_charge_coeff(1,1)
+
+            rhs(1) = U_dt_over_R_scale*ECPS_Voltage(1, T_cntr) + & ! Source of generator
+                     charge_of_object(1) - object_charge_coeff(0,1) + & ! here charge_of_object(1) is at t^{n-1}
+                     dQ_plasma_of_object(1) ! charge of plasma particles deposited at the object during one timestep
+
+            ! solve the linear system
+
+            IF (a(1,1).NE.0.0_8) THEN
+               potential_of_object(1) = rhs(1) / a(1,1)
+            ELSE
+            ! error
+               WRITE( message,'(A,I2)') "Trying to divide by zero when solving linear system for external circuit number ",circuit_type
+               CALL print_error(message)
+            END IF            
+
+      END SELECT
 
 !     dQ_full(1) = -charge_of_object(1)
      dQ_full = -charge_of_object

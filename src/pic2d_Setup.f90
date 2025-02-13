@@ -821,7 +821,8 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 !???  USE ParallelOperationValues, ONLY : Rank_of_process
   USE ExternalCircuit
   USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_and_inner_objects, METAL_WALL, delta_t_s, F_scale_V, pi &
-                                   & ,delta_x_m, e_Cl, N_of_particles_cell_dble, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi, string_length
+                                   & ,delta_x_m, e_Cl, N_of_particles_cell_dble, N_plasma_m3, i_cylindrical, zero, global_maximal_i &
+                                   & , global_maximal_j, pi, string_length, weight_ptcl
   USE BlockAndItsBoundaries
    USE mod_print, ONLY: print_message, print_parser_error
 
@@ -833,8 +834,10 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   INTEGER ALLOC_ERR
 
   INTEGER nn, ntemp, n
-  REAL(8) :: weight_ptcl 
+  REAL(8) :: weight_ptcl_local 
   CHARACTER(LEN=string_length) :: message, routine
+
+  REAL(8) :: current_scale
 
 ! function
   REAL(8) ECPS_Voltage
@@ -845,7 +848,8 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   N_of_resistors = 0
   N_of_capacitors = 0
   N_of_inductors = 0
-  weight_ptcl = zero
+  weight_ptcl_local = zero
+  current_scale = zero
 
   routine = 'PREPARE_EXTERNAL_CIRCUIT'
 
@@ -964,9 +968,9 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
          ! So w_cyl = pi*R*n_scale*dx**2/(N_ppc_input_file) 
          ! So w_cyl = n_scale*dx**2/(N_ppc_input_file/(pi*R)) 
          ! So w_cyl = n_scale*dx**2/(N_of_particles_cell) 
-         weight_ptcl = N_plasma_m3*delta_x_m**2/(N_of_particles_cell_dble)
+         weight_ptcl_local = N_plasma_m3*delta_x_m**2/(N_of_particles_cell_dble) ! same as global one in Modules
          ! Deduce how many particles we should inject 
-         coeff_J = delta_t_s / ( e_Cl*weight_ptcl ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
+         coeff_J = delta_t_s / ( e_Cl*weight_ptcl_local ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
      END IF
      J_ext = J_ext * coeff_J
 
@@ -984,13 +988,15 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   IF (N_of_resistors.GT.0) ALLOCATE(resistor_R_Ohm(1:N_of_resistors), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each resistor, provide its resistance [Ohm]
-  DO n = 1, N_of_resistors
+   DO n = 1, N_of_resistors
       WRITE( message, '(A,I0)') "Resistor #: ",n
       CALL print_message(message)   
-     READ (11, *) resistor_R_Ohm(n)
-      WRITE( message, '(A,ES10.3,A)') "R = ",resistor_R_Ohm," [Ohm]"
+      READ (11, *) resistor_R_Ohm(n)
+      WRITE( message, '(A,ES10.3,A)') "R = ",resistor_R_Ohm(n)," [Ohm]"
       CALL print_message(message)     
-  END DO
+      current_scale = e_Cl*weight_ptcl/delta_t_s 
+      resistor_R_Ohm(n) = resistor_R_Ohm(n)/(F_scale_V/current_scale)
+   END DO
 
   WRITE( message, '(A)') ""
   CALL print_message(message)     
@@ -1009,7 +1015,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       WRITE( message, '(A,I0)') "Capacitor #: ",n
       CALL print_message(message)      
      READ (11, *) capacitor_C_F(n)
-     WRITE( message, '(A,ES10.3,A)') "C = ",capacitor_C_F," [F]"
+     WRITE( message, '(A,ES10.3,A)') "C = ",capacitor_C_F(n)," [F]"
      CALL print_message(message)         
   END DO
 
@@ -1030,7 +1036,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       WRITE( message, '(A,I0)') "Inductor #: ",n
       CALL print_message(message)    
      READ (11, *) inductor_L_H(n)
-     WRITE( message, '(A,ES10.3,A)') "L = ",inductor_L_H," [H]"
+     WRITE( message, '(A,ES10.3,A)') "L = ",inductor_L_H(n)," [H]"
      CALL print_message(message)        
   END DO
 
@@ -1041,6 +1047,12 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 
 !  OPEN  (21, FILE = 'history_ext_circuit.dat', STATUS = 'REPLACE')
 !  CLOSE (21, STATUS = 'KEEP')
+
+   IF (circuit_type==4) THEN
+      nn = 1
+      WRITE( message, '(A,ES10.3,A)') "Circuit with one resistor and one generator in series R = ",resistor_R_Ohm(nn)*F_scale_V/current_scale," [Ohm]"
+   END IF
+
 
   CALL PREPARE_ECPS_WAVEFORMS
 
