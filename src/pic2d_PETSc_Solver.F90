@@ -2312,6 +2312,7 @@ END SUBROUTINE CHECK_IF_INNER_OBJECT_CONTAINS_POINT
 REAL(8) FUNCTION Get_Surface_Charge_Inner_Object(i,j,position_flag, myobject)
 
   USE CurrentProblemValues
+  USE ClusterAndItsBoundaries, ONLY: factor_cyl_vol
   IMPLICIT NONE
 
   INCLUDE 'mpif.h'
@@ -2377,7 +2378,7 @@ REAL(8) FUNCTION Get_Surface_Charge_Inner_Object(i,j,position_flag, myobject)
   END SELECT
 
   IF ((pos.GE.1).AND.(pos.LE.myobject%N_boundary_nodes)) THEN
-     Get_Surface_Charge_Inner_Object = myobject%surface_charge(pos)
+     Get_Surface_Charge_Inner_Object = myobject%surface_charge(pos)*factor_cyl_vol(i)
      RETURN
   ELSE
      print '("Error in Get_Surface_Charge_Inner_Object")'

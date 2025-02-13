@@ -175,7 +175,7 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
 
                ! This point is Neumann, I shall proceed
                IF ( neumann_flag ) THEN
-                  rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))/two
+                  rhsvalue(nn) = factor_rho * (rho_i(indx_x_min,j) - rho_e(indx_x_min,j))/two ! factor is correct, inlcuding for cylindrical coordinates 
                   ! rhsvalue(nn) = -(k_x_cart_neumann_right**2+k_y_cart_neumann_right**2)*(one)*SIN(k_y_cart_neumann_right*DBLE(j)*delta_x_m)/ F_scale_V*delta_x_m**2/two ! Test cartesian. Solution phi = cos(kx*x)*sin(ky*y). Dirichlet 0 at top/bottom/right and neumann at left
                ! Metal
                ELSE 
