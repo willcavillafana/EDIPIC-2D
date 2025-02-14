@@ -1349,6 +1349,7 @@ MODULE ExternalCircuit
   INTEGER N_of_inductors    ! number of inductors
 
   REAL(8), ALLOCATABLE :: resistor_R_Ohm(:)
+  REAL(8), ALLOCATABLE :: resistor_R_scale(:)
   REAL(8), ALLOCATABLE :: capacitor_C_F(:)
   REAL(8), ALLOCATABLE :: inductor_L_H(:)
 

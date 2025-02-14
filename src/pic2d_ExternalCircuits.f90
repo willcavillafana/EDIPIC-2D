@@ -2059,7 +2059,7 @@ SUBROUTINE SOLVE_EXTERNAL_CONTOUR
          CASE (4)
             ! one electrode connected in series to a resistor and a voltage source
 
-            U_dt_over_R_scale = e_Cl*weight_ptcl/resistor_R_Ohm(1) ! Us*dt/Rs
+            U_dt_over_R_scale = one/resistor_R_scale(1) ! Us*dt/Rs /(w*e)
 
             a(1,1) = U_dt_over_R_scale + object_charge_coeff(1,1)
 

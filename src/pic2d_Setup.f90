@@ -873,8 +873,11 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       CASE (3)
          WRITE( message, '(A)') "Selected circuit: two floating conductors."//achar(10)
          CALL print_message(message)  
+      CASE (4)
+         WRITE( message, '(A)') "Selected circuit: resistor with tension source (waveform and/or simple harmonic)."//achar(10)
+         CALL print_message(message) 
       CASE DEFAULT
-         WRITE( message, '(A,I0)') "Nonexistent circuit selected: I expect 1, 2, 3. Received: .",circuit_type
+         WRITE( message, '(A,I0)') "Nonexistent circuit selected: I expect 1, 2, 3, 4. Received: .",circuit_type
          CALL print_parser_error(message)           
    END SELECT         
 
@@ -937,7 +940,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
      EC_power_supply(n)%phi_var   = EC_power_supply(n)%phi_var / F_scale_V
      EC_power_supply(n)%omega     = EC_power_supply(n)%omega * 2.0_8 * pi * delta_t_s
      EC_power_supply(n)%phase     = EC_power_supply(n)%phase * pi / 180.0_8
-     WRITE( message, '(A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)') "phi_const = ",EC_power_supply(n)%phi_const,"[V], phi_var = ",EC_power_supply(n)%phi_var,"[V], omega = ",EC_power_supply(n)%omega," [Hz], phase = ",EC_power_supply(n)%phase," [deg]."
+     WRITE( message, '(A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)') "phi_const = ",EC_power_supply(n)%phi_const*F_scale_V,"[V], phi_var = ",EC_power_supply(n)%phi_var*F_scale_V,"[V], omega = ",EC_power_supply(n)%omega," [Hz], phase = ",EC_power_supply(n)%phase," [deg]."
      CALL print_message(message)
   END DO
 
@@ -986,6 +989,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   CALL print_message(message)       
 
   IF (N_of_resistors.GT.0) ALLOCATE(resistor_R_Ohm(1:N_of_resistors), STAT = ALLOC_ERR)
+  IF (N_of_resistors.GT.0) ALLOCATE(resistor_R_scale(1:N_of_resistors), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each resistor, provide its resistance [Ohm]
    DO n = 1, N_of_resistors
@@ -995,7 +999,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       WRITE( message, '(A,ES10.3,A)') "R = ",resistor_R_Ohm(n)," [Ohm]"
       CALL print_message(message)     
       current_scale = e_Cl*weight_ptcl/delta_t_s 
-      resistor_R_Ohm(n) = resistor_R_Ohm(n)/(F_scale_V/current_scale)
+      resistor_R_scale(n) = resistor_R_Ohm(n)/(F_scale_V/current_scale)
    END DO
 
   WRITE( message, '(A)') ""
@@ -1049,8 +1053,9 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 !  CLOSE (21, STATUS = 'KEEP')
 
    IF (circuit_type==4) THEN
-      nn = 1
-      WRITE( message, '(A,ES10.3,A)') "Circuit with one resistor and one generator in series R = ",resistor_R_Ohm(nn)*F_scale_V/current_scale," [Ohm]"
+      n = 1
+      WRITE( message, '(A,ES10.3,A)') "Circuit with one resistor and one generator in series R = ",resistor_R_scale(n)*F_scale_V/current_scale," [Ohm]"
+      CALL print_message(message)     
    END IF
 
 
