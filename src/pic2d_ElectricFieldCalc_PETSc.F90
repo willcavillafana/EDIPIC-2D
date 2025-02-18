@@ -585,6 +585,7 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
   REAL(8), ALLOCATABLE :: loc_EY(:,:)
   INTEGER ALLOC_ERR
   LOGICAL :: neumann_flag
+  INTEGER :: nio, position_flag
 
   neumann_flag = .FALSE.
   factor2_E_from_F = F_scale_V / (E_scale_Vm * 2.0_8 * delta_x_m)
@@ -593,447 +594,483 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
   ! Deactivate electric field and poisson
    IF ( i_no_poisson==1 )   phi = zero
 
-  IF (cluster_rank_key.EQ.0) THEN
+   IF (cluster_rank_key.EQ.0) THEN
 
 
-! volume
-     DO j = indx_y_min+1, indx_y_max-1
-        DO i = indx_x_min+1, indx_x_max-1
-           EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
-           EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
-        END DO
-     END DO
-! left edge if there is no neighbour
-     IF (Rank_of_process_left.LT.0) THEN
-        i = indx_x_min
-        DO j = indx_y_min+1, indx_y_max-1
-           EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
-           EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
-        END DO
-     END IF
-! right edge if there is no neighbour
-     IF (Rank_of_process_right.LT.0) THEN
-        i = indx_x_max
-        DO j = indx_y_min+1, indx_y_max-1
-           EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
-           EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
-        END DO
-     END IF
-! edge above if there is no neighbour
-     IF (Rank_of_process_above.LT.0) THEN
-        j = indx_y_max
-        DO i = indx_x_min+1, indx_x_max-1
-           EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
-           EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))           
-        END DO
-     END IF
-! edge below if there is no neighbour
-     IF (Rank_of_process_below.LT.0) THEN
-        j = indx_y_min
-        DO i = indx_x_min+1, indx_x_max-1
-           EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
-           EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))           
-        END DO
-     END IF
-! use ranks of neighbor processes (blocks) because only corners of clusters are identified 
-! left bottom corner if it is surrounded by walls
-     IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
-        i = indx_x_min
-        j = indx_y_min
-        EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
-        EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
-     END IF
-! left top corner if it is surrounded by walls
-     IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
-        i = indx_x_min
-        j = indx_y_max
-        EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
-        EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
-     END IF
-! right bottom corner if it is surrounded by walls
-     IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
-        i = indx_x_max
-        j = indx_y_min
-        EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
-        EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
-     END IF
-! right top corner if it is surrounded by walls
-     IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
-        i = indx_x_max
-        j = indx_y_max
-        EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
-        EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
-     END IF
+      ! volume
+      DO j = indx_y_min+1, indx_y_max-1
+         DO i = indx_x_min+1, indx_x_max-1
+            EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+            EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
 
-! receive fields from field calculators
-     DO k = 2, cluster_N_blocks
-
-        shift = (field_calculator(k)%indx_x_max - field_calculator(k)%indx_x_min + 1) * &
-              & (field_calculator(k)%indx_y_max - field_calculator(k)%indx_y_min + 1)
-        bufsize = 2*shift
-        ALLOCATE(rbufer(bufsize), STAT = ALLOC_ERR)
-        CALL MPI_RECV(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_calculator(k)%rank, field_calculator(k)%rank, MPI_COMM_WORLD, stattus, ierr)
-
-        pos=1
-        j = field_calculator(k)%indx_y_min
-        IF (field_calculator(k)%indx_y_min.EQ.c_indx_y_min) THEN
-           IF (field_calculator(k)%indx_x_min.EQ.c_indx_x_min) THEN
-! left bottom corner of block is left bottom corner of cluster
-              EX(c_indx_x_min,j) = rbufer(pos)
-              EY(c_indx_x_min,j) = rbufer(pos+shift)
-           END IF
-           pos = pos + 1
-! bottom edge of block is on bottom edge of cluster
-           DO i = field_calculator(k)%indx_x_min+1, field_calculator(k)%indx_x_max-1
-              EX(i,j) = rbufer(pos)
-              EY(i,j) = rbufer(pos+shift)
-              pos = pos + 1
-           END DO
-           IF (field_calculator(k)%indx_x_max.EQ.c_indx_x_max) THEN
-! right bottom corner of block is right bottom corner of cluster
-              EX(c_indx_x_max,j) = rbufer(pos)
-              EY(c_indx_x_max,j) = rbufer(pos+shift)
-           END IF
-           pos = pos + 1
-        END IF
-
-        pos = field_calculator(k)%indx_x_max - field_calculator(k)%indx_x_min + 2
-        DO j = field_calculator(k)%indx_y_min+1, field_calculator(k)%indx_y_max-1
-           IF (field_calculator(k)%indx_x_min.EQ.c_indx_x_min) THEN
-              EX(c_indx_x_min,j) = rbufer(pos)
-              EY(c_indx_x_min,j) = rbufer(pos+shift)
-           END IF
-           pos = pos + 1
-           DO i = field_calculator(k)%indx_x_min+1, field_calculator(k)%indx_x_max-1
-              EX(i,j) = rbufer(pos)
-              EY(i,j) = rbufer(pos+shift)
-              pos = pos + 1
-           END DO
-           IF (field_calculator(k)%indx_x_max.EQ.c_indx_x_max) THEN
-              EX(c_indx_x_max,j) = rbufer(pos)
-              EY(c_indx_x_max,j) = rbufer(pos+shift)
-           END IF
-           pos = pos + 1      
-        END DO
-
-        j = field_calculator(k)%indx_y_max
-        IF (field_calculator(k)%indx_y_max.EQ.c_indx_y_max) THEN
-           IF (field_calculator(k)%indx_x_min.EQ.c_indx_x_min) THEN
-! left top corner of block is left top corner of cluster
-              EX(c_indx_x_min,j) = rbufer(pos)
-              EY(c_indx_x_min,j) = rbufer(pos+shift)
-           END IF
-           pos = pos + 1
-! top edge of block is on top edge of cluster
-           DO i = field_calculator(k)%indx_x_min+1, field_calculator(k)%indx_x_max-1
-              EX(i,j) = rbufer(pos)
-              EY(i,j) = rbufer(pos+shift)
-              pos = pos+1
-           END DO
-           IF (field_calculator(k)%indx_x_max.EQ.c_indx_x_max) THEN
-! right top corner of block is right top corner of cluster
-              EX(c_indx_x_max,j) = rbufer(pos)
-              EY(c_indx_x_max,j) = rbufer(pos+shift)
-           END IF
-        END IF
-
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT = ALLOC_ERR)
-
-     END DO
-      ! enforce boundary condition EX=0 at the symmetry plane
-      IF ( symmetry_plane_X_left )  EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = 0.0_8
-      IF ( neumann_Y_cluster_top ) THEN
-         DO i=c_indx_x_min, c_indx_x_max
-            
-            ! Check if point i,j is Neumann 
-            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,c_indx_y_max,neumann_flag)
-            
-            ! This point is Neumann, I shall proceed
-            IF ( neumann_flag ) THEN            
-               EY(i, c_indx_y_max) = zero
-            ENDIF 
-         ENDDO
+            ! Check if node belongs to dielectric interface. This will make sure particles see a correct electric field and not an average
+            DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
+               CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)           
+               IF ( position_flag==1 .OR. position_flag==7 .OR. position_flag==8 ) THEN ! left side including corners
+                  EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+                  EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
+               ELSE IF ( position_flag==3 .OR. position_flag==5 .OR. position_flag==4 ) THEN ! right side including corners
+                  EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+                  EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
+               ELSE IF ( position_flag==2 ) THEN ! bottom side 
+                  EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+                  EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))
+               ELSE IF ( position_flag==6) THEN ! top side 
+                  EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+                  EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))                  
+               END IF
+            END DO                  
+         END DO
+      END DO
+     
+      ! left edge if there is no neighbour
+      IF (Rank_of_process_left.LT.0) THEN
+         i = indx_x_min
+         DO j = indx_y_min+1, indx_y_max-1
+            EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+            EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
+         END DO
       END IF
-      IF ( neumann_Y_cluster_bottom ) THEN
-         DO i=c_indx_x_min, c_indx_x_max
-            
-            ! Check if point i,j is Neumann 
-            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,c_indx_y_min,neumann_flag)
-            
-            ! This point is Neumann, I shall proceed
-            IF ( neumann_flag ) THEN            
-               EY(i, c_indx_y_min) = zero
-            ENDIF 
-         ENDDO      
-      ENDIF
-      IF ( neumann_X_cluster_left ) THEN 
-         DO j=c_indx_y_min, c_indx_y_max
-            
-            ! Check if point i,j is Neumann 
-            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(c_indx_x_min,j,neumann_flag)
-            
-            ! This point is Neumann, I shall proceed
-            IF ( neumann_flag ) THEN       
-               EX(c_indx_x_min, j) = zero     
-            ENDIF 
-         ENDDO      
+      ! right edge if there is no neighbour
+      IF (Rank_of_process_right.LT.0) THEN
+         i = indx_x_max
+         DO j = indx_y_min+1, indx_y_max-1
+            EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+            EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
+         END DO
       END IF
+      ! edge above if there is no neighbour
+      IF (Rank_of_process_above.LT.0) THEN
+         j = indx_y_max
+         DO i = indx_x_min+1, indx_x_max-1
+            EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+            EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))           
+         END DO
+      END IF
+      ! edge below if there is no neighbour
+      IF (Rank_of_process_below.LT.0) THEN
+         j = indx_y_min
+         DO i = indx_x_min+1, indx_x_max-1
+            EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+            EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))           
+         END DO
+      END IF
+      ! use ranks of neighbor processes (blocks) because only corners of clusters are identified 
+      ! left bottom corner if it is surrounded by walls
+      IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
+         i = indx_x_min
+         j = indx_y_min
+         EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+         EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
+      END IF
+      ! left top corner if it is surrounded by walls
+      IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
+         i = indx_x_min
+         j = indx_y_max
+         EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+         EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
+      END IF
+      ! right bottom corner if it is surrounded by walls
+      IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
+         i = indx_x_max
+         j = indx_y_min
+         EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+         EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
+      END IF
+      ! right top corner if it is surrounded by walls
+      IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
+         i = indx_x_max
+         j = indx_y_max
+         EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+         EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
+      END IF
+
+      ! receive fields from field calculators
+      DO k = 2, cluster_N_blocks
+
+         shift = (field_calculator(k)%indx_x_max - field_calculator(k)%indx_x_min + 1) * &
+               & (field_calculator(k)%indx_y_max - field_calculator(k)%indx_y_min + 1)
+         bufsize = 2*shift
+         ALLOCATE(rbufer(bufsize), STAT = ALLOC_ERR)
+         CALL MPI_RECV(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_calculator(k)%rank, field_calculator(k)%rank, MPI_COMM_WORLD, stattus, ierr)
+
+         pos=1
+         j = field_calculator(k)%indx_y_min
+         IF (field_calculator(k)%indx_y_min.EQ.c_indx_y_min) THEN
+            IF (field_calculator(k)%indx_x_min.EQ.c_indx_x_min) THEN
+               ! left bottom corner of block is left bottom corner of cluster
+               EX(c_indx_x_min,j) = rbufer(pos)
+               EY(c_indx_x_min,j) = rbufer(pos+shift)
+            END IF
+            pos = pos + 1
+            ! bottom edge of block is on bottom edge of cluster
+            DO i = field_calculator(k)%indx_x_min+1, field_calculator(k)%indx_x_max-1
+               EX(i,j) = rbufer(pos)
+               EY(i,j) = rbufer(pos+shift)
+               pos = pos + 1
+            END DO
+            IF (field_calculator(k)%indx_x_max.EQ.c_indx_x_max) THEN
+               ! right bottom corner of block is right bottom corner of cluster
+               EX(c_indx_x_max,j) = rbufer(pos)
+               EY(c_indx_x_max,j) = rbufer(pos+shift)
+            END IF
+            pos = pos + 1
+         END IF
+
+         pos = field_calculator(k)%indx_x_max - field_calculator(k)%indx_x_min + 2
+         DO j = field_calculator(k)%indx_y_min+1, field_calculator(k)%indx_y_max-1
+            IF (field_calculator(k)%indx_x_min.EQ.c_indx_x_min) THEN
+               EX(c_indx_x_min,j) = rbufer(pos)
+               EY(c_indx_x_min,j) = rbufer(pos+shift)
+            END IF
+            pos = pos + 1
+            DO i = field_calculator(k)%indx_x_min+1, field_calculator(k)%indx_x_max-1
+               EX(i,j) = rbufer(pos)
+               EY(i,j) = rbufer(pos+shift)
+               pos = pos + 1
+            END DO
+            IF (field_calculator(k)%indx_x_max.EQ.c_indx_x_max) THEN
+               EX(c_indx_x_max,j) = rbufer(pos)
+               EY(c_indx_x_max,j) = rbufer(pos+shift)
+            END IF
+            pos = pos + 1      
+         END DO
+
+         j = field_calculator(k)%indx_y_max
+         IF (field_calculator(k)%indx_y_max.EQ.c_indx_y_max) THEN
+            IF (field_calculator(k)%indx_x_min.EQ.c_indx_x_min) THEN
+               ! left top corner of block is left top corner of cluster
+               EX(c_indx_x_min,j) = rbufer(pos)
+               EY(c_indx_x_min,j) = rbufer(pos+shift)
+            END IF
+            pos = pos + 1
+            ! top edge of block is on top edge of cluster
+            DO i = field_calculator(k)%indx_x_min+1, field_calculator(k)%indx_x_max-1
+               EX(i,j) = rbufer(pos)
+               EY(i,j) = rbufer(pos+shift)
+               pos = pos+1
+            END DO
+            IF (field_calculator(k)%indx_x_max.EQ.c_indx_x_max) THEN
+               ! right top corner of block is right top corner of cluster
+               EX(c_indx_x_max,j) = rbufer(pos)
+               EY(c_indx_x_max,j) = rbufer(pos+shift)
+            END IF
+         END IF
+
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT = ALLOC_ERR)
+
+      END DO
+         ! enforce boundary condition EX=0 at the symmetry plane
+         IF ( symmetry_plane_X_left )  EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = 0.0_8
+         IF ( neumann_Y_cluster_top ) THEN
+            DO i=c_indx_x_min, c_indx_x_max
+               
+               ! Check if point i,j is Neumann 
+               CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,c_indx_y_max,neumann_flag)
+               
+               ! This point is Neumann, I shall proceed
+               IF ( neumann_flag ) THEN            
+                  EY(i, c_indx_y_max) = zero
+               ENDIF 
+            ENDDO
+         END IF
+         IF ( neumann_Y_cluster_bottom ) THEN
+            DO i=c_indx_x_min, c_indx_x_max
+               
+               ! Check if point i,j is Neumann 
+               CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(i,c_indx_y_min,neumann_flag)
+               
+               ! This point is Neumann, I shall proceed
+               IF ( neumann_flag ) THEN            
+                  EY(i, c_indx_y_min) = zero
+               ENDIF 
+            ENDDO      
+         ENDIF
+         IF ( neumann_X_cluster_left ) THEN 
+            DO j=c_indx_y_min, c_indx_y_max
+               
+               ! Check if point i,j is Neumann 
+               CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(c_indx_x_min,j,neumann_flag)
+               
+               ! This point is Neumann, I shall proceed
+               IF ( neumann_flag ) THEN       
+                  EX(c_indx_x_min, j) = zero     
+               ENDIF 
+            ENDDO      
+         END IF
+            
+         IF ( neumann_X_cluster_right ) THEN
+            DO j=c_indx_y_min, c_indx_y_max
+               
+               ! Check if point i,j is Neumann 
+               CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(c_indx_x_max,j,neumann_flag)
+               
+               ! This point is Neumann, I shall proceed
+               IF ( neumann_flag ) THEN       
+                  EX(c_indx_x_max, j) = zero     
+               ENDIF 
+            ENDDO      
+         END IF              
          
-      IF ( neumann_X_cluster_right ) THEN
-         DO j=c_indx_y_min, c_indx_y_max
-            
-            ! Check if point i,j is Neumann 
-            CALL DECIDE_NEUMANN_EXTERNAL_BOUNDARY(c_indx_x_max,j,neumann_flag)
-            
-            ! This point is Neumann, I shall proceed
-            IF ( neumann_flag ) THEN       
-               EX(c_indx_x_max, j) = zero     
-            ENDIF 
-         ENDDO      
-      END IF              
+
+      ! exchange boundary field values with neighbor masters
+
+      n1 = c_indx_y_max - c_indx_y_min + 1
+      n3 = c_indx_x_max - c_indx_x_min + 1
+
+      IF (WHITE_CLUSTER) THEN  
+         ! "white processes"
+
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:(n1+n1)), STAT=ALLOC_ERR)
+
+         IF (Rank_horizontal_right.GE.0) THEN
+            ! ## 1 ## send right electric fields in column left of the right edge
+            rbufer(1:n1)           = EX(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
+            rbufer((n1+1):(n1+n1)) = EY(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (Rank_horizontal_left.GE.0) THEN
+            ! ## 2 ## send left electric field in column right of the left edge
+            rbufer(1:n1)           = EX(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
+            rbufer((n1+1):(n1+n1)) = EY(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (Rank_horizontal_left.GE.0) THEN
+            ! ## 3 ## receive from left electric field along the left edge
+            CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)   
+            EY(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
+         END IF
+
+         IF (Rank_horizontal_right.GE.0) THEN
+            ! ## 4 ## receive from right electric field along the right edge
+            CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)
+            EY(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
+         END IF
+
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:(n3+n3)), STAT=ALLOC_ERR)
+
+         IF (Rank_horizontal_above.GE.0) THEN
+            ! ## 5 ## send up electric fields in the row below the top edge
+            rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
+            rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
+            CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (Rank_horizontal_below.GE.0) THEN
+            ! ## 6 ## send down electric fields in the row above the bottom edge
+            rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
+            rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
+            CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (Rank_horizontal_below.GE.0) THEN
+            ! ## 7 ## receive from below electric fields in the bottom edge
+            CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer(1:n3)
+            EY(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer((n3+1):(n3+n3))
+         END IF
+
+         IF (Rank_horizontal_above.GE.0) THEN
+            ! ## 8 ## receive from above electric fields in the top edge
+            CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer(1:n3)
+            EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer((n3+1):(n3+n3))
+         END IF
+
+      ELSE
+         ! "black" processes
+
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:(n1+n1)), STAT=ALLOC_ERR)
+
+         IF (Rank_horizontal_left.GE.0) THEN
+            ! ## 1 ## receive from left electric field along the left edge
+            CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)   
+            EY(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
+         END IF
+
+         IF (Rank_horizontal_right.GE.0) THEN
+            ! ## 2 ## receive from right electric field along the right edge
+            CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)
+            EY(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
+         END IF
+
+         IF (Rank_horizontal_right.GE.0) THEN
+            ! ## 3 ## send right electric fields in column left of the right edge
+            rbufer(1:n1)           = EX(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
+            rbufer((n1+1):(n1+n1)) = EY(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (Rank_horizontal_left.GE.0) THEN
+            ! ## 4 ## send left electric field in column right of the left edge
+            rbufer(1:n1)           = EX(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
+            rbufer((n1+1):(n1+n1)) = EY(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
+            CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+         ALLOCATE(rbufer(1:(n3+n3)), STAT=ALLOC_ERR)
+
+         IF (Rank_horizontal_below.GE.0) THEN
+            ! ## 5 ## receive from below electric fields in the bottom edge
+            CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer(1:n3)
+            EY(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer((n3+1):(n3+n3))
+         END IF
+
+         IF (Rank_horizontal_above.GE.0) THEN
+            ! ## 6 ## receive from above electric fields in the top edge
+            CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
+            EX(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer(1:n3)
+            EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer((n3+1):(n3+n3))
+         END IF
+
+         IF (Rank_horizontal_above.GE.0) THEN
+            ! ## 7 ## send up electric fields in the row below the top edge
+            rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
+            rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
+            CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+         IF (Rank_horizontal_below.GE.0) THEN
+      ! ## 8 ## send down electric fields in the row above the bottom edge
+            rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
+            rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
+            CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
+         END IF
+
+      END IF
+
+      IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
+
+   ! ready to send complete field array to all members of the cluster
+
+   ELSE
+
+      ! we make the array of the size of the whole block, however, the edge values will be used in the field master
+      ! only if the edge is where there is no neighbour
+      ALLOCATE(loc_EX(indx_x_min:indx_x_max, indx_y_min:indx_y_max), STAT = ALLOC_ERR)
+      ALLOCATE(loc_EY(indx_x_min:indx_x_max, indx_y_min:indx_y_max), STAT = ALLOC_ERR)
+
+      DO j = indx_y_min+1, indx_y_max-1
+         DO i = indx_x_min+1, indx_x_max-1
+            loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+            loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
+            ! Check if node belongs to dielectric interface. This will make sure particles see a correct electric field and not an average
+            DO nio = N_of_boundary_objects+1, N_of_boundary_and_inner_objects
+               CALL CHECK_IF_INNER_OBJECT_CONTAINS_POINT(whole_object(nio), i, j, position_flag)           
+               IF ( position_flag==1 .OR. position_flag==7 .OR. position_flag==8 ) THEN ! left side including corners
+                  loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+                  loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
+               ELSE IF ( position_flag==3 .OR. position_flag==5 .OR. position_flag==4 ) THEN ! right side including corners
+                  loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+                  loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
+               ELSE IF ( position_flag==2 ) THEN ! bottom side 
+                  loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+                  loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))
+               ELSE IF ( position_flag==6) THEN ! top side 
+                  loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+                  loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))                  
+               END IF
+            END DO                  
+         END DO
+      END DO
+      ! left edge if there is no neighbour
+      IF (Rank_of_process_left.LT.0) THEN
+         i = indx_x_min
+         DO j = indx_y_min+1, indx_y_max-1
+            loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+            loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
+         END DO
+      END IF
+      ! right edge if there is no neighbour
+      IF (Rank_of_process_right.LT.0) THEN
+         i = indx_x_max
+         DO j = indx_y_min+1, indx_y_max-1
+            loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+            loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
+         END DO
+      END IF
+      ! edge above if there is no neighbour
+      IF (Rank_of_process_above.LT.0) THEN
+         j = indx_y_max
+         DO i = indx_x_min+1, indx_x_max-1
+            loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+            loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))           
+         END DO
+      END IF
+      ! edge below if there is no neighbour
+      IF (Rank_of_process_below.LT.0) THEN
+         j = indx_y_min
+         DO i = indx_x_min+1, indx_x_max-1
+            loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
+            loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))           
+         END DO
+      END IF
+      ! use ranks of neighbor processes (blocks) because only corners of clusters are identified 
+      ! besides, the process may belong to a different cluster (not the one where the master is its field master)
+      ! left bottom corner if it is surrounded by walls
+      IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
+         i = indx_x_min
+         j = indx_y_min
+         loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+         loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
+      END IF
+      ! left top corner if it is surrounded by walls
+      IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
+         i = indx_x_min
+         j = indx_y_max
+         loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
+         loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
+      END IF
+      ! right bottom corner if it is surrounded by walls
+      IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
+         i = indx_x_max
+         j = indx_y_min
+         loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+         loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
+      END IF
+      ! right top corner if it is surrounded by walls
+      IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
+         i = indx_x_max
+         j = indx_y_max
+         loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
+         loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
+      END IF
+
+      ! send to its field master
+      bufsize = 2 * (indx_x_max - indx_x_min + 1) * (indx_y_max - indx_y_min + 1)
+      ALLOCATE(rbufer(1:bufsize), STAT = ALLOC_ERR)
+      pos1 = 1
+      pos2 = indx_x_max - indx_x_min + 1
+      DO j = indx_y_min, indx_y_max
+         rbufer(pos1:pos2) = loc_EX(indx_x_min:indx_x_max,j)
+         pos1 = pos2 + 1
+         pos2 = pos2 + indx_x_max - indx_x_min + 1
+      END DO
+      DO j = indx_y_min, indx_y_max
+         rbufer(pos1:pos2) = loc_EY(indx_x_min:indx_x_max,j)
+         pos1 = pos2 + 1
+         pos2 = pos2 + indx_x_max - indx_x_min + 1
+      END DO
+      CALL MPI_SEND(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_master, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
       
+      DEALLOCATE(loc_EX, STAT=ALLOC_ERR)
+      DEALLOCATE(loc_EY, STAT=ALLOC_ERR)
+      DEALLOCATE(rbufer, STAT=ALLOC_ERR)
 
-! exchange boundary field values with neighbor masters
+   ! ready to receive complete field array from the master of the cluster
 
-     n1 = c_indx_y_max - c_indx_y_min + 1
-     n3 = c_indx_x_max - c_indx_x_min + 1
-
-     IF (WHITE_CLUSTER) THEN  
-! "white processes"
-
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:(n1+n1)), STAT=ALLOC_ERR)
-
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 1 ## send right electric fields in column left of the right edge
-           rbufer(1:n1)           = EX(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
-           rbufer((n1+1):(n1+n1)) = EY(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 2 ## send left electric field in column right of the left edge
-           rbufer(1:n1)           = EX(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
-           rbufer((n1+1):(n1+n1)) = EY(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 3 ## receive from left electric field along the left edge
-           CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)   
-           EY(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
-        END IF
-
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 4 ## receive from right electric field along the right edge
-           CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)
-           EY(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
-        END IF
-
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:(n3+n3)), STAT=ALLOC_ERR)
-
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 5 ## send up electric fields in the row below the top edge
-           rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
-           rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
-           CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 6 ## send down electric fields in the row above the bottom edge
-           rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
-           rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
-           CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 7 ## receive from below electric fields in the bottom edge
-           CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer(1:n3)
-           EY(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer((n3+1):(n3+n3))
-        END IF
-
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 8 ## receive from above electric fields in the top edge
-           CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer(1:n3)
-           EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer((n3+1):(n3+n3))
-        END IF
-
-     ELSE
-! "black" processes
-
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:(n1+n1)), STAT=ALLOC_ERR)
-
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 1 ## receive from left electric field along the left edge
-           CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal_left, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)   
-           EY(c_indx_x_min, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
-        END IF
-
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 2 ## receive from right electric field along the right edge
-           CALL MPI_RECV(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal_right, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer(1:n1)
-           EY(c_indx_x_max, c_indx_y_min:c_indx_y_max) = rbufer((n1+1):(n1+n1))
-        END IF
-
-        IF (Rank_horizontal_right.GE.0) THEN
-! ## 3 ## send right electric fields in column left of the right edge
-           rbufer(1:n1)           = EX(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
-           rbufer((n1+1):(n1+n1)) = EY(c_indx_x_max-1, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_right, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (Rank_horizontal_left.GE.0) THEN
-! ## 4 ## send left electric field in column right of the left edge
-           rbufer(1:n1)           = EX(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
-           rbufer((n1+1):(n1+n1)) = EY(c_indx_x_min+1, c_indx_y_min:c_indx_y_max)
-           CALL MPI_SEND(rbufer, n1+n1, MPI_DOUBLE_PRECISION, Rank_horizontal_left, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-        ALLOCATE(rbufer(1:(n3+n3)), STAT=ALLOC_ERR)
-
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 5 ## receive from below electric fields in the bottom edge
-           CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal_below, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer(1:n3)
-           EY(c_indx_x_min:c_indx_x_max, c_indx_y_min) = rbufer((n3+1):(n3+n3))
-        END IF
-
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 6 ## receive from above electric fields in the top edge
-           CALL MPI_RECV(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal_above, COMM_HORIZONTAL, stattus, ierr)
-           EX(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer(1:n3)
-           EY(c_indx_x_min:c_indx_x_max, c_indx_y_max) = rbufer((n3+1):(n3+n3))
-        END IF
-
-        IF (Rank_horizontal_above.GE.0) THEN
-! ## 7 ## send up electric fields in the row below the top edge
-           rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
-           rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_max-1)
-           CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_above, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-        IF (Rank_horizontal_below.GE.0) THEN
-! ## 8 ## send down electric fields in the row above the bottom edge
-           rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
-           rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
-           CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 
-        END IF
-
-     END IF
-
-     IF (ALLOCATED(rbufer)) DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-
-! ready to send complete field array to all members of the cluster
-
-  ELSE
-
-! we make the array of the size of the whole block, however, the edge values will be used in the field master
-! only if the edge is where there is no neighbour
-     ALLOCATE(loc_EX(indx_x_min:indx_x_max, indx_y_min:indx_y_max), STAT = ALLOC_ERR)
-     ALLOCATE(loc_EY(indx_x_min:indx_x_max, indx_y_min:indx_y_max), STAT = ALLOC_ERR)
-
-     DO j = indx_y_min+1, indx_y_max-1
-        DO i = indx_x_min+1, indx_x_max-1
-           loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
-           loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))
-        END DO
-     END DO
-! left edge if there is no neighbour
-     IF (Rank_of_process_left.LT.0) THEN
-        i = indx_x_min
-        DO j = indx_y_min+1, indx_y_max-1
-           loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
-           loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
-        END DO
-     END IF
-! right edge if there is no neighbour
-     IF (Rank_of_process_right.LT.0) THEN
-        i = indx_x_max
-        DO j = indx_y_min+1, indx_y_max-1
-           loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
-           loc_EY(i,j) = factor2_E_from_F * (phi(i,j-1)-phi(i,j+1))           
-        END DO
-     END IF
-! edge above if there is no neighbour
-     IF (Rank_of_process_above.LT.0) THEN
-        j = indx_y_max
-        DO i = indx_x_min+1, indx_x_max-1
-           loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
-           loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))           
-        END DO
-     END IF
-! edge below if there is no neighbour
-     IF (Rank_of_process_below.LT.0) THEN
-        j = indx_y_min
-        DO i = indx_x_min+1, indx_x_max-1
-           loc_EX(i,j) = factor2_E_from_F * (phi(i-1,j)-phi(i+1,j))
-           loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))           
-        END DO
-     END IF
-! use ranks of neighbor processes (blocks) because only corners of clusters are identified 
-! besides, the process may belong to a different cluster (not the one where the master is its field master)
-! left bottom corner if it is surrounded by walls
-     IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
-        i = indx_x_min
-        j = indx_y_min
-        loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
-        loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
-     END IF
-! left top corner if it is surrounded by walls
-     IF ((Rank_of_process_left.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
-        i = indx_x_min
-        j = indx_y_max
-        loc_EX(i,j) = factor1_E_from_F * (phi(i,j)-phi(i+1,j))
-        loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
-     END IF
-! right bottom corner if it is surrounded by walls
-     IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_below.LT.0)) THEN
-        i = indx_x_max
-        j = indx_y_min
-        loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
-        loc_EY(i,j) = factor1_E_from_F * (phi(i,j)-phi(i,j+1))  
-     END IF
-! right top corner if it is surrounded by walls
-     IF ((Rank_of_process_right.LT.0).AND.(Rank_of_process_above.LT.0)) THEN
-        i = indx_x_max
-        j = indx_y_max
-        loc_EX(i,j) = factor1_E_from_F * (phi(i-1,j)-phi(i,j))
-        loc_EY(i,j) = factor1_E_from_F * (phi(i,j-1)-phi(i,j))  
-     END IF
-
-! send to its field master
-     bufsize = 2 * (indx_x_max - indx_x_min + 1) * (indx_y_max - indx_y_min + 1)
-     ALLOCATE(rbufer(1:bufsize), STAT = ALLOC_ERR)
-     pos1 = 1
-     pos2 = indx_x_max - indx_x_min + 1
-     DO j = indx_y_min, indx_y_max
-        rbufer(pos1:pos2) = loc_EX(indx_x_min:indx_x_max,j)
-        pos1 = pos2 + 1
-        pos2 = pos2 + indx_x_max - indx_x_min + 1
-     END DO
-     DO j = indx_y_min, indx_y_max
-        rbufer(pos1:pos2) = loc_EY(indx_x_min:indx_x_max,j)
-        pos1 = pos2 + 1
-        pos2 = pos2 + indx_x_max - indx_x_min + 1
-     END DO
-     CALL MPI_SEND(rbufer, bufsize, MPI_DOUBLE_PRECISION, field_master, Rank_of_process, MPI_COMM_WORLD, request, ierr) 
-    
-     DEALLOCATE(loc_EX, STAT=ALLOC_ERR)
-     DEALLOCATE(loc_EY, STAT=ALLOC_ERR)
-     DEALLOCATE(rbufer, STAT=ALLOC_ERR)
-
-! ready to receive complete field array from the master of the cluster
-
-  END IF
+   END IF
 
 ! master of the cluster distributes complete field arrays
 
