@@ -1576,7 +1576,7 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
          ELSE
             x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
          END IF
-         y = DBLE(c_indx_y_min) + vy*well_random_number()             
+         y = DBLE(c_indx_y_max) + vy*well_random_number()             
          ! IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN  !Rank_of_master_right.GE.0) THEN
          !    x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart )
          !    x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
