@@ -87,7 +87,7 @@ SUBROUTINE PREPARE_SETUP_VALUES
      READ (9, '(A1)') buf !------AAAAAA--- code/abbreviation of the material, character string 
      READ (9, '(6x,A6)') whole_object(n)%material
      READ (9, '(A1)') buf !---ddddd.ddd--- constant potential [V]
-     READ (9, '(3x,f9.3)') whole_object(n)%phi_const
+     READ (9, '(2x,f10.3)') whole_object(n)%phi_const
      READ (9, '(A1)') buf !---ddddd.ddd--- amplitude of potential oscillations [V]
      READ (9, '(3x,f9.3)') whole_object(n)%phi_var
      READ (9, '(A1)') buf !---ddddd.ddd--- frequency [MHz]
