@@ -346,7 +346,7 @@ REAL(8) FUNCTION ECPS_Custom_Waveform(n_ps, T_cntr)
   INTEGER wf_period
   INTEGER my_wf_T_cntr
   INTEGER i
-  REAL ai
+  REAL(8) ai
 
   ECPS_Custom_Waveform = 0.0_8
 
@@ -383,7 +383,7 @@ REAL(8) FUNCTION ECPS_Amplitude_Profile(n_ps, T_cntr)
   INTEGER ap_period
   INTEGER my_ap_T_cntr
   INTEGER i
-  REAL ai
+  REAL(8) ai
 
   ECPS_Amplitude_Profile = 1.0_8
 

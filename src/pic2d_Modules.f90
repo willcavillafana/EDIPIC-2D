@@ -443,6 +443,14 @@ MODULE CurrentProblemValues
      REAL(8), ALLOCATABLE :: T_ii_ee_true_eV(:)                    ! Temperature of injected true secondary electrons, [eV]
      REAL(8), ALLOCATABLE :: factor_convert_ii_ee_true_vinj(:)     ! factor to be used to convert values provided by Get*Velocity procedures to desired temperature
 
+     INTEGER :: i_inject_ion_flux_bo ! =1 we want injection of ion flux from boundary object. Flux value and average velocity is provided by user. First species of ions for now
+    !  INTEGER :: i_inject_electron_flux_bo ! =1 we want injection of electron flux from boundary object. Flux value and average velocity is provided by user
+     REAL(8) :: ion_flux_value ! Imposed ion flux
+     REAL(8) :: ion_additional_mean_velocity_value ! Additional mean velocity that is added to the Maxwellian flux. Total velocity is u_add+sqrt(eT/(2*m*pi))
+     REAL(8) :: ion_temperature_normal ! Temperature for injected ions
+    !  REAL(8) :: electron_flux_value ! Imposed electron flux
+    !  REAL(8) :: electron_additional_mean_velocity_value ! Additional mean velocity that is added to the Maxwellian flux. Total velocity is u_add+sqrt(eT/(2*m*pi))
+
   END TYPE boundary_object
 
   INTEGER N_of_boundary_objects
@@ -725,7 +733,7 @@ MODULE ClusterAndItsBoundaries
 
   REAL(8), ALLOCATABLE :: vol_r_m3(:) ! node volume in cylindrical 
   REAL(8), ALLOCATABLE :: vol_cart(:) ! node volume in cartesian. By default it is dx**2. It is locally corrected after on the fly with IF conditions (not great) when there are wall boundaries 
-  REAL(8), ALLOCATABLE :: factor_cyl_vol(:) ! corrective factory in claculation of density in cylindrical coordites: V_cart/V_cyl
+  REAL(8), ALLOCATABLE :: factor_cyl_vol(:) ! corrective factory in claculation of density in cylindrical coordites: V_cart/V_cyl. This factor also applies fpr surface f = S_cart/S_cyl
 
 END MODULE ClusterAndItsBoundaries
 
@@ -1346,6 +1354,7 @@ MODULE ExternalCircuit
   INTEGER N_of_inductors    ! number of inductors
 
   REAL(8), ALLOCATABLE :: resistor_R_Ohm(:)
+  REAL(8), ALLOCATABLE :: resistor_R_scale(:)
   REAL(8), ALLOCATABLE :: capacitor_C_F(:)
   REAL(8), ALLOCATABLE :: inductor_L_H(:)
 

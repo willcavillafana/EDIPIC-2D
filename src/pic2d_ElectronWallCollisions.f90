@@ -1262,7 +1262,8 @@ SUBROUTINE PrepareMaxwellDistribIntegral
 
 !  v = v * N_box_vel
 
-!--------- for asymmetrical maxwellian * v (used for injection, v > 0)
+!--------- for asymmetrical maxwellian * v (used for injection, v > 0). True if assuming we have a Maxwellian behind wall. 
+  !Not true if this thermionic emission for instance (half Maxwellian required). See EUROFUSION WPHCD-PR(16) 16719 by L. Garrigues 
 
   N_pnts = 90000   !15000
   V_min  = 0.0_8
@@ -1270,9 +1271,9 @@ SUBROUTINE PrepareMaxwellDistribIntegral
   dV = (V_max - V_min) / N_pnts
 
   F = 0.0_8
-  DO i = 1, N_pnts + 3
-     temp = V_min + (REAL(i)-0.5_8) * dV
-     F(i) = F(i-1) + EXP( - temp**2 ) * temp
+  DO i = 1, N_pnts + 3 ! +3 is to make sure we get Umax
+     temp = V_min + (REAL(i)-0.5_8) * dV 
+     F(i) = F(i-1) + EXP( - temp**2 ) * temp ! Cumulative distribution function int_0^Umax v*exp(-v^2)
   END DO
 
   temp = F(N_pnts)
@@ -1281,7 +1282,8 @@ SUBROUTINE PrepareMaxwellDistribIntegral
   v_inj(0) = V_min
   count = 0
   DO i = 1, N_pnts + 3
-     IF ((INT(F(i))-count).EQ.1) THEN
+     IF ((INT(F(i))-count).EQ.1) THEN !F = P(v<v_inj). Whenever this condition is satisfied we can add a new sampled velocity, who probability will satisfy the half Maxwellian. 
+                                      ! Probabilities are evenly spaced. Velolcities are not. Efficient method for sampling any disitrbution function. 
         count = count + 1
         v_inj(count) = V_min + i * dV
         IF (count.EQ.R_max_inj) THEN
@@ -1328,7 +1330,7 @@ SUBROUTINE GetInjMaxwellVelocity(U)
      U = v_inj(indx) + (R - indx) * (v_inj(indx+1) - v_inj(indx))
   ELSE
      U = v_inj(R_max_inj)
-  END IF
+  END IF ! U will be rescaled with v = U*vth/V_scale
   RETURN
   
 END SUBROUTINE GetInjMaxwellVelocity

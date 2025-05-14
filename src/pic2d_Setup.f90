@@ -64,6 +64,14 @@ SUBROUTINE PREPARE_SETUP_VALUES
 
      whole_object(n)%N_objects_connected_to_it = 0
 
+     whole_object(n)%i_inject_ion_flux_bo = 0
+   !   whole_object(n)%i_inject_electron_flux_bo = 0
+     whole_object(n)%ion_flux_value = zero
+     whole_object(n)%ion_additional_mean_velocity_value = zero
+     whole_object(n)%ion_temperature_normal = zero
+   !   whole_object(n)%electron_flux_value = zero
+   !   whole_object(n)%electron_additional_mean_velocity_value = zero
+
      initbo_filename = 'init_bo_NN.dat'
      initbo_filename(9:10) = convert_int_to_txt_string(n, 2)
      
@@ -79,7 +87,7 @@ SUBROUTINE PREPARE_SETUP_VALUES
      READ (9, '(A1)') buf !------AAAAAA--- code/abbreviation of the material, character string 
      READ (9, '(6x,A6)') whole_object(n)%material
      READ (9, '(A1)') buf !---ddddd.ddd--- constant potential [V]
-     READ (9, '(3x,f9.3)') whole_object(n)%phi_const
+     READ (9, '(2x,f10.3)') whole_object(n)%phi_const
      READ (9, '(A1)') buf !---ddddd.ddd--- amplitude of potential oscillations [V]
      READ (9, '(3x,f9.3)') whole_object(n)%phi_var
      READ (9, '(A1)') buf !---ddddd.ddd--- frequency [MHz]
@@ -165,7 +173,9 @@ END SUBROUTINE PREPARE_SETUP_VALUES
 !-------------------------------------------------------------------------------------------------- 
 SUBROUTINE LOAD_ADDITIONAL_INFO ( n,file_name_bo )
       
-   USE CurrentProblemValues, ONLY: whole_object, string_length,zero, F_scale_V, delta_t_s, N_of_boundary_and_inner_objects
+   USE CurrentProblemValues, ONLY: whole_object, string_length,zero, F_scale_V, delta_t_s, N_of_boundary_and_inner_objects, two, e_Cl,&
+                                   pi, m_e_kg, V_scale_ms, weight_ptcl, N_subcycles, N_of_boundary_objects
+   USE IonParticles, ONLY: init_Ti_eV, Ms
    USE mod_print, ONLY: print_debug,print_message,print_parser_error
    USE array_utils, ONLY: increase_array_size
    IMPLICIT NONE
@@ -185,6 +195,7 @@ SUBROUTINE LOAD_ADDITIONAL_INFO ( n,file_name_bo )
    INTEGER :: ival    ! buffer for integer values
    INTEGER :: i_connected_to_other_boundary ! Is the current boundary connected to another boundary, itself connecgted to an external circuit
    INTEGER :: connected_object ! object number connect to present (n) object
+   INTEGER :: nb_ions_to_inject ! number of ions to inject roughly per ion cycle
 
    ! Defautl values
    local_debug_level = 1
@@ -260,7 +271,107 @@ SUBROUTINE LOAD_ADDITIONAL_INFO ( n,file_name_bo )
          END IF      
          
       END IF
+
+      i_found = 0
+      REWIND(9)
+      DO
+         READ (9,"(A)",iostat=ierr) line ! read line into character variable
+         IF ( ierr/=0 .OR. i_found==1 ) EXIT
+         IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+         READ (line,*) long_buf ! read first word of line
+         IF ( TRIM(long_buf)=="ion_injected_flux_from_boundary" ) THEN ! found search string at beginning of line
+            i_found = 1
+            READ (line,*) long_buf,separator,caval                    
+            IF ( TRIM(caval)=="yes" ) THEN
+               whole_object(n)%i_inject_ion_flux_bo = 1
+               WRITE( message,'(A,I2,A)') "Boundary object ",n," will inject an imposed flux of first species of ions"
+               CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="no" ) THEN
+               whole_object(n)%i_inject_ion_flux_bo = 0
+               WRITE( message,'(A,I2,A)') "Boundary object ",n,"  will NOT inject an imposed flux of ions"//achar(10)
+               CALL print_message( message,routine )
+            ELSE
+               WRITE( message,'(A,I2,A,A)') 'You must specify "yes" or "no" if ion_injected_flux_from_boundary is used for boundary object ',n,'. Received: ',TRIM(caval),achar(10)
+               CALL print_parser_error( message )
+            END IF
+
+            IF (n>N_of_boundary_objects) THEN
+               WRITE( message,'(A,I2,A)') "Boundary object ",n,"  is an inner object. Only domain boundaries are supported as of today"
+               CALL print_parser_error( message )
+            END IF
+         END IF
+      END DO
+      IF ( i_found==0 ) THEN
+         whole_object(n)%i_inject_ion_flux_bo = 0
+         WRITE( message,'(A,I2,A)') "ion_injected_flux_from_boundary keyword not present for boundary object ",n,". I assume we do not want it"//achar(10)
+         CALL print_message( message,routine )       
+      END IF  
       
+      ! i_found = 0
+      ! REWIND(9)
+      ! DO
+      !    READ (9,"(A)",iostat=ierr) line ! read line into character variable
+      !    IF ( ierr/=0 .OR. i_found==1 ) EXIT
+      !    IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+      !    READ (line,*) long_buf ! read first word of line
+      !    IF ( TRIM(long_buf)=="electron_injected_flux_from_boundary" ) THEN ! found search string at beginning of line
+      !       i_found = 1
+      !       READ (line,*) long_buf,separator,caval                    
+      !       IF ( TRIM(caval)=="yes" ) THEN
+      !          whole_object(n)%i_inject_electron_flux_bo = 1
+      !          WRITE( message,'(A,I2,A)') "Boundary object ",n," will inject an imposed flux of electrons"
+      !          CALL print_message( message,routine )
+      !       ELSE IF ( TRIM(caval)=="no" ) THEN
+      !          whole_object(n)%i_inject_electron_flux_bo = 0
+      !          WRITE( message,'(A,I2,A)') "Boundary object ",n,"  will NOT inject an imposed flux of electrons"//achar(10)
+      !          CALL print_message( message,routine )
+      !       ELSE
+      !          WRITE( message,'(A,I2,A,A)') 'You must specify "yes" or "no" if electron_injected_flux_from_boundary is used for boundary object ',n,'. Received: ',TRIM(caval),achar(10)
+      !          CALL print_parser_error( message )
+      !       END IF
+      !    END IF
+      ! END DO
+      ! IF ( i_found==0 ) THEN
+      !    whole_object(n)%i_inject_electron_flux_bo = 0
+      !    WRITE( message,'(A,I2,A)') "ion_injected_flux_from_boundary keyword not present for boundary object ",n,". I assume we do not want it"//achar(10)
+      !    CALL print_message( message,routine )       
+      ! END IF    
+      
+      IF (whole_object(n)%i_inject_ion_flux_bo==1) THEN
+         i_found = 0
+         REWIND(9)
+         DO
+            READ (9,"(A)",iostat=ierr) line ! read line into character variable
+            IF ( ierr/=0 .OR. i_found==1 ) EXIT
+            IF (line == '') CYCLE   ! Skip the rest of the loop if the line is empty. Will cause a crash
+            READ (line,*) long_buf ! read first word of line
+            IF ( TRIM(long_buf).EQ."Flux_value_and_additional_mean_velocity_value_temperature" ) THEN ! found search string at beginning of line
+               i_found = 1
+               READ (line,*) long_buf,separator,whole_object(n)%ion_flux_value, whole_object(n)%ion_additional_mean_velocity_value, whole_object(n)%ion_temperature_normal
+
+               WRITE(message, '(A,I2,A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)') &
+                              "For boundary ", n, ", input flux: ", whole_object(n)%ion_flux_value, " [1/m³] coming from a Maxwellian domain, " // &
+                              "additional mean velocity: ", whole_object(n)%ion_additional_mean_velocity_value, " [m/s], " // &
+                              "with normal temperature: ", whole_object(n)%ion_temperature_normal, " [eV], " // &
+                              "total mean velocity (including Maxwellian flux): ", &
+                              whole_object(n)%ion_additional_mean_velocity_value + SQRT(two*e_Cl*whole_object(n)%ion_temperature_normal/(Ms(1)*m_e_kg*pi)), " [m/s]" // ACHAR(10)
+               CALL print_message( message ) 
+               
+               whole_object(n)%ion_additional_mean_velocity_value = whole_object(n)%ion_additional_mean_velocity_value/V_scale_ms
+               nb_ions_to_inject = INT(whole_object(n)%ion_flux_value*delta_t_s*N_subcycles/weight_ptcl)
+               WRITE(message, '(A,I2,A,I4)') "For boundary ", n, ", the number of ions per ion cycle that will be injected is close to: ",nb_ions_to_inject
+               CALL print_message( message ) 
+               
+            END IF
+         END DO
+         IF ( i_found==0 ) THEN
+            whole_object(n)%ion_additional_mean_velocity_value = zero
+            whole_object(n)%ion_flux_value = zero
+            WRITE( message,'(A,I2,A)') "Flux_value_and_additional_mean_velocity_value keyword not present for boundary object ",n,". I assume we do not want it"//achar(10)
+            CALL print_message( message,routine )       
+         END IF         
+      END IF
+
       CLOSE (9, STATUS = 'KEEP')
    END IF
 
@@ -710,7 +821,8 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 !???  USE ParallelOperationValues, ONLY : Rank_of_process
   USE ExternalCircuit
   USE CurrentProblemValues, ONLY : whole_object, N_of_boundary_and_inner_objects, METAL_WALL, delta_t_s, F_scale_V, pi &
-                                   & ,delta_x_m, e_Cl, N_of_particles_cell_dble, N_plasma_m3, i_cylindrical, zero, global_maximal_i, global_maximal_j, pi, string_length
+                                   & ,delta_x_m, e_Cl, N_of_particles_cell_dble, N_plasma_m3, i_cylindrical, zero, global_maximal_i &
+                                   & , global_maximal_j, pi, string_length, weight_ptcl
   USE BlockAndItsBoundaries
    USE mod_print, ONLY: print_message, print_parser_error
 
@@ -722,8 +834,10 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   INTEGER ALLOC_ERR
 
   INTEGER nn, ntemp, n
-  REAL(8) :: weight_ptcl 
+  REAL(8) :: weight_ptcl_local 
   CHARACTER(LEN=string_length) :: message, routine
+
+  REAL(8) :: current_scale
 
 ! function
   REAL(8) ECPS_Voltage
@@ -734,7 +848,8 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   N_of_resistors = 0
   N_of_capacitors = 0
   N_of_inductors = 0
-  weight_ptcl = zero
+  weight_ptcl_local = zero
+  current_scale = zero
 
   routine = 'PREPARE_EXTERNAL_CIRCUIT'
 
@@ -758,8 +873,11 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       CASE (3)
          WRITE( message, '(A)') "Selected circuit: two floating conductors."//achar(10)
          CALL print_message(message)  
+      CASE (4)
+         WRITE( message, '(A)') "Selected circuit: resistor with tension source (waveform and/or simple harmonic)."//achar(10)
+         CALL print_message(message) 
       CASE DEFAULT
-         WRITE( message, '(A,I0)') "Nonexistent circuit selected: I expect 1, 2, 3. Received: .",circuit_type
+         WRITE( message, '(A,I0)') "Nonexistent circuit selected: I expect 1, 2, 3, 4. Received: .",circuit_type
          CALL print_parser_error(message)           
    END SELECT         
 
@@ -822,7 +940,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
      EC_power_supply(n)%phi_var   = EC_power_supply(n)%phi_var / F_scale_V
      EC_power_supply(n)%omega     = EC_power_supply(n)%omega * 2.0_8 * pi * delta_t_s
      EC_power_supply(n)%phase     = EC_power_supply(n)%phase * pi / 180.0_8
-     WRITE( message, '(A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)') "phi_const = ",EC_power_supply(n)%phi_const,"[V], phi_var = ",EC_power_supply(n)%phi_var,"[V], omega = ",EC_power_supply(n)%omega," [Hz], phase = ",EC_power_supply(n)%phase," [deg]."
+     WRITE( message, '(A,ES10.3,A,ES10.3,A,ES10.3,A,ES10.3,A)') "phi_const = ",EC_power_supply(n)%phi_const*F_scale_V,"[V], phi_var = ",EC_power_supply(n)%phi_var*F_scale_V,"[V], omega = ",EC_power_supply(n)%omega," [Hz], phase = ",EC_power_supply(n)%phase," [deg]."
      CALL print_message(message)
   END DO
 
@@ -853,9 +971,9 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
          ! So w_cyl = pi*R*n_scale*dx**2/(N_ppc_input_file) 
          ! So w_cyl = n_scale*dx**2/(N_ppc_input_file/(pi*R)) 
          ! So w_cyl = n_scale*dx**2/(N_of_particles_cell) 
-         weight_ptcl = N_plasma_m3*delta_x_m**2/(N_of_particles_cell_dble)
+         weight_ptcl_local = N_plasma_m3*delta_x_m**2/(N_of_particles_cell_dble) ! same as global one in Modules
          ! Deduce how many particles we should inject 
-         coeff_J = delta_t_s / ( e_Cl*weight_ptcl ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
+         coeff_J = delta_t_s / ( e_Cl*weight_ptcl_local ) ! This is actually the same as in Cartesian but I keep two separate cases for future development and to not redo the math later. 
      END IF
      J_ext = J_ext * coeff_J
 
@@ -871,15 +989,18 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
   CALL print_message(message)       
 
   IF (N_of_resistors.GT.0) ALLOCATE(resistor_R_Ohm(1:N_of_resistors), STAT = ALLOC_ERR)
+  IF (N_of_resistors.GT.0) ALLOCATE(resistor_R_scale(1:N_of_resistors), STAT = ALLOC_ERR)
 
   READ (11, '(A1)') buf   ! below, for each resistor, provide its resistance [Ohm]
-  DO n = 1, N_of_resistors
+   DO n = 1, N_of_resistors
       WRITE( message, '(A,I0)') "Resistor #: ",n
       CALL print_message(message)   
-     READ (11, *) resistor_R_Ohm(n)
-      WRITE( message, '(A,ES10.3,A)') "R = ",resistor_R_Ohm," [Ohm]"
+      READ (11, *) resistor_R_Ohm(n)
+      WRITE( message, '(A,ES10.3,A)') "R = ",resistor_R_Ohm(n)," [Ohm]"
       CALL print_message(message)     
-  END DO
+      current_scale = e_Cl*weight_ptcl/delta_t_s 
+      resistor_R_scale(n) = resistor_R_Ohm(n)/(F_scale_V/current_scale)
+   END DO
 
   WRITE( message, '(A)') ""
   CALL print_message(message)     
@@ -898,7 +1019,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       WRITE( message, '(A,I0)') "Capacitor #: ",n
       CALL print_message(message)      
      READ (11, *) capacitor_C_F(n)
-     WRITE( message, '(A,ES10.3,A)') "C = ",capacitor_C_F," [F]"
+     WRITE( message, '(A,ES10.3,A)') "C = ",capacitor_C_F(n)," [F]"
      CALL print_message(message)         
   END DO
 
@@ -919,7 +1040,7 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
       WRITE( message, '(A,I0)') "Inductor #: ",n
       CALL print_message(message)    
      READ (11, *) inductor_L_H(n)
-     WRITE( message, '(A,ES10.3,A)') "L = ",inductor_L_H," [H]"
+     WRITE( message, '(A,ES10.3,A)') "L = ",inductor_L_H(n)," [H]"
      CALL print_message(message)        
   END DO
 
@@ -930,6 +1051,13 @@ SUBROUTINE PREPARE_EXTERNAL_CIRCUIT
 
 !  OPEN  (21, FILE = 'history_ext_circuit.dat', STATUS = 'REPLACE')
 !  CLOSE (21, STATUS = 'KEEP')
+
+   IF (circuit_type==4) THEN
+      n = 1
+      WRITE( message, '(A,ES10.3,A)') "Circuit with one resistor and one generator in series R = ",resistor_R_scale(n)*F_scale_V/current_scale," [Ohm]"
+      CALL print_message(message)     
+   END IF
+
 
   CALL PREPARE_ECPS_WAVEFORMS
 
@@ -1025,6 +1153,249 @@ SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 
 END SUBROUTINE INITIATE_EXT_CIRCUIT_DIAGNOSTICS
 
+!--------------------------------------------------------------------------------------------------
+!     SUBROUTINE PERFORM_ION_EMISSION_FROM_BO
+!>    @details Inject a preset amount of ions from a selected boundary object. Boundary object must be on domain boundaries
+!              No inner objects supported for now. Only first species of ions is supported for now 
+!              Velocity of ions has two components: thermal from the assumed Maxwellian distribution and added from the user
+!              So v = v_th + v_user
+!!    @authors W. Villafana
+!!    @date    Feb_03_2025
+!-------------------------------------------------------------------------------------------------- 
+
+SUBROUTINE PERFORM_ION_EMISSION_FROM_BO
+
+   USE ParallelOperationValues
+   USE ClusterAndItsBoundaries
+   USE SetupValues
+   USe CurrentProblemValues, ONLY: init_Te_eV, T_e_eV, N_max_vel, i_cylindrical, string_length, debug_level, one, zero, &
+                                   delta_t_s, weight_ptcl, N_subcycles, whole_object, V_scale_ms
+   USE IonParticles, ONLY: Ms, init_Ti_eV
+   USE mod_print, ONLY: print_debug, print_message
+ 
+   USE rng_wrapper
+ 
+   IMPLICIT NONE
+ 
+   INCLUDE 'mpif.h'
+ 
+   !LOCAL   
+   CHARACTER(LEN=string_length) :: message, routine
+   INTEGER :: local_debug_level   
+   REAL(8) :: factor_geom, fraction_ion_injection
+   REAL(8) :: add_N_i_to_emit
+   INTEGER :: s, n, m, nwo, k
+   REAL(8) :: x, y, vx, vy, vz
+   INTEGER :: tag   
+   REAL(8) :: nb_ions_to_inject
+   REAL(8) :: factor_temperature
+   INTEGER :: end_point
+   INTEGER :: number_segment
+   REAL(8) :: middle_object
+
+   ! Declare routine name and debug level
+   routine = 'PERFORM_ION_EMISSION_FROM_BO'
+   local_debug_level = 1
+
+   CALL print_debug( routine,local_debug_level)         
+
+   IF (c_N_of_local_object_parts.LE.0) RETURN
+
+   s = 1 
+   ! in a cluster, all processes have same copy of c_local_object_part (except c_local_object_part%segment_number) and c_index_of_local_object_part_*
+   ! all processes have same copy of whole_object
+   ! therefore each process in a cluster can calculate the number of particles to inject due to constant emission from bondary objects itself
+   ! that is without additional communications with the master
+   
+      ! boundary objects along the left edge of the cluster
+      DO n = 1, c_N_of_local_object_parts_left
+         m = c_index_of_local_object_part_left(n)
+         add_N_i_to_emit = zero
+         nwo = c_local_object_part(m)%object_number
+         nb_ions_to_inject = whole_object(nwo)%ion_flux_value*delta_t_s*N_subcycles/weight_ptcl
+         IF (nb_ions_to_inject<=zero) CYCLE
+         IF (c_left_top_corner_type==FLAT_WALL_LEFT) THEN
+         ! account for overlapping
+            add_N_i_to_emit = nb_ions_to_inject * DBLE(MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart ) / DBLE(whole_object(nwo)%L) 
+         ELSE
+            add_N_i_to_emit = DBLE( nb_ions_to_inject * DBLE(c_local_object_part(m)%jend - c_local_object_part(m)%jstart ) / DBLE(whole_object(nwo)%L) )
+         END IF
+   
+         ! account for emission split between multiple processes
+         add_N_i_to_emit = add_N_i_to_emit / N_processes_cluster
+         fraction_ion_injection = add_N_i_to_emit - INT(add_N_i_to_emit)
+         IF (well_random_number().LT.fraction_ion_injection) add_N_i_to_emit = add_N_i_to_emit + one
+
+         factor_temperature = SQRT( whole_object(nwo)%ion_temperature_normal / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
+         DO k = 1, INT(add_N_i_to_emit)
+            CALL GetInjMaxwellVelocity(vx)
+            vx = vx * factor_temperature + whole_object(nwo)%ion_additional_mean_velocity_value
+            CALL GetMaxwellVelocity(vy)
+            CALL GetMaxwellVelocity(vz)
+            vy = vy * factor_temperature
+            vz = vz * factor_temperature
+            tag = nwo
+            IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN 
+               y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
+               y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
+            ELSE
+            ! cluster which has no overlapping from above at the top left corner
+               y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
+               y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
+            END IF
+            x = DBLE(c_indx_x_min) + N_subcycles*vx*well_random_number()
+            CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, tag)
+         END DO
+      END DO   !### DO n = 1, c_N_of_local_object_parts_left
+
+      ! boundary objects along the top edge of the cluster
+      DO n = 1, c_N_of_local_object_parts_above
+         m = c_index_of_local_object_part_above(n)
+         add_N_i_to_emit = zero
+         nwo = c_local_object_part(m)%object_number
+         nb_ions_to_inject = whole_object(nwo)%ion_flux_value*delta_t_s*N_subcycles/weight_ptcl
+         IF (nb_ions_to_inject<=zero) CYCLE
+
+         IF (c_right_top_corner_type==FLAT_WALL_ABOVE) THEN
+         ! account for overlapping
+            end_point = MIN(c_local_object_part(m)%iend, c_indx_x_max-1)
+         ELSE
+            end_point = c_local_object_part(m)%iend
+         END IF
+         factor_geom = DBLE(end_point - c_local_object_part(m)%istart ) / DBLE(whole_object(nwo)%L) 
+         IF (i_cylindrical==2) THEN
+            number_segment = whole_object(n)%number_of_segments
+            middle_object = DBLE(whole_object(nwo)%segment(number_segment)%iend + whole_object(nwo)%segment(1)%istart)      
+            factor_geom = DBLE(end_point**2 - c_local_object_part(m)%istart**2 ) / DBLE(middle_object*whole_object(nwo)%L) 
+         END IF         
+         add_N_i_to_emit = nb_ions_to_inject * factor_geom
+   
+         ! account for emission split between multiple processes
+         add_N_i_to_emit = add_N_i_to_emit / N_processes_cluster
+         fraction_ion_injection = add_N_i_to_emit - INT(add_N_i_to_emit)
+         IF (well_random_number().LT.fraction_ion_injection) add_N_i_to_emit = add_N_i_to_emit + one
+
+         factor_temperature = SQRT( whole_object(nwo)%ion_temperature_normal / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
+         DO k = 1, INT(add_N_i_to_emit)
+            CALL GetInjMaxwellVelocity(vy)
+            vy = - (vy * factor_temperature + whole_object(nwo)%ion_additional_mean_velocity_value)
+            CALL GetMaxwellVelocity(vx)
+            CALL GetMaxwellVelocity(vz)
+            vx = vx * factor_temperature
+            vz = vz * factor_temperature
+            tag = nwo
+            IF (i_cylindrical==0) THEN
+               x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( end_point - c_local_object_part(m)%istart )
+            ELSE
+               x = SQRT(DBLE(c_local_object_part(m)%istart**2) + well_random_number() * DBLE( end_point**2 - c_local_object_part(m)%istart**2 ))
+            ENDIF
+            IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN  
+               x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+            ELSE
+               x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
+            END IF
+            y = DBLE(c_indx_y_min) + N_subcycles*vy*well_random_number()
+            CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, tag)
+         END DO
+      END DO   !### DO n = 1, c_N_of_local_object_parts_above      
+   
+      ! boundary objects along the right edge of the cluster
+      DO n = 1, c_N_of_local_object_parts_right
+         m = c_index_of_local_object_part_right(n)
+         nwo = c_local_object_part(m)%object_number
+         add_N_i_to_emit = zero
+         nb_ions_to_inject = whole_object(nwo)%ion_flux_value*delta_t_s*N_subcycles/weight_ptcl
+         IF (nb_ions_to_inject<=zero) CYCLE
+         IF (c_right_top_corner_type==FLAT_WALL_RIGHT) THEN
+         ! account for overlapping
+            add_N_i_to_emit = nb_ions_to_inject * DBLE(MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart ) / DBLE(whole_object(nwo)%L)
+         ELSE
+            add_N_i_to_emit = nb_ions_to_inject * DBLE(c_local_object_part(m)%jend - c_local_object_part(m)%jstart ) / DBLE(whole_object(nwo)%L) 
+         END IF
+   
+         ! account for emission split between multiple processes
+         add_N_i_to_emit = add_N_i_to_emit / N_processes_cluster
+         fraction_ion_injection = add_N_i_to_emit - INT(add_N_i_to_emit)
+         IF (well_random_number()<fraction_ion_injection) add_N_i_to_emit = add_N_i_to_emit + one       
+         
+         factor_temperature = SQRT( whole_object(nwo)%ion_temperature_normal / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
+         DO k = 1, INT(add_N_i_to_emit)
+            CALL GetInjMaxwellVelocity(vx)
+            vx = - (vx * factor_temperature + whole_object(nwo)%ion_additional_mean_velocity_value)
+            CALL GetMaxwellVelocity(vy)
+            CALL GetMaxwellVelocity(vz)
+            vy = vy * factor_temperature
+            vz = vz * factor_temperature
+            tag = nwo
+            IF (c_right_top_corner_type==FLAT_WALL_RIGHT) THEN 
+               y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
+               y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
+            ELSE
+               y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
+               y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
+            END IF
+            x = DBLE(c_indx_x_min) + N_subcycles*vx*well_random_number()
+            CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, tag)
+         END DO
+      END DO   !###  DO n = 1, c_N_of_local_object_parts_right
+   
+      ! boundary objects along the bottom edge of the cluster
+      DO n = 1, c_N_of_local_object_parts_below
+         m = c_index_of_local_object_part_below(n)
+         add_N_i_to_emit = zero
+         nwo = c_local_object_part(m)%object_number
+         nb_ions_to_inject = whole_object(nwo)%ion_flux_value*delta_t_s*N_subcycles/weight_ptcl
+         IF (nb_ions_to_inject<=zero) CYCLE
+         IF (c_right_bottom_corner_type==FLAT_WALL_BELOW) THEN
+            ! account for overlapping
+            end_point = MIN(c_local_object_part(m)%iend, c_indx_x_max-1)
+         ELSE
+            end_point = c_local_object_part(m)%iend
+         END IF
+         factor_geom = DBLE(end_point - c_local_object_part(m)%istart ) / DBLE(whole_object(nwo)%L) 
+
+         IF (i_cylindrical==2) THEN
+            number_segment = whole_object(n)%number_of_segments
+            middle_object = DBLE(whole_object(nwo)%segment(number_segment)%iend + whole_object(nwo)%segment(1)%istart)      
+            factor_geom = DBLE(end_point**2 - c_local_object_part(m)%istart**2 ) / DBLE(middle_object*whole_object(nwo)%L) 
+         END IF         
+         add_N_i_to_emit = nb_ions_to_inject * factor_geom         
+         
+         ! account for emission split between multiple processes
+         add_N_i_to_emit = add_N_i_to_emit / N_processes_cluster
+         fraction_ion_injection = add_N_i_to_emit - INT(add_N_i_to_emit)
+         IF (well_random_number().LT.fraction_ion_injection) add_N_i_to_emit = add_N_i_to_emit + one
+   
+         factor_temperature = SQRT( whole_object(nwo)%ion_temperature_normal / T_e_eV) / (N_max_vel * SQRT(Ms(s)))
+         DO k = 1, INT(add_N_i_to_emit)
+            CALL GetInjMaxwellVelocity(vy)
+            ! vy = factor_temperature*SQRT(-LOG(well_random_number())) + whole_object(nwo)%ion_additional_mean_velocity_value
+            ! print*,'vy',(vy * factor_temperature + whole_object(nwo)%ion_additional_mean_velocity_value/V_scale_ms)*V_scale_ms,vy * factor_temperature*V_scale_ms,whole_object(nwo)%ion_additional_mean_velocity_value
+            vy = vy * factor_temperature + whole_object(nwo)%ion_additional_mean_velocity_value
+            ! IF (Rank_of_process==0) print*,'vth,vmoy,tot',vy * factor_temperature, whole_object(nwo)%ion_additional_mean_velocity_value, vy * factor_temperature + whole_object(nwo)%ion_additional_mean_velocity_value
+            CALL GetMaxwellVelocity(vx)
+            CALL GetMaxwellVelocity(vz)
+            vx = vx * factor_temperature
+            vz = vz * factor_temperature
+            tag = nwo
+            IF (i_cylindrical==0) THEN
+               x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( end_point - c_local_object_part(m)%istart )
+            ELSE
+               x = SQRT(DBLE(c_local_object_part(m)%istart**2) + well_random_number() * DBLE( end_point**2 - c_local_object_part(m)%istart**2 ))
+            ENDIF
+            IF (c_right_bottom_corner_type.EQ.FLAT_WALL_BELOW) THEN  
+               x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+            ELSE
+               x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
+            END IF
+            y = DBLE(c_indx_y_min) + N_subcycles*vy*well_random_number()
+            ! print*,'x,y,k,nb_inj',x,y,k,INT(add_N_i_to_emit), Rank_of_process
+            CALL ADD_ION_TO_ADD_LIST(s,x, y, vx, vy, vz, tag)
+         END DO         
+      END DO   !###   DO n = 1, c_N_of_local_object_parts_below  
+ 
+ END SUBROUTINE PERFORM_ION_EMISSION_FROM_BO 
+
 !--------------------------------------------
 !
 SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
@@ -1055,6 +1426,10 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
   INTEGER :: local_debug_level
 
   INTEGER :: avg_compute_flag  
+  INTEGER :: end_point
+  INTEGER :: number_segment
+  REAL(8) :: middle_object  
+  REAL(8) :: factor_geom, fraction_electron_injection
   
   local_debug_level = 2
 
@@ -1067,333 +1442,299 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP
 ! therefore each process in a cluster can calculate the number of particles to inject due to constant emission from bondary objects itself
 ! that is without additional communications with the master
 
-! boundary objects along the left edge of the cluster
-  DO n = 1, c_N_of_local_object_parts_left
-     m = c_index_of_local_object_part_left(n)
-     add_N_e_to_emit = 0.0_8
-     nwo = c_local_object_part(m)%object_number
-     IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
-     IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN
-! account for overlapping
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
-     ELSE
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(c_local_object_part(m)%jend - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
-     END IF
+   ! boundary objects along the left edge of the cluster
+   DO n = 1, c_N_of_local_object_parts_left
+      m = c_index_of_local_object_part_left(n)
+      add_N_e_to_emit = 0.0_8
+      nwo = c_local_object_part(m)%object_number
+      IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
+      IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN
+         ! account for overlapping
+         add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
+      ELSE
+         add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(c_local_object_part(m)%jend - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
+      END IF
 
-! account for emission split between multiple processes
-     add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
+         ! account for emission split between multiple processes
+      add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
 
-! integer part of emission
-     DO k = 1, INT(add_N_e_to_emit)
-        IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN 
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
-        ELSE
-! cluster which has no overlapping from above at the top left corner
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
-        END IF
-        x = DBLE(c_indx_x_min) + 1.0d-6   !???
+      ! integer part of emission
+      DO k = 1, INT(add_N_e_to_emit)
+         IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN 
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
+         ELSE
+            ! cluster which has no overlapping from above at the top left corner
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
+         END IF
+         x = DBLE(c_indx_x_min) + 1.0d-6   !???
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vx)
-           vx = vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vx)
-           vx = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vy)
-        CALL GetMaxwellVelocity(vz)
-        vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
+         IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
+            ! thermal emission
+            CALL GetInjMaxwellVelocity(vx)
+            vx = vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
+         ELSE
+            ! warm beam
+            CALL GetMaxwellVelocity(vx)
+            vx = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
+         END IF
+         CALL GetMaxwellVelocity(vy)
+         CALL GetMaxwellVelocity(vz)
+         vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         tag = nwo !0
 
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END DO
+         CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+         whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
+      END DO
 
-! fractional (probabilistic) part of emission
-     add_N_e_to_emit = add_N_e_to_emit - INT(add_N_e_to_emit)
-     IF (well_random_number().LT.add_N_e_to_emit) THEN
-! perform emission
-        IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN 
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
-        ELSE
-! cluster which has no overlapping from above at the top left corner
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
-        END IF
-        x = DBLE(c_indx_x_min) + 1.0d-6   !???
+      ! fractional (probabilistic) part of emission
+      add_N_e_to_emit = add_N_e_to_emit - INT(add_N_e_to_emit)
+      IF (well_random_number().LT.add_N_e_to_emit) THEN
+         ! perform emission
+         IF (c_left_top_corner_type.EQ.FLAT_WALL_LEFT) THEN 
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
+         ELSE
+            ! cluster which has no overlapping from above at the top left corner
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
+         END IF
+         x = DBLE(c_indx_x_min) + 1.0d-6   !???
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vx)
-           vx = vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vx)
-           vx = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vy)
-        CALL GetMaxwellVelocity(vz)
-        vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
+         IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
+            ! thermal emission
+            CALL GetInjMaxwellVelocity(vx)
+            vx = vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
+         ELSE
+            ! warm beam
+            CALL GetMaxwellVelocity(vx)
+            vx = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
+         END IF
+         CALL GetMaxwellVelocity(vy)
+         CALL GetMaxwellVelocity(vz)
+         vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         tag = nwo !0
 
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END IF
+         CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+         whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
+      END IF
 
-  END DO   !### DO n = 1, c_N_of_local_object_parts_left
+   END DO   !### DO n = 1, c_N_of_local_object_parts_left
 
-! boundary objects along the top edge of the cluster
-  DO n = 1, c_N_of_local_object_parts_above
-     m = c_index_of_local_object_part_above(n)
-     add_N_e_to_emit = 0.0_8
-     nwo = c_local_object_part(m)%object_number
-     IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
-     IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN
-! account for overlapping
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart ) / REAL(whole_object(nwo)%L) )
-     ELSE
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(c_local_object_part(m)%iend - c_local_object_part(m)%istart) / REAL(whole_object(nwo)%L) )
-     END IF
+   ! boundary objects along the top edge of the cluster
+   DO n = 1, c_N_of_local_object_parts_above
+      m = c_index_of_local_object_part_above(n)
+      add_N_e_to_emit = 0.0_8
+      nwo = c_local_object_part(m)%object_number
+      IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
 
-! account for emission split between multiple processes
-     add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
+      IF (c_right_top_corner_type==FLAT_WALL_ABOVE) THEN
+         ! account for overlapping
+            end_point = MIN(c_local_object_part(m)%iend, c_indx_x_max-1)
+         ELSE
+            end_point = c_local_object_part(m)%iend
+         END IF
+         factor_geom = DBLE(end_point - c_local_object_part(m)%istart ) / DBLE(whole_object(nwo)%L) 
+         IF (i_cylindrical==2) THEN
+            number_segment = whole_object(n)%number_of_segments
+            middle_object = DBLE(whole_object(nwo)%segment(number_segment)%iend + whole_object(nwo)%segment(1)%istart)      
+            factor_geom = DBLE(end_point**2 - c_local_object_part(m)%istart**2 ) / DBLE(middle_object*whole_object(nwo)%L) 
+         END IF         
+         add_N_e_to_emit = whole_object(nwo)%N_electron_constant_emit * factor_geom      
 
-! integer part of emission
-     DO k = 1, INT(add_N_e_to_emit)
-        IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN  !Rank_of_master_right.GE.0) THEN
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
-        ELSE
-! cluster which has no overlapping from right at the top right corner
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max) - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
-        END IF
-        y = DBLE(c_indx_y_max) - 1.0d-6   !???
+      ! account for emission split between multiple processes
+      add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
+      fraction_electron_injection = add_N_e_to_emit - INT(add_N_e_to_emit)
+      IF (well_random_number().LT.fraction_electron_injection) add_N_e_to_emit = add_N_e_to_emit + one      
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vy)
-           vy = -vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vy)
-           vy = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vx)
-        CALL GetMaxwellVelocity(vz)
-        vx = vx * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
+      ! integer part of emission
+      DO k = 1, INT(add_N_e_to_emit)
+         IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
+            ! thermal emission
+            CALL GetInjMaxwellVelocity(vy)
+            vy = -vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
+         ELSE
+            ! warm beam
+            CALL GetMaxwellVelocity(vy)
+            vy = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
+         END IF
+         CALL GetMaxwellVelocity(vx)
+         CALL GetMaxwellVelocity(vz)
+         vx = vx * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         tag = nwo !0     
+         IF (i_cylindrical==0) THEN
+            x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( end_point - c_local_object_part(m)%istart )
+         ELSE
+            x = SQRT(DBLE(c_local_object_part(m)%istart**2) + well_random_number() * DBLE( end_point**2 - c_local_object_part(m)%istart**2 ))
+         ENDIF
+         IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN  
+            x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+         ELSE
+            x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
+         END IF
+         y = DBLE(c_indx_y_max) + vy*well_random_number()             
+         ! IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN  !Rank_of_master_right.GE.0) THEN
+         !    x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart )
+         !    x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+         ! ELSE
+         !    ! cluster which has no overlapping from right at the top right corner
+         !    x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max) - c_local_object_part(m)%istart )
+         !    x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
+         ! END IF
+         ! y = DBLE(c_indx_y_max) - 1.0d-6   !???
+         CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+         whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
+      END DO
 
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END DO
 
-! fractional (probabilistic) part of emission
-     add_N_e_to_emit = add_N_e_to_emit - INT(add_N_e_to_emit)
-     IF (well_random_number().LT.add_N_e_to_emit) THEN
-! perform emission
-        IF (c_right_top_corner_type.EQ.FLAT_WALL_ABOVE) THEN  !Rank_of_master_right.GE.0) THEN
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
-        ELSE
-! cluster which has no overlapping from right at the top right corner
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max) - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
-        END IF
-        y = DBLE(c_indx_y_max) - 1.0d-6   !???
+   END DO   !###   DO n = 1, c_N_of_local_object_parts_above
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vy)
-           vy = -vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vy)
-           vy = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vx)
-        CALL GetMaxwellVelocity(vz)
-        vx = vx * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
+   ! boundary objects along the right edge of the cluster
+   DO n = 1, c_N_of_local_object_parts_right
+      m = c_index_of_local_object_part_right(n)
+      add_N_e_to_emit = 0.0_8
+      nwo = c_local_object_part(m)%object_number
+      IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
+      IF (c_right_top_corner_type.EQ.FLAT_WALL_RIGHT) THEN
+         ! account for overlapping
+         add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
+      ELSE
+         add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(c_local_object_part(m)%jend - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
+      END IF
 
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END IF
+      ! account for emission split between multiple processes
+      add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
 
-  END DO   !###   DO n = 1, c_N_of_local_object_parts_above
+      ! integer part of emission
+      DO k = 1, INT(add_N_e_to_emit)
+         IF (c_right_top_corner_type.EQ.FLAT_WALL_RIGHT) THEN 
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
+         ELSE
+            ! cluster which has no overlapping from above at the top left corner
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
+         END IF
+         x = DBLE(c_indx_x_max) - 1.0d-6   !???
 
-! boundary objects along the right edge of the cluster
-  DO n = 1, c_N_of_local_object_parts_right
-     m = c_index_of_local_object_part_right(n)
-     add_N_e_to_emit = 0.0_8
-     nwo = c_local_object_part(m)%object_number
-     IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
-     IF (c_right_top_corner_type.EQ.FLAT_WALL_RIGHT) THEN
-! account for overlapping
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
-     ELSE
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(c_local_object_part(m)%jend - c_local_object_part(m)%jstart ) / REAL(whole_object(nwo)%L) )
-     END IF
+         IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
+            ! thermal emission
+            CALL GetInjMaxwellVelocity(vx)
+            vx = -vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
+         ELSE
+            ! warm beam
+            CALL GetMaxwellVelocity(vx)
+            vx = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
+         END IF
+         CALL GetMaxwellVelocity(vy)
+         CALL GetMaxwellVelocity(vz)
+         vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         tag = nwo !0
 
-! account for emission split between multiple processes
-     add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
+         CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+         whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
+      END DO
 
-! integer part of emission
-     DO k = 1, INT(add_N_e_to_emit)
-        IF (c_right_top_corner_type.EQ.FLAT_WALL_RIGHT) THEN 
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
-        ELSE
-! cluster which has no overlapping from above at the top left corner
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
-        END IF
-        x = DBLE(c_indx_x_max) - 1.0d-6   !???
+      ! fractional (probabilistic) part of emission
+      add_N_e_to_emit = add_N_e_to_emit - INT(add_N_e_to_emit)
+      IF (well_random_number().LT.add_N_e_to_emit) THEN
+         ! perform emission
+         IF (c_right_top_corner_type.EQ.FLAT_WALL_RIGHT) THEN 
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
+         ELSE
+            ! cluster which has no overlapping from above at the top left corner
+            y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
+            y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
+         END IF
+         x = DBLE(c_indx_x_max) - 1.0d-6   !???
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vx)
-           vx = -vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vx)
-           vx = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vy)
-        CALL GetMaxwellVelocity(vz)
-        vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
+         IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
+            ! thermal emission
+            CALL GetInjMaxwellVelocity(vx)
+            vx = -vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
+         ELSE
+            ! warm beam
+            CALL GetMaxwellVelocity(vx)
+            vx = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
+         END IF
+         CALL GetMaxwellVelocity(vy)
+         CALL GetMaxwellVelocity(vz)
+         vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         tag = nwo !0
 
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END DO
+         CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+         whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
+      END IF
 
-! fractional (probabilistic) part of emission
-     add_N_e_to_emit = add_N_e_to_emit - INT(add_N_e_to_emit)
-     IF (well_random_number().LT.add_N_e_to_emit) THEN
-! perform emission
-        IF (c_right_top_corner_type.EQ.FLAT_WALL_RIGHT) THEN 
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%jend, c_indx_y_max-1) - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max-1))
-        ELSE
-! cluster which has no overlapping from above at the top left corner
-           y = DBLE(c_local_object_part(m)%jstart) + well_random_number() * DBLE( c_local_object_part(m)%jend - c_local_object_part(m)%jstart )
-           y = MIN(MAX(y, DBLE(c_indx_y_min)), DBLE(c_indx_y_max))
-        END IF
-        x = DBLE(c_indx_x_max) - 1.0d-6   !???
+   END DO   !###  DO n = 1, c_N_of_local_object_parts_right
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vx)
-           vx = -vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vx)
-           vx = -MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vx * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vy)
-        CALL GetMaxwellVelocity(vz)
-        vy = vy * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
+   ! boundary objects along the bottom edge of the cluster
+   DO n = 1, c_N_of_local_object_parts_below
+      m = c_index_of_local_object_part_below(n)
+      add_N_e_to_emit = 0.0_8
+      nwo = c_local_object_part(m)%object_number
+      IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
+      IF (c_right_bottom_corner_type==FLAT_WALL_BELOW) THEN
+         ! account for overlapping
+         end_point = MIN(c_local_object_part(m)%iend, c_indx_x_max-1)
+      ELSE
+         end_point = c_local_object_part(m)%iend
+      END IF
 
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END IF
+      factor_geom = DBLE(end_point - c_local_object_part(m)%istart ) / DBLE(whole_object(nwo)%L) 
 
-  END DO   !###  DO n = 1, c_N_of_local_object_parts_right
+      IF (i_cylindrical==2) THEN
+         number_segment = whole_object(n)%number_of_segments
+         middle_object = DBLE(whole_object(nwo)%segment(number_segment)%iend + whole_object(nwo)%segment(1)%istart)      
+         factor_geom = DBLE(end_point**2 - c_local_object_part(m)%istart**2 ) / DBLE(middle_object*whole_object(nwo)%L) 
+      END IF         
+      add_N_e_to_emit = whole_object(nwo)%N_electron_constant_emit * factor_geom             
 
-! boundary objects along the bottom edge of the cluster
-  DO n = 1, c_N_of_local_object_parts_below
-     m = c_index_of_local_object_part_below(n)
-     add_N_e_to_emit = 0.0_8
-     nwo = c_local_object_part(m)%object_number
-     IF (whole_object(nwo)%N_electron_constant_emit.LE.0.0) CYCLE
-     IF (c_right_bottom_corner_type.EQ.FLAT_WALL_BELOW) THEN
-! account for overlapping
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart ) / REAL(whole_object(nwo)%L) )
-     ELSE
-        add_N_e_to_emit = DBLE( whole_object(nwo)%N_electron_constant_emit * REAL(c_local_object_part(m)%iend - c_local_object_part(m)%istart ) / REAL(whole_object(nwo)%L) )
-     END IF
+      ! account for emission split between multiple processes
+      add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
+      fraction_electron_injection = add_N_e_to_emit - INT(add_N_e_to_emit)
+      IF (well_random_number().LT.fraction_electron_injection) add_N_e_to_emit = add_N_e_to_emit + one      
 
-! account for emission split between multiple processes
-     add_N_e_to_emit = add_N_e_to_emit / N_processes_cluster
+      ! emission
+      DO k = 1, INT(add_N_e_to_emit)
+         IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
+            ! thermal emission
+            CALL GetInjMaxwellVelocity(vy)
+            vy = vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
+         ELSE
+            ! warm beam
+            CALL GetMaxwellVelocity(vy)
+            vy = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
+         END IF
+         CALL GetMaxwellVelocity(vx)
+         CALL GetMaxwellVelocity(vz)
+         vx = vx * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
+         tag = nwo !0         
+         IF (i_cylindrical==0) THEN
+            x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( end_point - c_local_object_part(m)%istart )
+         ELSE
+            x = SQRT(DBLE(c_local_object_part(m)%istart**2) + well_random_number() * DBLE( end_point**2 - c_local_object_part(m)%istart**2 ))
+         ENDIF
+         IF (c_right_bottom_corner_type.EQ.FLAT_WALL_BELOW) THEN  
+            x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
+         ELSE
+            x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
+         END IF
+         y = DBLE(c_indx_y_min) + vy*well_random_number()         
 
-! emission
-     DO k = 1, INT(add_N_e_to_emit)
-        IF (c_right_bottom_corner_type.EQ.FLAT_WALL_BELOW) THEN 
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
-        ELSE
-! cluster which has no overlapping from right at the top right corner
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( c_local_object_part(m)%iend - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
-        END IF
-        y = DBLE(c_indx_y_min) + 1.0d-6   !???
+         CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
+         whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
+      END DO
 
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vy)
-           vy = vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vy)
-           vy = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vx)
-        CALL GetMaxwellVelocity(vz)
-        vx = vx * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
-
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END DO
-
-! fractional (probabilistic) part of emission
-     add_N_e_to_emit = add_N_e_to_emit - INT(add_N_e_to_emit)
-     IF (well_random_number().LT.add_N_e_to_emit) THEN
-! perform emission
-        IF (c_right_bottom_corner_type.EQ.FLAT_WALL_BELOW) THEN 
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( MIN(c_local_object_part(m)%iend, c_indx_x_max-1) - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max-1))
-        ELSE
-! cluster which has no overlapping from right at the top right corner
-           x = DBLE(c_local_object_part(m)%istart) + well_random_number() * DBLE( c_local_object_part(m)%iend - c_local_object_part(m)%istart )
-           x = MIN(MAX(x, DBLE(c_indx_x_min)), DBLE(c_indx_x_max))
-        END IF
-        y = DBLE(c_indx_y_min) + 1.0d-6   !???
-
-        IF (whole_object(nwo)%model_constant_emit.EQ.0) THEN
-! thermal emission
-           CALL GetInjMaxwellVelocity(vy)
-           vy = vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit
-        ELSE
-! warm beam
-           CALL GetMaxwellVelocity(vy)
-           vy = MAX(0.0_8, whole_object(nwo)%v_ebeam_constant_emit + vy * whole_object(nwo)%factor_convert_vinj_normal_constant_emit)
-        END IF
-        CALL GetMaxwellVelocity(vx)
-        CALL GetMaxwellVelocity(vz)
-        vx = vx * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        vz = vz * whole_object(nwo)%factor_convert_vinj_parallel_constant_emit
-        tag = nwo !0
-
-        CALL ADD_ELECTRON_TO_ADD_LIST(x, y, vx, vy, vz, tag)
-        whole_object(nwo)%electron_emit_count = whole_object(nwo)%electron_emit_count + 1
-     END IF
-
-  END DO   !###   DO n = 1, c_N_of_local_object_parts_below
+   END DO   !###   DO n = 1, c_N_of_local_object_parts_below
 
 ! save number of emitted particles, similar to COLLECT_ELECTRON_BOUNDARY_HITS  ???? make it a separate routine???
 
@@ -1453,7 +1794,7 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
   USE ClusterAndItsBoundaries
   USE SetupValues
   USE AvgSnapshots, ONLY: avg_flux_and_history
-
+  USE mod_print, ONLY: print_parser_error
   USE rng_wrapper
 
   IMPLICIT NONE
@@ -1481,6 +1822,8 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
   INTEGER ALLOC_ERR
 
   INTEGER :: avg_compute_flag
+
+  CHARACTER(LEN=string_length) :: message
 
   IF (N_of_inner_objects.EQ.0) RETURN
 
@@ -1773,6 +2116,10 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
 
 !           add_N_e_to_emit = (whole_object(nio)%N_electron_constant_emit * DBLE(cross_i_max - cross_i_min) / DBLE(whole_object(nio)%L)) / N_processes_cluster
            add_N_e_to_emit = DBLE(whole_object(nio)%N_electron_constant_emit * REAL(count_open) / REAL(whole_object(nio)%L)) / N_processes_cluster
+            IF ( add_N_e_to_emit>zero .AND. i_cylindrical/=0) THEN
+               WRITE( message,'(A,I2,A)') 'Boundary ',nio,' is an inner object. Injection from bottom side in non Cartesian geometry has not been implemented yet.'
+               CALL print_parser_error( message )
+            END IF
 
 ! integer part of emission
            DO k = 1, INT(add_N_e_to_emit)
@@ -1904,6 +2251,10 @@ SUBROUTINE PERFORM_ELECTRON_EMISSION_SETUP_INNER_OBJECTS
 !           add_N_e_to_emit = (whole_object(nio)%N_electron_constant_emit * DBLE(cross_i_max - cross_i_min) / whole_object(nio)%L) / N_processes_cluster
            add_N_e_to_emit = DBLE(whole_object(nio)%N_electron_constant_emit * REAL(count_open) / REAL(whole_object(nio)%L)) / N_processes_cluster
 
+            IF ( add_N_e_to_emit>zero .AND. i_cylindrical/=0) THEN
+               WRITE( message,'(A,I2,A)') 'Boundary ',nio,' is an inner object. Injection from top side in non Cartesian geometry has not been implemented yet.'
+               CALL print_parser_error( message )
+            END IF           
 ! integer part of emission
            DO k = 1, INT(add_N_e_to_emit)
 
