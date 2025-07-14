@@ -158,7 +158,7 @@ SUBROUTINE PERFORM_ION_NEUTRAL_COLLISION
     real(8) sigmaL, sigmaP, sigmaT, sigma_cx, d0, a, Acx
     real(8) p_col, bmax_col, bmax_cx, bmax, b
     real(8) xi0, xi1, xi, chi, beta, beta0, theta, theta0, Fel, dtheta
-    real(8) cos_chi, sin_chi, phi
+    real(8) cos_chi, sin_chi, phi_ang
   
     beta0 = 1.001 ! beta > beta0 -> spiraling 
 
@@ -192,7 +192,7 @@ SUBROUTINE PERFORM_ION_NEUTRAL_COLLISION
           if (well_random_number().le.p_col) then ! perform collision
             collision_rcx(s)%counter = collision_rcx(s)%counter + 1
             beta = beta_inf * sqrt(well_random_number())
-            beta_cx = Acx * (Ekin/e_Cl)**(0.25)
+            
     
             ! create a virtual neutral particle
             call GetMaxwellVelocity(vxn)
@@ -214,11 +214,12 @@ SUBROUTINE PERFORM_ION_NEUTRAL_COLLISION
             g_perp = sqrt(gy**2 + gz**2)
     
             Ekin = 0.5 * mr * g**2
+            beta_cx = Acx * (Ekin/e_Cl)**(0.25)
     
-            phi = 2.0*pi*well_random_number()
-            hx = g_perp * cos(phi)
-            hy = -(gy*gx*cos(phi) + g*gz*sin(phi)) / g_perp                                                
-            hz = -(gz*gx*cos(phi) - g*gy*sin(phi)) / g_perp
+            phi_ang = 2.0*pi*well_random_number()
+            hx = g_perp * cos(phi_ang)
+            hy = -(gy*gx*cos(phi_ang) + g*gz*sin(phi_ang)) / g_perp                                                
+            hz = -(gz*gx*cos(phi_ang) - g*gy*sin(phi_ang)) / g_perp
     
             if (beta.GE.beta0) then ! beta > 1 ->  polarization scattering and maybe CX
               xi0 = sqrt(beta**2 - sqrt(beta**4 - 1))
@@ -257,10 +258,10 @@ SUBROUTINE PERFORM_ION_NEUTRAL_COLLISION
               
               ! VHS model -> random direction
               theta = acos(1.0 - 2.0*well_random_number())
-              phi = 2.0*pi*well_random_number()
+              phi_ang = 2.0*pi*well_random_number()
               Rx = cos(theta)
-              Ry = sin(theta) * cos(phi)
-              Rz = sin(theta) * sin(phi)
+              Ry = sin(theta) * cos(phi_ang)
+              Rz = sin(theta) * sin(phi_ang)
               
               ! post-collision velocities
               vx_ =  (1/(Mi + Mn)) * (Mi*vx + Mn*vxn - Mn*g*Rx)
