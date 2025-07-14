@@ -926,7 +926,7 @@ SUBROUTINE INITIATE_PARAMETERS
   READ (9, '(A1)') buf !"------dddd--------- number of ion cycles between internal cluster load balancing events")')
   READ (9, '(6x,i4)') dT_cluster_load_balance
   READ (9, '(A1)') buf !"------dddd--------- number of internal cluster load balancing events between global load balancing events")')
-  READ (9, '(6x,i4)') dT_global_load_balance
+  READ (9, '(4x,i6)') dT_global_load_balance
   READ (9, '(A1)') buf !"---ddddddd--------- number of ion cycles between checkpoints (no checkpoints if 0, MPIIO if >0, POSIX if <0)")')
   READ (9, '(3x,i7)') dT_save_checkpoint
   READ (9, '(A1)') buf !"---------d--------- use checkpoint (2/1/0 = Yes, to start/Yes, to continue/No)")')
@@ -1045,10 +1045,10 @@ SUBROUTINE INITIATE_PARAMETERS
      PRINT '("scale value of velocity V_scale_ms = ",e14.7," m/s")', V_scale_ms
   END IF
 
-  block_row    = 1 + Rank_of_process / N_blocks_x
+  block_row    = 1 + Rank_of_process / N_blocks_x ! row of block
   block_column = 1 + Rank_of_process - N_blocks_x * (block_row - 1)
 
-  c_row    = 1 + (block_row  - 1) / cluster_N_blocks_y
+  c_row    = 1 + (block_row  - 1) / cluster_N_blocks_y ! row of cluster
   c_column = 1 + (block_column-1) / cluster_N_blocks_x
 
   CALL IDENTIFY_BLOCK_NEIGHBOURS ! index limits for field-related arrays are set here
@@ -1665,8 +1665,12 @@ SUBROUTINE read_flexible_parameters
                i_no_poisson = 0
                WRITE( message,'(A)') "Potential is self consistantly calculated"//achar(10)
                CALL print_message( message,routine )
+            ELSE IF ( TRIM(caval)=="compute_first_step_only" ) THEN
+               i_no_poisson = 2
+               WRITE( message,'(A)') "Potential and electric field is self consistantly calculated at first time step only"//achar(10)
+               CALL print_message( message,routine )               
             ELSE
-               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" if i_no_poisson is used. Received: ',TRIM(caval),achar(10)
+               WRITE( message,'(A,A,A)') 'You must specify "yes" or "no" or "compute_first_step_only" if i_no_poisson is used. Received: ',TRIM(caval),achar(10)
                CALL print_parser_error( message )
             END IF
          END IF
@@ -3805,6 +3809,8 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
          CALL MPI_BCAST(yi_ecr(0:c_R_max), c_R_max+1, MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
       END IF
 
+   CALL MPI_BCAST(EX(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), (c_indx_x_max-c_indx_x_min+1)*(c_indx_y_max-c_indx_y_min+1), MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
+   CALL MPI_BCAST(EY(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), (c_indx_x_max-c_indx_x_min+1)*(c_indx_y_max-c_indx_y_min+1), MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
 
   ELSE
 
@@ -3828,6 +3834,9 @@ SUBROUTINE DISTRIBUTE_CLUSTER_PARAMETERS
      ALLOCATE(EY(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
      ALLOCATE(acc_EX(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
      ALLOCATE(acc_EY(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR)
+     
+     CALL MPI_BCAST(EX(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), (c_indx_x_max-c_indx_x_min+1)*(c_indx_y_max-c_indx_y_min+1), MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
+     CALL MPI_BCAST(EY(c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), (c_indx_x_max-c_indx_x_min+1)*(c_indx_y_max-c_indx_y_min+1), MPI_DOUBLE_PRECISION, 0, COMM_CLUSTER, ierr) 
 
       IF (Coulomb_flag) THEN ! for non-master process the array is broadcast to process the collisions    
          IF (ALLOCATED(acc_rho_e)) DEALLOCATE(acc_rho_e, STAT=ALLOC_ERR) ! allocate on cluster masters

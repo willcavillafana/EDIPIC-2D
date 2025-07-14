@@ -63,6 +63,7 @@ SUBROUTINE CALCULATE_OBJECT_POTENTIALS_2D
         END IF
      END DO
 
+     T_cntr = Start_T_cntr
      CALL SOLVE_POTENTIAL_WITH_PETSC
 
      DO j = indx_y_min, indx_y_max

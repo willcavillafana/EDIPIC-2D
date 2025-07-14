@@ -71,10 +71,12 @@ SUBROUTINE SOLVE_POTENTIAL_WITH_PETSC
   n=0
   rhsvalue = 0.0_8
   queue = 0.0_8
-  phi = 0.0_8
- 
-  ! If poisson is not required, then let everything to be zero
-  IF ( i_no_poisson==1 ) RETURN
+
+  ! If Poisson needs to be computed once at we are at first iteration, let's proceed 
+  IF (T_cntr/=Start_T_cntr .AND. i_no_poisson==2) RETURN
+   ! If poisson is not required or needs to be recalculated, then let everything to be zero
+   phi = 0.0_8
+   IF ( i_no_poisson==1 ) RETURN
 
   factor_rho = -one / N_of_particles_cell_dble
 
@@ -593,6 +595,9 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
 
   ! Deactivate electric field and poisson
    IF ( i_no_poisson==1 )   phi = zero
+   
+   ! Only compute electric field at first time step if I have asked "compute_first_step_only"
+   IF (T_cntr/=Start_T_cntr .AND. i_no_poisson==2 ) RETURN
 
    IF (cluster_rank_key.EQ.0) THEN
 
@@ -942,7 +947,7 @@ SUBROUTINE CALCULATE_ELECTRIC_FIELD
          END IF
 
          IF (Rank_horizontal_below.GE.0) THEN
-      ! ## 8 ## send down electric fields in the row above the bottom edge
+            ! ## 8 ## send down electric fields in the row above the bottom edge
             rbufer(1:n3)           = EX(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
             rbufer((n3+1):(n3+n3)) = EY(c_indx_x_min:c_indx_x_max, c_indx_y_min+1)
             CALL MPI_SEND(rbufer, n3+n3, MPI_DOUBLE_PRECISION, Rank_horizontal_below, Rank_horizontal, COMM_HORIZONTAL, request, ierr) 

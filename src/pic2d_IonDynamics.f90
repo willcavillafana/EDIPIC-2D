@@ -1734,7 +1734,7 @@ SUBROUTINE GATHER_ION_CHARGE_DENSITY
   ALLOCATE(rbufer(1:bufsize), STAT=ALLOC_ERR)
 
   rbufer = 0.0_8
-
+IF (T_cntr/=Start_T_cntr .AND. i_no_poisson==2) RETURN
 !!  IF (N_of_probes_cluster.GT.0) probe_Ni_cluster = 0.0_8
 
   DO s = 1, N_spec

@@ -1721,6 +1721,8 @@ SUBROUTINE GATHER_ELECTRON_CHARGE_DENSITY
 ! function
   REAL(8) Get_Surface_Charge_Inner_Object
 
+  ! If I need compute electric field and electric potential once, then I do not to interpolate electron quantities onto the grid, except if I require Coulomb collisions 
+  IF (T_cntr/=Start_T_cntr .AND. i_no_poisson==2 .AND. .NOT. Coulomb_flag) RETURN
   nm = 0 ! index 0 is for density (always used), 1 through 3 hold the velocity and 4 is for energy
   IF (Coulomb_flag) nm = 4   
   IF (cluster_rank_key==0) ALLOCATE(c_rho_ext(0:nm, c_indx_x_min:c_indx_x_max, c_indx_y_min:c_indx_y_max), STAT=ALLOC_ERR) ! temporary array on cluster masters

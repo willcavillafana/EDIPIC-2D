@@ -68,6 +68,7 @@ character(10) myfilename ! A_NNNN.dat
    
    ! If poisson is not required, then let everything to be zero
    IF ( i_no_poisson==1 ) RETURN
+   IF ( i_no_poisson==2 .AND. T_cntr/=Start_T_cntr) RETURN 
   ALLOCATE(rbufer(1:maxbufsize), STAT = ALLOC_ERR)
 
 
